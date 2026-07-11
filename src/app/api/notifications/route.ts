@@ -1,0 +1,103 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { sendEmail, contributionReminderEmail, loanOverdueEmail, adminSummaryEmail } from '@/lib/email'
+import { requireAdmin } from '@/lib/apiAuth'
+
+export async function GET() {
+  const auth = await requireAdmin()
+  if (auth.error) return auth.error
+
+  // Return preview stats (who would receive emails)
+  const [unpaidMembers, overdueLoans, recentLogs] = await Promise.all([
+    prisma.member.findMany({
+      where: { status: 'Active', thisMonth: 'NOT PAID', email: { not: null } },
+      select: { id: true, legalName: true, email: true, monthsActive: true, archiveLifetime: true },
+    }),
+    prisma.loan.findMany({
+      where: { overdue: true, status: 'Active' },
+      include: { borrower: { select: { email: true, legalName: true } } },
+    }),
+    prisma.emailLog.findMany({ orderBy: { sentAt: 'desc' }, take: 20 }),
+  ])
+
+  return NextResponse.json({ unpaidMembers, overdueLoans, recentLogs })
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireAdmin()
+  if (auth.error) return auth.error
+
+  const { type } = await req.json()
+
+  if (type === 'contribution_reminders') {
+    const members = await prisma.member.findMany({
+      where: { status: 'Active', thisMonth: 'NOT PAID', email: { not: null } },
+      select: { id: true, legalName: true, email: true, monthsActive: true, archiveLifetime: true },
+    })
+
+    let sent = 0, failed = 0
+    const logs = []
+
+    for (const m of members) {
+      const { subject, html } = contributionReminderEmail(m)
+      const result = await sendEmail(m.email!, subject, html)
+      logs.push({ type: 'contribution_reminder', recipient: m.email!, subject, status: result.ok ? 'sent' : 'failed' })
+      result.ok ? sent++ : failed++
+    }
+
+    await prisma.emailLog.createMany({ data: logs })
+    return NextResponse.json({ sent, failed, total: members.length })
+  }
+
+  if (type === 'loan_overdue') {
+    const loans = await prisma.loan.findMany({
+      where: { overdue: true, status: 'Active' },
+      include: { borrower: { select: { email: true, legalName: true, id: true } } },
+    })
+
+    let sent = 0, failed = 0
+    const logs = []
+
+    for (const loan of loans) {
+      if (!loan.borrower.email) continue
+      const { subject, html } = loanOverdueEmail(loan.borrower, loan)
+      const result = await sendEmail(loan.borrower.email, subject, html)
+      logs.push({ type: 'loan_overdue', recipient: loan.borrower.email, subject, status: result.ok ? 'sent' : 'failed' })
+      result.ok ? sent++ : failed++
+    }
+
+    await prisma.emailLog.createMany({ data: logs })
+    return NextResponse.json({ sent, failed, total: loans.length })
+  }
+
+  if (type === 'admin_summary') {
+    const adminEmail = process.env.ADMIN_EMAIL
+    if (!adminEmail) return NextResponse.json({ error: 'Set ADMIN_EMAIL in .env to receive summaries.' }, { status: 400 })
+
+    const [activeMembers, activeLoans, unpaidCount, overdueCount, contribAgg, loanAgg, recentContribs] = await Promise.all([
+      prisma.member.count({ where: { status: 'Active' } }),
+      prisma.loan.count({ where: { status: 'Active' } }),
+      prisma.member.count({ where: { status: 'Active', thisMonth: 'NOT PAID' } }),
+      prisma.loan.count({ where: { overdue: true } }),
+      prisma.contribution.aggregate({ _sum: { amount: true } }),
+      prisma.loan.aggregate({ where: { status: 'Active' }, _sum: { balanceRemaining: true } }),
+      prisma.contribution.findMany({ orderBy: { paymentDate: 'desc' }, take: 8, select: { memberName: true, amount: true, monthYear: true } }),
+    ])
+
+    const month = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })
+    const { subject, html } = adminSummaryEmail({
+      activeMembers, activeLoans, unpaidThisMonth: unpaidCount, overdueLoans: overdueCount,
+      totalContributions: contribAgg._sum.amount ?? 0,
+      outstandingBalance: loanAgg._sum.balanceRemaining ?? 0,
+      month, recentContribs,
+    })
+
+    const result = await sendEmail(adminEmail, subject, html)
+    await prisma.emailLog.create({ data: { type: 'admin_summary', recipient: adminEmail, subject, status: result.ok ? 'sent' : 'failed' } })
+
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 })
+    return NextResponse.json({ sent: 1, failed: 0, total: 1 })
+  }
+
+  return NextResponse.json({ error: 'Unknown notification type' }, { status: 400 })
+}

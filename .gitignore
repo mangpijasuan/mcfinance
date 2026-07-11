@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+.next-dev/
+out/
+
+# Env files with real secrets — keep only the .example templates tracked
+.env
+.env.local
+.env.production
+.env.postgres.local
+.env*.local
+!.env.example
+!.env.production.example
+!.env.postgres.local.example
+
+# Prisma local database
+prisma/dev.db
+prisma/dev.db-journal
+
+# Python venvs used by one-off scripts
+.venv/
+.pdfenv/
+
+# Logs
+*.log
+
+# Backups produced by scripts/backup-postgres.sh
+backups/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

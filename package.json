@@ -1,0 +1,45 @@
+{
+  "name": "mc-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "rm -rf .next && next dev",
+    "build": "next build",
+    "start": "next start",
+    "setup": "npm install && npx prisma generate && npx prisma db push && npx tsx prisma/seed.ts",
+    "db:push": "npx prisma db push",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:generate:postgres": "npx prisma generate --schema prisma/schema.postgres.prisma",
+    "db:push:postgres": "npx prisma db push --schema prisma/schema.postgres.prisma",
+    "db:seed:postgres": "npx tsx prisma/seed.ts",
+    "db:reset": "npx prisma db push --force-reset && npx tsx prisma/seed.ts",
+    "db:studio": "npx prisma studio",
+    "contributions:normalize": "node scripts/normalize-contributions.js",
+    "loans:audit": "node scripts/audit-loans.js",
+    "loans:sync-active-2024-2025": "node scripts/sync-active-historical-loans.js"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "^18",
+    "react-dom": "^18",
+    "@prisma/client": "^5.15.0",
+    "next-auth": "^4.24.7",
+    "bcryptjs": "^2.4.3",
+    "recharts": "^2.12.7",
+    "date-fns": "^3.6.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.400.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@types/bcryptjs": "^2.4.6",
+    "typescript": "^5",
+    "tailwindcss": "^3.4.4",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.39",
+    "prisma": "^5.15.0",
+    "tsx": "^4.16.0"
+  }
+}

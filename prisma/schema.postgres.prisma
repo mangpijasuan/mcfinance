@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("admin")
+  linkedMemberId String? @unique
+  createdAt DateTime @default(now())
+}
+
+model Member {
+  id                   String    @id
+  legalName            String
+  nickname             String?
+  joinDate             DateTime
+  status               String    @default("Active")
+  phoneNo              String?
+  email                String?
+  beneficiary          String?
+  notes                String?
+  archiveLifetime      Float     @default(0)
+  contributions2026    Float     @default(0)
+  overallContributions Float     @default(0)
+  monthsActive         Int       @default(0)
+  maxLoanAmount        Float     @default(0)
+  currentLoanBalance   Float     @default(0)
+  eligible             String    @default("NO")
+  activeAsBorrower     Int       @default(0)
+  activeAsCosigner     Int       @default(0)
+  lastContributionDate DateTime?
+  thisMonth            String    @default("NOT PAID")
+  riskFlag             String    @default("LOW")
+  portalEnabled        Boolean   @default(false)
+  portalPassword       String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  contributions   Contribution[]
+  loansAsBorrower Loan[]         @relation("Borrower")
+  loansAsCosigner Loan[]         @relation("Cosigner")
+  loanPayments    LoanPayment[]
+  yearlyTotals    YearlyTotal[]
+  withdrawals     Withdrawal[]
+}
+
+model YearlyTotal {
+  id       String @id @default(cuid())
+  memberId String
+  year     Int
+  amount   Float  @default(0)
+  member   Member @relation(fields: [memberId], references: [id])
+
+  @@unique([memberId, year])
+}
+
+model Contribution {
+  id             String   @id @default(cuid())
+  transactionId  String   @unique
+  memberId       String
+  memberName     String
+  paymentDate    DateTime
+  monthYear      String
+  amount         Float
+  paymentMethod  String?
+  receivedBy     String?
+  comments       String?
+  source         String?
+  entryTimestamp DateTime @default(now())
+  member         Member   @relation(fields: [memberId], references: [id])
+}
+
+model Loan {
+  id               String      @id @default(cuid())
+  loanId           String      @unique
+  borrowerId       String
+  borrowerName     String
+  cosignerId       String?
+  cosignerName     String?
+  loanDate         DateTime
+  termMonths       Int
+  loanAmount       Float
+  monthlyDue       Float
+  totalPaid        Float       @default(0)
+  balanceRemaining Float
+  status           String      @default("Active")
+  endDate          DateTime?
+  nextDueDate      DateTime?
+  overdue          Boolean     @default(false)
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  borrower Member        @relation("Borrower", fields: [borrowerId], references: [id])
+  cosigner Member?       @relation("Cosigner", fields: [cosignerId], references: [id])
+  payments  LoanPayment[]
+  agreement LoanAgreement?
+}
+
+model LoanPayment {
+  id            String   @id @default(cuid())
+  paymentId     String   @unique
+  loanId        String
+  borrowerId    String
+  borrowerName  String
+  paymentDate   DateTime
+  amount        Float
+  paymentMethod String?
+  receivedBy    String?
+  comments      String?
+  source        String?
+  monthYear     String?
+  createdAt     DateTime @default(now())
+
+  loan     Loan   @relation(fields: [loanId], references: [loanId])
+  borrower Member @relation(fields: [borrowerId], references: [id])
+}
+
+model HistoricalLoan {
+  id               String   @id @default(cuid())
+  loanId           String   @unique
+  year             Int
+  borrowerName     String
+  cosignerName     String?
+  loanDate         DateTime
+  endDate          DateTime?
+  loanAmount       Float
+  totalPaid        Float    @default(0)
+  balanceRemaining Float    @default(0)
+  status           String   @default("Paid Off")
+  createdAt        DateTime @default(now())
+}
+
+model Withdrawal {
+  id             String   @id @default(cuid())
+  withdrawalId   String   @unique
+  memberId       String
+  memberName     String
+  amount         Float
+  withdrawalDate DateTime
+  type           String   @default("Partial")
+  reason         String?
+  processedBy    String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  member Member @relation(fields: [memberId], references: [id])
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  type      String
+  recipient String
+  subject   String
+  status    String   @default("sent")
+  sentAt    DateTime @default(now())
+}
+
+model LoanAgreement {
+  id                String    @id @default(cuid())
+  agreementId       String    @unique
+  loanId            String    @unique
+  borrowerName      String
+  borrowerId        String
+  borrowerAddress   String?
+  borrowerCity      String?
+  borrowerState     String?
+  cosignerName      String?
+  cosignerId        String?
+  lenderName        String    @default("Millionaires Club")
+  applicationFee    Float     @default(0)
+  loanAmount        Float
+  monthlyPayment    Float
+  termMonths        Int
+  startDate         DateTime
+  endDate           DateTime
+  borrowerSignature String?
+  borrowerSignedAt  DateTime?
+  cosignerSignature String?
+  cosignerSignedAt  DateTime?
+  lenderSignature   String?
+  lenderSignedAt    DateTime?
+  status            String    @default("pending")
+  createdAt         DateTime  @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [loanId])
+}

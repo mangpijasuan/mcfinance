@@ -1,0 +1,86 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { requireAdmin } from '@/lib/apiAuth'
+import { nextPublicId } from '@/lib/publicIds'
+
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin()
+  if (auth.error) return auth.error
+
+  const s      = new URL(req.url).searchParams
+  const search = s.get('search') || ''
+  const type   = s.get('type') || ''
+  const page   = Math.max(1, parseInt(s.get('page') || '1'))
+  const limit  = parseInt(s.get('limit') || '50')
+
+  const where: any = {}
+  if (search) where.OR = [
+    { memberName: { contains: search } },
+    { memberId:   { contains: search } },
+  ]
+  if (type) where.type = type
+
+  const [withdrawals, total] = await Promise.all([
+    prisma.withdrawal.findMany({ where, orderBy: { withdrawalDate: 'desc' }, skip: (page - 1) * limit, take: limit }),
+    prisma.withdrawal.count({ where }),
+  ])
+  const totalAmount = await prisma.withdrawal.aggregate({ where, _sum: { amount: true } })
+
+  return NextResponse.json({ withdrawals, total, totalAmount: totalAmount._sum.amount ?? 0, page, pages: Math.ceil(total / limit) })
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireAdmin()
+  if (auth.error) return auth.error
+
+  const body   = await req.json()
+  const wId    = nextPublicId('WD')
+  const member = await prisma.member.findUnique({
+    where: { id: body.memberId },
+    select: {
+      legalName: true,
+      archiveLifetime: true,
+      contributions2026: true,
+      activeAsBorrower: true,
+      activeAsCosigner: true,
+      currentLoanBalance: true,
+    },
+  })
+  if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+
+  const amount = parseFloat(body.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return NextResponse.json({ error: 'Amount must be greater than 0.' }, { status: 400 })
+  }
+  const isFullExit = body.type === 'Full Exit'
+  if (isFullExit && (member.activeAsBorrower > 0 || member.activeAsCosigner > 0 || member.currentLoanBalance > 0)) {
+    return NextResponse.json(
+      { error: 'Member cannot fully exit while they have an active loan or co-signer obligation.' },
+      { status: 409 }
+    )
+  }
+
+  const withdrawal = await prisma.withdrawal.create({
+    data: {
+      withdrawalId: wId,
+      memberId: body.memberId,
+      memberName: member.legalName,
+      amount,
+      withdrawalDate: new Date(body.withdrawalDate),
+      type: body.type || 'Partial',
+      reason: body.reason || null,
+      processedBy: body.processedBy || null,
+      notes: body.notes || null,
+    },
+  })
+
+  // If full exit — mark member inactive
+  if (isFullExit) {
+    await prisma.member.update({
+      where: { id: body.memberId },
+      data: { status: 'Inactive', eligible: 'NO - Inactive' },
+    })
+  }
+
+  return NextResponse.json(withdrawal, { status: 201 })
+}
