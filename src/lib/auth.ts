@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { normalizeAdminRole } from './adminRoles'
+import { isRateLimited, recordFailedAttempt, clearAttempts } from './rateLimit'
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
@@ -18,10 +19,13 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(creds) {
         if (!creds?.email || !creds?.password) return null
+        const rateLimitKey = `admin:${creds.email.toLowerCase()}`
+        if (isRateLimited(rateLimitKey)) return null
         const admin = await prisma.admin.findUnique({ where: { email: creds.email } })
-        if (!admin) return null
+        if (!admin) { recordFailedAttempt(rateLimitKey); return null }
         const ok = await bcrypt.compare(creds.password, admin.password)
-        if (!ok) return null
+        if (!ok) { recordFailedAttempt(rateLimitKey); return null }
+        clearAttempts(rateLimitKey)
         return {
           id: admin.id,
           email: admin.email,
@@ -41,10 +45,13 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(creds) {
         if (!creds?.memberId || !creds?.password) return null
+        const rateLimitKey = `member:${creds.memberId.toLowerCase()}`
+        if (isRateLimited(rateLimitKey)) return null
         const member = await prisma.member.findUnique({ where: { id: creds.memberId } })
-        if (!member || !member.portalEnabled || !member.portalPassword) return null
+        if (!member || !member.portalEnabled || !member.portalPassword) { recordFailedAttempt(rateLimitKey); return null }
         const ok = await bcrypt.compare(creds.password, member.portalPassword)
-        if (!ok) return null
+        if (!ok) { recordFailedAttempt(rateLimitKey); return null }
+        clearAttempts(rateLimitKey)
         return {
           id: member.id,
           email: member.email || '',

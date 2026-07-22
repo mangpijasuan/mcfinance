@@ -17,14 +17,21 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   return NextResponse.json(loan)
 }
 
+const EDITABLE_LOAN_FIELDS = ['notes', 'status', 'overdue'] as const
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
   const body = await req.json()
-  const loan = await prisma.loan.update({
-    where: { loanId: params.id },
-    data: { ...body, nextDueDate: body.nextDueDate ? new Date(body.nextDueDate) : undefined },
-  })
+  const data: Record<string, unknown> = {}
+  for (const field of EDITABLE_LOAN_FIELDS) {
+    if (body[field] !== undefined) data[field] = body[field]
+  }
+  if (body.nextDueDate !== undefined) {
+    data.nextDueDate = body.nextDueDate ? new Date(body.nextDueDate) : undefined
+  }
+
+  const loan = await prisma.loan.update({ where: { loanId: params.id }, data })
   return NextResponse.json(loan)
 }

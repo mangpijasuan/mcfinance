@@ -9,6 +9,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const { password, enabled } = await req.json()
 
+  if (password && String(password).length < 6) {
+    return NextResponse.json({ error: 'Password must be at least 6 characters.' }, { status: 400 })
+  }
+
   const data: any = {}
   if (typeof enabled === 'boolean') data.portalEnabled = enabled
   if (password) data.portalPassword = await bcrypt.hash(password, 10)

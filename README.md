@@ -97,13 +97,13 @@ When you want to deploy publicly, swap SQLite for a free PostgreSQL database:
 ## Hetzner deployment
 For a production-oriented Hetzner setup with Docker, PostgreSQL, and Caddy, use:
 
-- [docs/deploy-hetzner-postgres.md](/Users/mangpijasuan/Projects/mc-management/docs/deploy-hetzner-postgres.md)
+- [docs/deploy-hetzner-postgres.md](docs/deploy-hetzner-postgres.md)
 - `docker-compose.hetzner.yml`
 - `.env.production.example`
 
 ## Local PostgreSQL verification
 If you want to test the PostgreSQL cutover locally before deploying, use:
 
-- [docs/local-postgres-cutover.md](/Users/mangpijasuan/Projects/mc-management/docs/local-postgres-cutover.md)
+- [docs/local-postgres-cutover.md](docs/local-postgres-cutover.md)
 - `docker-compose.postgres-local.yml`
 - `.env.postgres.local.example`

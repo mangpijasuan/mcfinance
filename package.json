@@ -19,7 +19,7 @@
     "loans:sync-active-2024-2025": "node scripts/sync-active-historical-loans.js"
   },
   "dependencies": {
-    "next": "14.2.5",
+    "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
     "@prisma/client": "^5.15.0",

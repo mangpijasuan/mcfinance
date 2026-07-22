@@ -4,6 +4,12 @@
 const RESEND_KEY = process.env.RESEND_API_KEY
 const FROM = process.env.EMAIL_FROM || 'Millionaires Club <noreply@millionairesclub.com>'
 
+function esc(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
+}
+
 async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; error?: string }> {
   if (!RESEND_KEY) return { ok: false, error: 'RESEND_API_KEY not set in .env' }
 
@@ -60,10 +66,10 @@ function baseLayout(content: string) {
 export function contributionReminderEmail(member: { legalName: string; id: string; monthsActive: number; archiveLifetime: number }) {
   const month = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })
   const html = baseLayout(`
-    <p>Hi <strong>${member.legalName}</strong>,</p>
-    <p>This is a friendly reminder that your <strong>${month}</strong> contribution of <strong>$20</strong> is due.</p>
+    <p>Hi <strong>${esc(member.legalName)}</strong>,</p>
+    <p>This is a friendly reminder that your <strong>${esc(month)}</strong> contribution of <strong>$20</strong> is due.</p>
     <div class="stat-row">
-      <div class="stat"><div class="label">Member ID</div><div class="value" style="font-size:15px">${member.id}</div></div>
+      <div class="stat"><div class="label">Member ID</div><div class="value" style="font-size:15px">${esc(member.id)}</div></div>
       <div class="stat"><div class="label">Months active</div><div class="value">${member.monthsActive}</div></div>
       <div class="stat"><div class="label">Lifetime total</div><div class="value">$${member.archiveLifetime.toLocaleString()}</div></div>
     </div>
@@ -81,16 +87,16 @@ export function contributionReminderEmail(member: { legalName: string; id: strin
 export function loanOverdueEmail(member: { legalName: string; id: string }, loan: { loanId: string; balanceRemaining: number; monthlyDue: number; nextDueDate: Date | null }) {
   const dueDate = loan.nextDueDate ? new Date(loan.nextDueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'overdue'
   const html = baseLayout(`
-    <p>Hi <strong>${member.legalName}</strong>,</p>
-    <p>Your loan payment for <span class="pill-red">Loan ${loan.loanId}</span> is <strong>overdue</strong>.</p>
+    <p>Hi <strong>${esc(member.legalName)}</strong>,</p>
+    <p>Your loan payment for <span class="pill-red">Loan ${esc(loan.loanId)}</span> is <strong>overdue</strong>.</p>
     <div class="stat-row">
       <div class="stat"><div class="label">Monthly due</div><div class="value">$${loan.monthlyDue.toFixed(2)}</div></div>
       <div class="stat"><div class="label">Balance remaining</div><div class="value">$${loan.balanceRemaining.toLocaleString()}</div></div>
     </div>
-    <p>The payment was due on <strong>${dueDate}</strong>. Please make your payment as soon as possible to avoid penalties.</p>
+    <p>The payment was due on <strong>${esc(dueDate)}</strong>. Please make your payment as soon as possible to avoid penalties.</p>
     <p>Contact your club admin to arrange payment.</p>
     <hr class="divider">
-    <p style="font-size:13px;color:#888">Member ID: ${member.id} · Loan: ${loan.loanId}</p>
+    <p style="font-size:13px;color:#888">Member ID: ${esc(member.id)} · Loan: ${esc(loan.loanId)}</p>
   `)
   return {
     subject: `[Millionaires Club] Loan payment overdue — ${loan.loanId}`,
@@ -104,7 +110,7 @@ export function adminSummaryEmail(stats: {
   month: string; recentContribs: { memberName: string; amount: number; monthYear: string }[]
 }) {
   const rows = stats.recentContribs.slice(0, 8).map(c =>
-    `<tr><td>${c.memberName}</td><td>${c.monthYear}</td><td><strong>$${c.amount}</strong></td></tr>`
+    `<tr><td>${esc(c.memberName)}</td><td>${esc(c.monthYear)}</td><td><strong>$${c.amount}</strong></td></tr>`
   ).join('')
 
   const html = baseLayout(`

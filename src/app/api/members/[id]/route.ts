@@ -51,19 +51,26 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   })
 }
 
+const EDITABLE_MEMBER_FIELDS = [
+  'legalName', 'nickname', 'status', 'phoneNo', 'email',
+  'beneficiary', 'notes', 'riskFlag',
+] as const
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
   const body = await req.json()
-  const member = await prisma.member.update({
-    where: { id: params.id },
-    data: {
-      ...body,
-      joinDate: body.joinDate ? new Date(body.joinDate) : undefined,
-      lastContributionDate: body.lastContributionDate ? new Date(body.lastContributionDate) : undefined,
-    },
-  })
+  const data: Record<string, unknown> = {}
+  for (const field of EDITABLE_MEMBER_FIELDS) {
+    if (body[field] !== undefined) data[field] = body[field]
+  }
+  if (body.joinDate !== undefined) data.joinDate = body.joinDate ? new Date(body.joinDate) : undefined
+  if (body.lastContributionDate !== undefined) {
+    data.lastContributionDate = body.lastContributionDate ? new Date(body.lastContributionDate) : undefined
+  }
+
+  const member = await prisma.member.update({ where: { id: params.id }, data })
   return NextResponse.json(sanitizeMember(member))
 }
 
