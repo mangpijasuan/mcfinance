@@ -1,0 +1,122 @@
+'use client'
+import { useEffect, useState, useCallback } from 'react'
+import { Card, Table, EmptyState, Badge, Button, PageHeader, Select } from '@/components/ui'
+import { fmt$, fmtDate } from '@/lib/utils'
+
+async function readJsonSafe<T>(res: Response): Promise<T | null> {
+  try { return await res.json() } catch { return null }
+}
+
+const statusVariant: Record<string, 'amber' | 'green' | 'red' | 'gray'> = {
+  pending: 'amber', completed: 'green', rejected: 'red', failed: 'gray',
+}
+
+export default function PaymentsPage() {
+  const [rows, setRows] = useState<any[]>([])
+  const [status, setStatus] = useState('pending')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      setLoadError('')
+      const p = new URLSearchParams(status ? { status } : {})
+      const res = await fetch(`/api/payments?${p}`)
+      const data = await readJsonSafe<any>(res)
+      if (!res.ok || !data) throw new Error('Failed to load payments.')
+      setRows(data.payments ?? [])
+    } catch (err: any) {
+      setRows([])
+      setLoadError(err?.message || 'Failed to load payments.')
+    } finally {
+      setLoading(false)
+    }
+  }, [status])
+
+  useEffect(() => { load() }, [load])
+
+  async function confirm(id: string) {
+    setBusyId(id)
+    const res = await fetch(`/api/payments/${id}/confirm`, { method: 'POST' })
+    const data = await readJsonSafe<any>(res)
+    if (!res.ok) alert(data?.error || 'Failed to confirm payment.')
+    setBusyId(null)
+    load()
+  }
+
+  async function reject(id: string) {
+    const reason = window.prompt('Reason for rejecting this claim? (optional)') || undefined
+    setBusyId(id)
+    const res = await fetch(`/api/payments/${id}/reject`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+    })
+    const data = await readJsonSafe<any>(res)
+    if (!res.ok) alert(data?.error || 'Failed to reject payment.')
+    setBusyId(null)
+    load()
+  }
+
+  return (
+    <div className="p-8">
+      <PageHeader
+        title="Pending Payments"
+        sub="Member-initiated Zelle claims awaiting confirmation, plus card payment history."
+      />
+
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <Select value={status} onChange={e => setStatus(e.target.value)}>
+          <option value="pending">Pending review</option>
+          <option value="completed">Completed</option>
+          <option value="rejected">Rejected</option>
+          <option value="failed">Failed</option>
+          <option value="">All</option>
+        </Select>
+      </div>
+
+      {loadError && (
+        <p className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{loadError}</p>
+      )}
+
+      <Card>
+        <Table loading={loading} headers={['ID', 'Member', 'Type', 'Amount', 'Method', 'Reference', 'Submitted', 'Status', 'Actions']}>
+          {rows.length === 0 && !loading
+            ? <EmptyState message="No payments found." />
+            : rows.map((p) => (
+              <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 font-mono text-xs text-indigo-600">{p.publicId}</td>
+                <td className="px-4 py-3 font-medium text-gray-900">{p.member?.legalName || p.memberId}</td>
+                <td className="px-4 py-3 text-gray-600 text-xs">
+                  {p.type === 'contribution' ? 'Contribution' : `Loan payment${p.loanId ? ` · ${p.loanId}` : ''}`}
+                </td>
+                <td className="px-4 py-3 font-bold text-gray-900">{fmt$(p.amount)}</td>
+                <td className="px-4 py-3 text-gray-600 text-xs capitalize">{p.method}</td>
+                <td className="px-4 py-3 text-gray-500 text-xs max-w-[200px] truncate">{p.zelleReference || '—'}</td>
+                <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(p.createdAt)}</td>
+                <td className="px-4 py-3">
+                  <Badge variant={statusVariant[p.status] || 'gray'}>{p.status}</Badge>
+                  {p.status === 'rejected' && p.rejectionReason && (
+                    <p className="text-xs text-gray-400 mt-1">{p.rejectionReason}</p>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {p.status === 'pending' && p.method === 'zelle' ? (
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={busyId === p.id} onClick={() => confirm(p.id)}>Confirm</Button>
+                      <Button size="sm" variant="danger" disabled={busyId === p.id} onClick={() => reject(p.id)}>Reject</Button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">
+                      {p.reviewedBy ? `by ${p.reviewedBy}` : '—'}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))
+          }
+        </Table>
+      </Card>
+    </div>
+  )
+}

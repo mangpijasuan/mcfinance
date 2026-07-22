@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { signOut } from 'next-auth/react'
-import { LayoutDashboard, Users, Receipt, Landmark, CreditCard, History, ArrowDownLeft, Bell, FileText, LogOut, Menu, X, Shield } from 'lucide-react'
+import { LayoutDashboard, Users, Receipt, Landmark, CreditCard, History, ArrowDownLeft, Bell, FileText, LogOut, Menu, X, Shield, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const nav = [
@@ -15,6 +15,7 @@ const nav = [
   { href: '/loan-payments',  label: 'Loan Payments',    icon: CreditCard },
   { href: '/loan-history',   label: 'Loan History',     icon: History },
   { href: '/withdrawals',    label: 'Withdrawals',      icon: ArrowDownLeft },
+  { href: '/payments',       label: 'Pending Payments', icon: Wallet },
   { href: '/notifications',  label: 'Notifications',    icon: Bell },
   { label: 'Sign out',       icon: LogOut, action: 'logout' as const },
 ]

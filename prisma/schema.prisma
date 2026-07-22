@@ -50,6 +50,7 @@ model Member {
   loanPayments    LoanPayment[]
   yearlyTotals    YearlyTotal[]
   withdrawals     Withdrawal[]
+  portalPayments  PortalPayment[]
 }
 
 model YearlyTotal {
@@ -203,4 +204,32 @@ model LoanAgreement {
   createdAt        DateTime  @default(now())
 
   loan Loan @relation(fields: [loanId], references: [loanId])
+}
+
+// Member-initiated online payments (Stripe checkout or a claimed Zelle
+// transfer). Stripe rows are completed automatically by the webhook;
+// Zelle rows sit "pending" until an admin confirms them against their
+// bank activity — Zelle has no merchant API, so there is no way to
+// verify a Zelle payment happened without a human checking.
+model PortalPayment {
+  id                     String    @id @default(cuid())
+  publicId               String    @unique
+  memberId               String
+  type                   String    // "contribution" | "loan_payment"
+  loanId                 String?
+  amount                 Float
+  method                 String    // "stripe" | "zelle"
+  status                 String    @default("pending") // "pending" | "completed" | "rejected" | "failed"
+  stripeSessionId        String?   @unique
+  stripePaymentIntentId  String?
+  zelleReference         String?
+  rejectionReason        String?
+  reviewedBy             String?
+  reviewedAt             DateTime?
+  contributionId         String?
+  loanPaymentId          String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  member Member @relation(fields: [memberId], references: [id])
 }

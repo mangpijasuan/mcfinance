@@ -19,27 +19,28 @@
     "loans:sync-active-2024-2025": "node scripts/sync-active-historical-loans.js"
   },
   "dependencies": {
+    "@prisma/client": "^5.15.0",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.400.0",
     "next": "14.2.35",
+    "next-auth": "^4.24.7",
     "react": "^18",
     "react-dom": "^18",
-    "@prisma/client": "^5.15.0",
-    "next-auth": "^4.24.7",
-    "bcryptjs": "^2.4.3",
     "recharts": "^2.12.7",
-    "date-fns": "^3.6.0",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.400.0"
+    "stripe": "^22.3.2"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "@types/bcryptjs": "^2.4.6",
-    "typescript": "^5",
-    "tailwindcss": "^3.4.4",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.39",
     "prisma": "^5.15.0",
-    "tsx": "^4.16.0"
+    "tailwindcss": "^3.4.4",
+    "tsx": "^4.16.0",
+    "typescript": "^5"
   }
 }

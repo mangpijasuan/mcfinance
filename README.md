@@ -83,6 +83,33 @@ npm run loans:audit             # compare historical loan data against the sourc
 | `/loans` | Loan portfolio — create new loans |
 | `/loans/[id]` | Loan detail with repayment progress bar |
 | `/loan-payments` | All repayments — record new repayment |
+| `/payments` | Pending Zelle claims to confirm/reject, plus card payment history |
+| `/portal/pay` | Member-facing: pay a contribution or loan by card (Stripe) or Zelle |
+
+---
+
+## Online payments (Stripe + Zelle)
+
+Members can pay their monthly contribution or an active loan from `/portal/pay`, by card or Zelle.
+
+**Card payments (Stripe)** go through Stripe Checkout and are recorded automatically by a webhook —
+nothing to approve. To enable them locally:
+1. Create a free [Stripe](https://stripe.com) account and grab your **test** secret key.
+2. Install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and run:
+   ```bash
+   stripe listen --forward-to localhost:3000/api/webhooks/stripe
+   ```
+   Copy the `whsec_...` it prints into `STRIPE_WEBHOOK_SECRET` in `.env.local`.
+3. Set `STRIPE_SECRET_KEY` in `.env.local` and restart `npm run dev`.
+
+Without these two variables set, the "Card" option in the portal returns a clear error instead of
+pretending to work — nothing silently fails.
+
+**Zelle** has no payment API for merchants, so there's no way for the app to know a Zelle transfer
+happened. A member submits a claim (amount + optional confirmation note) from the portal, which shows
+up on the admin **Pending Payments** page (`/payments`). An admin checks the club's actual bank
+activity and clicks **Confirm** (which records the payment) or **Reject**. `NEXT_PUBLIC_ZELLE_RECIPIENT_NAME`
+/ `NEXT_PUBLIC_ZELLE_RECIPIENT_EMAIL` just control what instructions are shown to members.
 
 ---
 

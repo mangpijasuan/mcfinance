@@ -8,6 +8,7 @@ export default function PortalNav({ user }: { user: { name?: string; memberId?: 
   const path = usePathname()
   const nav = [
     { href: '/portal/dashboard',    label: 'My Dashboard' },
+    { href: '/portal/pay',          label: 'Make a Payment' },
     { href: '/portal/history',      label: 'Payment History' },
     { href: '/portal/agreements',   label: 'Loan Application' },
   ]
