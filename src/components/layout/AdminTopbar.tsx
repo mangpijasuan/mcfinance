@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Search, Shield } from 'lucide-react'
 import { Badge } from '@/components/ui'
+import { APP_NAME } from '@/lib/brand'
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -27,7 +28,7 @@ function titleFromPath(pathname: string) {
   const matched = Object.keys(pageTitles)
     .filter((key) => pathname === key || pathname.startsWith(`${key}/`))
     .sort((a, b) => b.length - a.length)[0]
-  return matched ? pageTitles[matched] : 'Millionaires Club'
+  return matched ? pageTitles[matched] : APP_NAME
 }
 
 export default function AdminTopbar({ roleSummary, canSearchMembers }: { roleSummary?: string; canSearchMembers: boolean }) {
@@ -52,11 +53,11 @@ export default function AdminTopbar({ roleSummary, canSearchMembers }: { roleSum
       <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
         <div className="min-w-0">
           <div className="flex items-center gap-3 min-w-0">
-            <img src="/mc-logo.png" alt="Millionaires Club" className="hidden lg:block h-9 w-9 shrink-0 object-contain" />
+            <img src="/mc-logo.png" alt={APP_NAME} className="hidden lg:block h-9 w-9 shrink-0 object-contain" />
             <div className="min-w-0">
               <p className="truncate text-base font-semibold text-slate-900">{pageTitle}</p>
               <div className="flex items-center gap-2">
-                <p className="truncate text-xs text-slate-500">Millionaires Club administration</p>
+                <p className="truncate text-xs text-slate-500">{APP_NAME} administration</p>
                 {roleSummary && (
                   <Badge variant="blue">
                     <span className="inline-flex items-center gap-1">

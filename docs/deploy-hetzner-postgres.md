@@ -128,7 +128,7 @@ The `AuditLog` table is append-only: a database trigger rejects `UPDATE`, `DELET
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec \
-  -e ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com -e NEW_ADMIN_PASSWORD='a long passphrase' \
+  -e ADMIN_EMAIL_TO_RESET=admin@mcfinance.local -e NEW_ADMIN_PASSWORD='a long passphrase' \
   app npm run admin:reset-password
 ```
 
@@ -148,7 +148,7 @@ Run `scripts/backup-postgres.sh` on a schedule (writes a timestamped, gzipped `p
 ```bash
 crontab -e
 # add:
-0 3 * * * cd /path/to/mc-management && ./scripts/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
+0 3 * * * cd /path/to/mcfinance && ./scripts/backup-postgres.sh >> /var/log/mcfinance-backup.log 2>&1
 ```
 
 Also take a Hetzner server snapshot before any upgrade.
@@ -167,4 +167,3 @@ Do not use Google Sheets as the primary database for:
 - loan payments
 - agreements
 - balance calculations
-

@@ -5,6 +5,7 @@ import { signOut } from 'next-auth/react'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/lib/brand'
 
 export default function PortalNav({ user }: { user: { name?: string; memberId?: string } }) {
   const path = usePathname()
@@ -21,8 +22,8 @@ export default function PortalNav({ user }: { user: { name?: string; memberId?: 
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6 min-w-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <img src="/mc-logo.png" alt="Millionaires Club" className="w-7 h-7 object-contain shrink-0" />
-            <span className="text-white font-semibold text-sm truncate">Millionaires Club</span>
+            <img src="/mc-logo.png" alt={APP_NAME} className="w-7 h-7 object-contain shrink-0" />
+            <span className="text-white font-semibold text-sm truncate">{APP_NAME}</span>
           </div>
           <nav className="hidden md:flex items-center gap-1">
             {nav.map(item => (

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Printer, ArrowLeft } from 'lucide-react'
 import { Button, Card, Badge, Spinner } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { APP_NAME } from '@/lib/brand'
 
 type Member = {
   id: string
@@ -115,7 +116,7 @@ export default function MonthlyContributionsPrintPage() {
           <Card className="p-0 overflow-hidden shadow-sm print:shadow-none print:border-none">
             <div className="bg-[#fffdf7] border-b border-amber-200 px-6 py-5 text-center print:px-0">
               <p className="text-2xl font-bold tracking-wide text-gray-900">Monthly Contributions Report</p>
-              <p className="text-xs uppercase tracking-[0.25em] text-gray-500 mt-1">Millionaires Club</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-gray-500 mt-1">{APP_NAME}</p>
               <div className="mt-3 flex items-center justify-center gap-2 text-sm text-gray-600">
                 <Badge variant="amber">{month}</Badge>
                 <span>•</span>

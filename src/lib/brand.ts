@@ -1,0 +1,5 @@
+export const APP_NAME = 'MC Finance'
+export const APP_SHORT_NAME = 'MC'
+export const APP_DESCRIPTION = 'Member finance, contributions, loans, and administration'
+export const DEFAULT_ADMIN_EMAIL = 'admin@mcfinance.local'
+export const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@mcfinance.local'

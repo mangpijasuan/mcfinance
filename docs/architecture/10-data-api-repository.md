@@ -158,7 +158,7 @@ At the club's volume (hundreds of entries a year, not millions), balances can be
 ### Current structure (Stages 1–3)
 
 ```
-mc-management/
+mcfinance/
 ├── src/
 │   ├── app/                    # Next.js routes: UI (portal + admin route groups) + thin /api/v1 handlers
 │   ├── modules/                # names match the target packages/

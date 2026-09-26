@@ -1,7 +1,7 @@
 // Reset (or create) a staff account's password without a hard-coded
 // default. Break-glass for lockouts: run it from the server shell.
 //
-//   ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com \
+//   ADMIN_EMAIL_TO_RESET=admin@mcfinance.local \
 //   NEW_ADMIN_PASSWORD='a long passphrase' \
 //   [RESET_MFA=1] \
 //   npm run admin:reset-password
@@ -56,7 +56,7 @@ async function main() {
       console.log(`Password updated for ${email}${resetMfa ? '; two-factor authentication cleared' : ''}. All sessions ended.`)
     } else {
       await prisma.$transaction(async (tx) => {
-        const created = await tx.admin.create({ data: { email, name: 'Club Admin', password: hashed } })
+        const created = await tx.admin.create({ data: { email, name: 'MC Finance Admin', password: hashed } })
         await tx.staffRoleAssignment.create({ data: { adminId: created.id, role: 'super_admin' } })
         await tx.auditLog.create({ data: audit('admin.create', created.id) })
       })

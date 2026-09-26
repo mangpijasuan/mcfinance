@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { fmt$, fmtDate } from '@/lib/utils'
 import { FileSignature, CheckCircle } from 'lucide-react'
+import { APP_NAME } from '@/lib/brand'
 
 async function readJsonSafe(res: Response) {
   try {
@@ -147,14 +148,14 @@ function SignModal({ agreement: initial, me, onClose, onSigned }: any) {
           <div className="bg-[#fffdf7] border border-amber-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="text-center border-b border-amber-200 bg-gradient-to-b from-amber-50 to-transparent px-5 py-4">
               <p className="text-lg font-bold font-serif tracking-wide">LOAN AGREEMENT</p>
-              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gray-500">Millionaires Club Financial Services</p>
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gray-500">{APP_NAME} Financial Services</p>
             </div>
             <div className="px-5 py-4 space-y-3 text-[13px] leading-7 font-serif text-gray-800">
               <p><strong>${a.loanAmount.toLocaleString()}</strong>{'  '}<span className="text-gray-500">Date: {fmtDate(a.createdAt)}</span></p>
               <p>
                 For above value received by <strong>{a.borrowerName}</strong>{' '}
                 {a.borrowerAddress && `with a mailing address of ${a.borrowerAddress}, ${a.borrowerCity}, ${a.borrowerState},`}
-                {' '}agrees to pay <strong>Millionaires Club</strong> with no interest.
+                {' '}agrees to pay <strong>{APP_NAME}</strong> with no interest.
               </p>
               <div className="rounded-xl border border-amber-100 bg-white/80 px-4 py-3">
                 <p className="font-sans font-bold underline text-sm">TERM OF REPAYMENT</p>
@@ -167,7 +168,7 @@ function SignModal({ agreement: initial, me, onClose, onSigned }: any) {
             <div className="grid grid-cols-2 gap-4 border-t border-amber-200 px-5 py-4">
               <div className="rounded-lg border border-gray-200 bg-white p-3">
                 <p className="font-sans text-gray-400 text-xs">Lender</p>
-                <p className="font-bold">Millionaires Club</p>
+                <p className="font-bold">{APP_NAME}</p>
                 {a.lenderSignature && <p className="text-green-700 mt-1" style={{fontFamily:'cursive'}}>{a.lenderSignature} ✓</p>}
               </div>
               <div className="rounded-lg border border-gray-200 bg-white p-3">

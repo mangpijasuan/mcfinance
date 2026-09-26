@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { APP_NAME } from '@/lib/brand'
 
 const inputClass =
   'w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
@@ -43,8 +44,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#1B2A4A] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/mc-logo.png" alt="Millionaires Club" className="inline-block w-14 h-14 mb-4 object-contain" />
-          <h1 className="text-2xl font-bold text-white">Millionaires Club</h1>
+          <img src="/mc-logo.png" alt={APP_NAME} className="inline-block w-14 h-14 mb-4 object-contain" />
+          <h1 className="text-2xl font-bold text-white">{APP_NAME}</h1>
           <p className="text-white/50 text-sm mt-1">Staff sign-in</p>
         </div>
 
@@ -55,7 +56,7 @@ export default function LoginPage() {
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
                   id="email" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required
-                  className={inputClass} placeholder="you@millionairesclub.com"
+                  className={inputClass} placeholder="you@mcfinance.local"
                 />
               </div>
               <div>

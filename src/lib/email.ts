@@ -1,8 +1,10 @@
 // Email sending via Resend (https://resend.com — free tier: 3,000/month)
 // Set RESEND_API_KEY in your .env file
 
+import { APP_NAME, SUPPORT_EMAIL } from './brand'
+
 const RESEND_KEY = process.env.RESEND_API_KEY
-const FROM = process.env.EMAIL_FROM || 'Millionaires Club <noreply@millionairesclub.com>'
+const FROM = process.env.EMAIL_FROM || `${APP_NAME} <noreply@your-domain.example>`
 
 function esc(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (c) => (
@@ -57,9 +59,9 @@ function baseLayout(content: string) {
   td { padding:10px 12px; font-size:14px; border-bottom:1px solid #f0f0f0; }
 </style></head><body>
 <div class="wrap">
-  <div class="hdr"><h1>Millionaires Club</h1><p>Financial Services</p></div>
+  <div class="hdr"><h1>${APP_NAME}</h1><p>Financial Services</p></div>
   <div class="body">${content}</div>
-  <div class="footer">Millionaires Club · info.millionaresclubusa@gmail.com</div>
+  <div class="footer">${APP_NAME} · ${SUPPORT_EMAIL}</div>
 </div></body></html>`
 }
 
@@ -79,7 +81,7 @@ export function contributionReminderEmail(member: { legalName: string; id: strin
     <p style="font-size:13px;color:#888">Questions? Contact your club admin.</p>
   `)
   return {
-    subject: `[Millionaires Club] ${month} contribution reminder — ${member.id}`,
+    subject: `[${APP_NAME}] ${month} contribution reminder - ${member.id}`,
     html,
   }
 }
@@ -99,7 +101,7 @@ export function loanOverdueEmail(member: { legalName: string; id: string }, loan
     <p style="font-size:13px;color:#888">Member ID: ${esc(member.id)} · Loan: ${esc(loan.loanId)}</p>
   `)
   return {
-    subject: `[Millionaires Club] Loan payment overdue — ${loan.loanId}`,
+    subject: `[${APP_NAME}] Loan payment overdue - ${loan.loanId}`,
     html,
   }
 }
@@ -126,10 +128,10 @@ export function adminSummaryEmail(stats: {
     </div>
     ${rows ? `<table><tr><th>Member</th><th>Month</th><th>Amount</th></tr>${rows}</table>` : ''}
     <hr class="divider">
-    <p style="font-size:13px;color:#888">This is an automated summary from your Millionaires Club admin system.</p>
+    <p style="font-size:13px;color:#888">This is an automated summary from your ${APP_NAME} administration system.</p>
   `)
   return {
-    subject: `[Millionaires Club] ${stats.month} admin summary`,
+    subject: `[${APP_NAME}] ${stats.month} admin summary`,
     html,
   }
 }

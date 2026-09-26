@@ -1,12 +1,12 @@
 {
-  "name": "mc-admin",
+  "name": "mcfinance",
   "version": "0.1.0",
   "private": true,
   "engines": {
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "rm -rf .next && next dev",
+    "dev": "rm -rf .next-dev && next dev",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",

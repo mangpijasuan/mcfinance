@@ -178,7 +178,7 @@ function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
         {/* Header */}
         <div className="text-center space-y-1 border-b border-amber-200 bg-gradient-to-b from-amber-50 to-transparent px-6 py-5">
           <p className="text-lg font-bold font-serif tracking-wide text-gray-900">LOAN AGREEMENT</p>
-          <p className="font-sans text-xs uppercase tracking-[0.2em] text-gray-500">Millionaires Club Financial Services</p>
+          <p className="font-sans text-xs uppercase tracking-[0.2em] text-gray-500">MC Finance Financial Services</p>
         </div>
 
         <div className="px-6 py-5 space-y-4 text-[13px] leading-7 font-serif text-gray-800">
@@ -194,7 +194,7 @@ function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
             <span className="border-b border-gray-400 px-1">{a.borrowerAddress || '________________'}</span>,
             City of <span className="border-b border-gray-400 px-1">{a.borrowerCity || '________________'}</span>,
             State of <span className="border-b border-gray-400 px-1">{a.borrowerState || '________________'}</span>,
-            agrees to pay <span className="font-bold">Millionaires Club</span> with no interest.
+            agrees to pay <span className="font-bold">MC Finance</span> with no interest.
           </p>
 
           <div className="rounded-xl border border-amber-100 bg-white/80 px-4 py-3">
@@ -227,7 +227,7 @@ function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-amber-200">
             <div className="rounded-lg border border-gray-200 bg-white p-3">
               <p className="font-sans text-xs text-gray-500 mb-1">Lender's Name</p>
-              <p className="font-bold">Millionaires Club</p>
+              <p className="font-bold">MC Finance</p>
               <p className="font-sans text-xs text-gray-500 mt-3 mb-1">Lender's Signature</p>
               {a.lenderSignature
                 ? <p className="text-green-700 font-bold" style={{fontFamily:'cursive'}}>{a.lenderSignature} ✓</p>
@@ -262,7 +262,7 @@ function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
       {!a.lenderSignature && a.status !== 'cancelled' && can('agreements.sign_lender') && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
           <p className="text-sm font-semibold text-indigo-900 flex items-center gap-2">
-            <FileSignature size={15} /> Sign as Lender (Millionaires Club)
+            <FileSignature size={15} /> Sign as Lender (MC Finance)
           </p>
           <div className="flex gap-3">
             <input
@@ -275,7 +275,7 @@ function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
             </Button>
           </div>
           {error && <p className="text-xs text-red-600">{error}</p>}
-          <p className="text-xs text-indigo-600">By typing your name you are electronically signing this agreement on behalf of Millionaires Club.</p>
+          <p className="text-xs text-indigo-600">By typing your name you are electronically signing this agreement on behalf of MC Finance.</p>
         </div>
       )}
 

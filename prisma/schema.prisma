@@ -242,7 +242,7 @@ model LoanAgreement {
   cosignerName     String?
   cosignerId       String?
 
-  lenderName       String    @default("Millionaires Club")
+  lenderName       String    @default("MC Finance")
   applicationFee   Float     @default(0)
 
   loanAmount       Float

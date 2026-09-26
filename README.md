@@ -1,4 +1,4 @@
-# Millionaires Club — Admin Panel
+# MC Finance
 
 ## ⚡ Quick Setup
 
@@ -11,7 +11,7 @@
 ### Mac / Linux
 
 ```bash
-cd mc-management
+cd mcfinance
 sh setup.sh
 npm run dev
 ```
@@ -22,7 +22,7 @@ npm run dev
 2. Double-click **`setup.bat`** and wait for it to finish
 3. In Command Prompt: `npm run dev`
 
-Open **http://localhost:3000**. Sign in as `admin@millionairesclub.com` with the password you chose during setup. The first sign-in asks you to set up two-factor authentication with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).
+Open **http://localhost:3000**. Sign in as `admin@mcfinance.local` with the password you chose during setup. The first sign-in asks you to set up two-factor authentication with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).
 
 ---
 
@@ -58,7 +58,7 @@ npm test          # run once
 npm run test:watch
 ```
 
-Tests run against a separate PostgreSQL database that is **wiped on every run**: `mc_admin_test` on the Docker database by default, or `TEST_DATABASE_URL`. The name must end in `_test`, otherwise the run refuses to start. Fixtures are synthetic; never put real member data in tests.
+Tests run against a separate PostgreSQL database that is **wiped on every run**: `mcfinance_test` on the Docker database by default, or `TEST_DATABASE_URL`. The name must end in `_test`, otherwise the run refuses to start. Fixtures are synthetic; never put real member data in tests.
 
 - `tests/authorization-matrix.test.ts` — every API route × method × caller (anonymous, member, admin, super admin). Adding a route without adding it to the matrix fails the build.
 - `tests/ownership.test.ts` — members only reach their own agreements, loans and payments.
@@ -74,7 +74,7 @@ Accounts that existed before roles were introduced have the transitional **Club 
 
 **Locked out** (forgot the password, or lost both the phone and the recovery codes)? From the server shell:
 ```bash
-ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com NEW_ADMIN_PASSWORD='a long passphrase' RESET_MFA=1 npm run admin:reset-password
+ADMIN_EMAIL_TO_RESET=admin@mcfinance.local NEW_ADMIN_PASSWORD='a long passphrase' RESET_MFA=1 npm run admin:reset-password
 ```
 Leave out `RESET_MFA=1` to keep the existing authenticator. For anyone else, a staff administrator can reset their password or two-factor authentication under Staff & Roles.
 

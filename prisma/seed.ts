@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import seedData from './seed-data.json'
 import historicalLoans from './historical-loans.json'
+import { DEFAULT_ADMIN_EMAIL } from '../src/lib/brand'
 
 const prisma = new PrismaClient()
 
@@ -14,10 +15,11 @@ async function main() {
     throw new Error('Set ADMIN_SEED_PASSWORD (at least 12 characters) before seeding.')
   }
   const hashed = await bcrypt.hash(adminPassword, 10)
+  const adminEmail = process.env.ADMIN_SEED_EMAIL || DEFAULT_ADMIN_EMAIL
   const admin = await prisma.admin.upsert({
-    where: { email: 'admin@millionairesclub.com' },
+    where: { email: adminEmail },
     update: {},
-    create: { email: 'admin@millionairesclub.com', name: 'Club Admin', password: hashed },
+    create: { email: adminEmail, name: 'MC Finance Admin', password: hashed },
   })
   await prisma.staffRoleAssignment.upsert({
     where: { adminId_role: { adminId: admin.id, role: 'super_admin' } },
@@ -100,7 +102,7 @@ async function main() {
   console.log(`✓ ${historicalLoans.length} historical loans`)
 
   console.log('\n✅ Done!')
-  console.log('📧 Login: admin@millionairesclub.com')
+  console.log(`📧 Login: ${adminEmail}`)
   console.log('🔑 Password: the value of ADMIN_SEED_PASSWORD')
   console.log('⚠️  Change this password after first login!')
 }

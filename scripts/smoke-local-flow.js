@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client')
 
 const BASE_URL = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:3000'
-const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL || 'admin@millionairesclub.com'
+const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL || 'admin@mcfinance.local'
 const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || process.env.ADMIN_SEED_PASSWORD
 // The admin account's authenticator secret (base32), shown during MFA
 // setup under "Can't scan? Enter this key instead". Needed once the

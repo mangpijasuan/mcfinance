@@ -6,6 +6,7 @@ import { signOut } from 'next-auth/react'
 import { LogOut, Menu, X, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { visibleNav } from '@/components/staff/nav'
+import { APP_NAME } from '@/lib/brand'
 
 type NavEntry = { href?: string; label: string; icon: LucideIcon; action?: 'logout' }
 
@@ -39,12 +40,12 @@ export default function Sidebar({ permissions, roleSummary }: { permissions: str
             </button>
           )}
           <img
-            src="/mc-logo.png" alt="Millionaires Club"
+            src="/mc-logo.png" alt={APP_NAME}
             className={cn('shrink-0 object-contain', compact ? 'w-7 h-7' : 'w-8 h-8')}
           />
           {!compact && (
             <div className="min-w-0 text-left">
-              <p className="text-white font-semibold text-sm leading-tight truncate">Millionaires Club</p>
+              <p className="text-white font-semibold text-sm leading-tight truncate">{APP_NAME}</p>
               <p className="text-white/40 text-xs">{roleSummary || 'Staff'}</p>
             </div>
           )}
@@ -105,8 +106,8 @@ export default function Sidebar({ permissions, roleSummary }: { permissions: str
           >
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <img src="/mc-logo.png" alt="Millionaires Club" className="w-7 h-7 shrink-0 object-contain" />
-          <span className="text-white font-semibold text-sm truncate">Millionaires Club</span>
+          <img src="/mc-logo.png" alt={APP_NAME} className="w-7 h-7 shrink-0 object-contain" />
+          <span className="text-white font-semibold text-sm truncate">{APP_NAME}</span>
         </div>
         <div className="w-8 shrink-0" />
       </div>
