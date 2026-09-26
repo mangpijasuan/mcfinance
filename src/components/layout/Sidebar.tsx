@@ -48,10 +48,10 @@ export default function Sidebar({ adminRole, adminRoleLabel }: { adminRole?: str
               <Menu size={18} />
             </button>
           )}
-          <div className={cn(
-            'rounded-lg bg-amber-400 flex items-center justify-center text-[#1B2A4A] font-bold shrink-0',
-            compact ? 'w-7 h-7 text-[11px]' : 'w-8 h-8 text-xs'
-          )}>MC</div>
+          <img
+            src="/mc-logo.png" alt="Millionaires Club"
+            className={cn('shrink-0 object-contain', compact ? 'w-7 h-7' : 'w-8 h-8')}
+          />
           {!compact && (
             <div className="min-w-0 text-left">
               <p className="text-white font-semibold text-sm leading-tight truncate">Millionaires Club</p>
@@ -114,7 +114,7 @@ export default function Sidebar({ adminRole, adminRoleLabel }: { adminRole?: str
           >
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <div className="w-7 h-7 rounded-lg bg-amber-400 flex items-center justify-center text-[#1B2A4A] font-bold text-xs shrink-0">MC</div>
+          <img src="/mc-logo.png" alt="Millionaires Club" className="w-7 h-7 shrink-0 object-contain" />
           <span className="text-white font-semibold text-sm truncate">Millionaires Club</span>
         </div>
         <div className="w-8 shrink-0" />

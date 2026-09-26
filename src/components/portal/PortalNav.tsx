@@ -18,7 +18,7 @@ export default function PortalNav({ user }: { user: { name?: string; memberId?: 
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-amber-400 flex items-center justify-center text-[#1B2A4A] font-bold text-xs">MC</div>
+            <img src="/mc-logo.png" alt="Millionaires Club" className="w-7 h-7 object-contain" />
             <span className="text-white font-semibold text-sm hidden sm:block">Millionaires Club</span>
           </div>
           <nav className="flex items-center gap-1">

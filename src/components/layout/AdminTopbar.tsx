@@ -50,9 +50,7 @@ export default function AdminTopbar({ adminRoleLabel }: { adminRoleLabel?: strin
       <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
         <div className="min-w-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="hidden lg:flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1B2A4A] text-xs font-bold text-amber-300">
-              MC
-            </div>
+            <img src="/mc-logo.png" alt="Millionaires Club" className="hidden lg:block h-9 w-9 shrink-0 object-contain" />
             <div className="min-w-0">
               <p className="truncate text-base font-semibold text-slate-900">{pageTitle}</p>
               <div className="flex items-center gap-2">
