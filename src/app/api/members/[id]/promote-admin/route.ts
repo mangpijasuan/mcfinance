@@ -4,12 +4,13 @@ import { prisma } from '@/lib/prisma'
 import { adminRoleLabel, normalizeAdminRole } from '@/lib/adminRoles'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireSuperAdmin()
   if (auth.error) return auth.error
 
+  const { id } = await params
   const member = await prisma.member.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, legalName: true, email: true, status: true },
   })
   if (!member) {

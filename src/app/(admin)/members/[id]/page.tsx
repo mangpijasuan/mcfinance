@@ -1,13 +1,14 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Edit2, KeyRound, Globe, Shield } from 'lucide-react'
 import { Card, Table, Badge, StatusBadge, EligibleBadge, RiskBadge, LoanStatusBadge,
          Button, Modal, Input, Select, Spinner } from '@/components/ui'
 import { fmt$, fmtDate, fmtDateInput } from '@/lib/utils'
 
-export default function MemberDetailPage({ params }: { params: { id: string } }) {
+export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const { id } = use(params)
   const [member, setMember] = useState<any>(null)
   const [showEdit, setShowEdit] = useState(false)
   const [showPortal, setShowPortal] = useState(false)
@@ -19,7 +20,7 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
     ;(async () => {
       try {
         setError('')
-        const res = await fetch(`/api/members/${params.id}`)
+        const res = await fetch(`/api/members/${id}`)
         const data = await readJsonSafe(res)
         if (!res.ok || !data) throw new Error('Failed to load member details.')
         setMember(data)
@@ -27,7 +28,7 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
         setError(err?.message || 'Failed to load member details.')
       }
     })()
-  }, [params.id])
+  }, [id])
 
   useEffect(() => {
     ;(async () => {

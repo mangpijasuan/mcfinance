@@ -3,12 +3,13 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin, requireAnySession, sessionMemberId } from '@/lib/apiAuth'
 import { recalcMemberLoanState } from '@/lib/memberLoanState'
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAnySession()
   if (auth.error) return auth.error
 
+  const { id } = await params
   const agreement = await prisma.loanAgreement.findUnique({
-    where: { agreementId: params.id },
+    where: { agreementId: id },
     include: { loan: true },
   })
   if (!agreement) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -20,15 +21,16 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   return NextResponse.json(agreement)
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAnySession()
   if (auth.error) return auth.error
 
+  const { id } = await params
   const body = await req.json()
   const { role } = auth.session.user as any
   const { signatureText, signerType, borrowerAddress, borrowerCity, borrowerState, action } = body
 
-  const agreement = await prisma.loanAgreement.findUnique({ where: { agreementId: params.id } })
+  const agreement = await prisma.loanAgreement.findUnique({ where: { agreementId: id } })
   if (!agreement) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const memberId = sessionMemberId(auth.session)
 
@@ -39,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (role === 'admin' && action === 'cancel') {
     const cancelled = await prisma.$transaction(async (tx) => {
       const cancelledAgreement = await tx.loanAgreement.update({
-        where: { agreementId: params.id },
+        where: { agreementId: id },
         data: { status: 'cancelled' },
       })
 
@@ -96,10 +98,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   // Recalculate status
-  const updated = await prisma.loanAgreement.update({ where: { agreementId: params.id }, data })
+  const updated = await prisma.loanAgreement.update({ where: { agreementId: id }, data })
   const newStatus = getStatus(updated)
   const final = await prisma.loanAgreement.update({
-    where: { agreementId: params.id },
+    where: { agreementId: id },
     data: { status: newStatus },
   })
 
@@ -115,11 +117,12 @@ function getStatus(a: any): string {
   return 'pending'
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const existing = await prisma.loanAgreement.findUnique({ where: { agreementId: params.id } })
+  const { id } = await params
+  const existing = await prisma.loanAgreement.findUnique({ where: { agreementId: id } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await prisma.$transaction(async (tx) => {
@@ -129,7 +132,7 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
       await tx.loan.deleteMany({ where: { loanId: existing.loanId } })
     }
 
-    await tx.loanAgreement.delete({ where: { agreementId: params.id } })
+    await tx.loanAgreement.delete({ where: { agreementId: id } })
 
     await recalcMemberLoanState(tx, existing.borrowerId)
     if (existing.cosignerId) {

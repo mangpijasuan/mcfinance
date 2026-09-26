@@ -3,10 +3,11 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { requireAdmin } from '@/lib/apiAuth'
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
+  const { id } = await params
   const { password, enabled } = await req.json()
 
   if (password && String(password).length < 6) {
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (password && enabled === undefined) data.portalEnabled = true
 
   const member = await prisma.member.update({
-    where: { id: params.id },
+    where: { id },
     data,
     select: { id: true, legalName: true, portalEnabled: true },
   })

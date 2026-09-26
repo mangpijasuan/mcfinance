@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const payment = await prisma.portalPayment.findUnique({ where: { id: params.id } })
+  const { id } = await params
+  const payment = await prisma.portalPayment.findUnique({ where: { id } })
   if (!payment) return NextResponse.json({ error: 'Payment not found.' }, { status: 404 })
   if (payment.status !== 'pending') {
     return NextResponse.json({ error: 'This payment has already been reviewed.' }, { status: 409 })

@@ -3,12 +3,13 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { sanitizeMember } from '@/lib/serializers'
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
+  const { id } = await params
   const member = await prisma.member.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       contributions: { orderBy: { paymentDate: 'desc' }, take: 24 },
       loansAsBorrower: {
@@ -27,7 +28,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
     orderBy: [{ year: 'desc' }, { loanDate: 'desc' }],
   })
   const linkedAdmin = await prisma.admin.findFirst({
-    where: { linkedMemberId: params.id },
+    where: { linkedMemberId: id },
     select: { id: true, email: true, name: true, role: true, createdAt: true },
   })
 
@@ -56,10 +57,11 @@ const EDITABLE_MEMBER_FIELDS = [
   'beneficiary', 'notes', 'riskFlag',
 ] as const
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
+  const { id } = await params
   const body = await req.json()
   const data: Record<string, unknown> = {}
   for (const field of EDITABLE_MEMBER_FIELDS) {
@@ -70,14 +72,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data.lastContributionDate = body.lastContributionDate ? new Date(body.lastContributionDate) : undefined
   }
 
-  const member = await prisma.member.update({ where: { id: params.id }, data })
+  const member = await prisma.member.update({ where: { id }, data })
   return NextResponse.json(sanitizeMember(member))
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  await prisma.member.delete({ where: { id: params.id } })
+  const { id } = await params
+  await prisma.member.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }

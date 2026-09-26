@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { recordContribution, recordLoanPayment } from '@/lib/paymentActions'
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const payment = await prisma.portalPayment.findUnique({ where: { id: params.id } })
+  const { id } = await params
+  const payment = await prisma.portalPayment.findUnique({ where: { id } })
   if (!payment) return NextResponse.json({ error: 'Payment not found.' }, { status: 404 })
   if (payment.method !== 'zelle') {
     return NextResponse.json({ error: 'Only Zelle claims are confirmed manually.' }, { status: 400 })

@@ -1,15 +1,16 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Card, LoanStatusBadge, Button, Spinner } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
 
-export default function LoanDetailPage({ params }: { params: { id: string } }) {
+export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const { id } = use(params)
   const [loan, setLoan] = useState<any>(null)
 
-  useEffect(() => { fetch(`/api/loans/${params.id}`).then(r => r.json()).then(setLoan) }, [params.id])
+  useEffect(() => { fetch(`/api/loans/${id}`).then(r => r.json()).then(setLoan) }, [id])
 
   if (!loan) return <div className="p-8"><Spinner /></div>
 
