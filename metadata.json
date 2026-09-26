@@ -1,0 +1,6 @@
+{
+  "name": "Millionaires Club Management System",
+  "description": "Comprehensive membership management, monthly contribution tracking, loan ledger, automated payment reminders, and fund growth analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
