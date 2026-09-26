@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAnySession, sessionMemberId } from '@/lib/apiAuth'
+import { requireMemberOrPermission } from '@/modules/auth'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAnySession()
+  const auth = await requireMemberOrPermission('agreements.read')
   if (auth.error) return auth.error
 
-  const role = (auth.session.user as any).role
-  const memberId = sessionMemberId(auth.session)
+  const isStaff = auth.principal.kind === 'staff'
+  const memberId = auth.principal.kind === 'member' ? auth.principal.memberId : undefined
   const s      = new URL(req.url).searchParams
   const status = s.get('status') || ''
   const search = s.get('search') || ''
 
   const where: any = {}
-  if (role === 'admin') {
+  if (isStaff) {
     if (status) where.status = status
     if (search) where.OR = [
       { borrowerName:  { contains: search, mode: 'insensitive' } },

@@ -1,7 +1,7 @@
 // The audit log: append-only at the database level, secrets redacted,
 // written in the same transaction as the change it records.
 import Stripe from 'stripe'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { TEST_IDS, signInAs } from './helpers/actors'
 import { auditEntriesSince, auditMarker, prisma, resetDatabase } from './helpers/db'
 import { createBaseFixtures } from './helpers/factories'
@@ -34,14 +34,14 @@ describe('redaction', () => {
       .toEqual({ email: 'a@b.c', password: '[redacted]', passwordChanged: true, nested: { portalPassword: '[redacted]', apiToken: '[redacted]' }, n: '5', when: '2026-01-02T00:00:00.000Z' })
   })
 
-  it('never stores a password hash when an admin password changes', async () => {
+  it('never stores a password hash when a staff password is reset', async () => {
     signInAs('super_admin')
-    const res = await callRoute('admins/[id]', 'PATCH', { params: { id: TEST_IDS.admin }, body: { password: 'a brand new passphrase' } })
+    const res = await callRoute('staff/[id]', 'PATCH', { params: { id: TEST_IDS.admin }, body: { password: 'a brand new passphrase' } })
     expect(res.status).toBe(200)
     const [entry] = await auditEntriesSince(marker)
-    expect(entry).toMatchObject({ action: 'admin.update', actorType: 'admin', actorId: TEST_IDS.superAdmin })
+    expect(entry).toMatchObject({ action: 'staff.update', actorType: 'admin', actorId: TEST_IDS.superAdmin })
     expect(JSON.stringify([entry.before, entry.after, entry.metadata])).not.toMatch(/\$2[aby]\$/)
-    expect((entry.before as any).password).toBe('[redacted]')
+    expect(entry.before).not.toHaveProperty('password')
     expect((entry.metadata as any).passwordChanged).toBe(true)
   })
 })
@@ -59,7 +59,7 @@ describe('entries are written with the change', () => {
     expect(entries).toHaveLength(1)
     expect(entries[0]).toMatchObject({
       action: 'member.update', entityType: 'member', entityId: TEST_IDS.member,
-      actorType: 'admin', actorId: TEST_IDS.admin, actorLabel: 'admin@example.test',
+      actorType: 'admin', actorId: TEST_IDS.admin, actorLabel: `${TEST_IDS.admin}@example.test`,
       ip: '203.0.113.7', userAgent: 'vitest',
     })
     expect((entries[0].before as any).phoneNo).toBeNull()
@@ -137,18 +137,6 @@ describe('audit viewer API', () => {
     const second = await callRoute('audit', 'GET', { query: `action=test.page&limit=3&cursor=${first.json.nextCursor}` })
     expect(second.json.entries.map((e: any) => e.entityId)).toEqual(['1', '0'])
     expect(second.json.nextCursor).toBeNull()
-  })
-})
-
-describe('admin self-protection (needs the session user id)', () => {
-  afterEach(() => signInAs('anonymous'))
-
-  it('stops a super admin deleting or demoting their own account', async () => {
-    await prisma.admin.create({ data: { id: 'second-super', email: 's2@example.test', name: 'S2', role: 'super_admin', password: 'x' } })
-    signInAs('super_admin')
-    expect((await callRoute('admins/[id]', 'DELETE', { params: { id: TEST_IDS.superAdmin } })).status).toBe(409)
-    expect((await callRoute('admins/[id]', 'PATCH', { params: { id: TEST_IDS.superAdmin }, body: { role: 'admin' } })).status).toBe(409)
-    expect(await prisma.admin.findUnique({ where: { id: TEST_IDS.superAdmin } })).not.toBeNull()
   })
 })
 

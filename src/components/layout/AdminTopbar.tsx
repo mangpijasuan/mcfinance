@@ -16,7 +16,9 @@ const pageTitles: Record<string, string> = {
   '/withdrawals': 'Withdrawals',
   '/payments': 'Pending Payments',
   '/notifications': 'Notifications',
-  '/settings/admins': 'Admin Access',
+  '/settings/staff': 'Staff & Roles',
+  '/settings/audit': 'Audit Log',
+  '/security': 'My Security',
 }
 
 function titleFromPath(pathname: string) {
@@ -28,7 +30,7 @@ function titleFromPath(pathname: string) {
   return matched ? pageTitles[matched] : 'Millionaires Club'
 }
 
-export default function AdminTopbar({ adminRoleLabel }: { adminRoleLabel?: string }) {
+export default function AdminTopbar({ roleSummary, canSearchMembers }: { roleSummary?: string; canSearchMembers: boolean }) {
   const pathname = usePathname()
   const router = useRouter()
   const [query, setQuery] = useState('')
@@ -55,11 +57,11 @@ export default function AdminTopbar({ adminRoleLabel }: { adminRoleLabel?: strin
               <p className="truncate text-base font-semibold text-slate-900">{pageTitle}</p>
               <div className="flex items-center gap-2">
                 <p className="truncate text-xs text-slate-500">Millionaires Club administration</p>
-                {adminRoleLabel && (
+                {roleSummary && (
                   <Badge variant="blue">
                     <span className="inline-flex items-center gap-1">
                       <Shield size={11} />
-                      {adminRoleLabel}
+                      {roleSummary}
                     </span>
                   </Badge>
                 )}
@@ -68,7 +70,7 @@ export default function AdminTopbar({ adminRoleLabel }: { adminRoleLabel?: strin
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="hidden md:block w-full max-w-md">
+        {canSearchMembers && <form onSubmit={handleSubmit} className="hidden md:block w-full max-w-md">
           <label className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 transition-colors focus-within:border-indigo-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100">
             <Search size={16} className="shrink-0 text-slate-400 group-focus-within:text-indigo-500" />
             <input
@@ -79,7 +81,7 @@ export default function AdminTopbar({ adminRoleLabel }: { adminRoleLabel?: strin
               className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
             />
           </label>
-        </form>
+        </form>}
       </div>
     </header>
   )

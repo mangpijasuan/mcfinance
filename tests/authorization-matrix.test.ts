@@ -1,7 +1,12 @@
-// Authorisation matrix: every API route × every method × every kind of
-// caller → allowed or denied. A new route cannot be added without an
-// entry here (the coverage test below fails), which is how the class of
-// bug found in the audit (a route missing its role check) stays fixed.
+// Authorisation matrix: every API route × method × caller → allowed or
+// denied, derived from the permission catalogue (D-07). Callers are
+// anonymous, a member, a staff account for every role, a staff account
+// with no roles, and one that has not passed MFA.
+//
+// Two checks keep it honest:
+// - coverage: a route cannot exist without an entry here;
+// - source: each handler asks the DAL for exactly the permission listed,
+//   so two permissions that happen to share holders cannot be confused.
 import fs from 'node:fs'
 import path from 'node:path'
 import { NextRequest } from 'next/server'
@@ -9,45 +14,55 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { ACTORS, type Actor, signInAs } from './helpers/actors'
 import { resetDatabase } from './helpers/db'
 import { createBaseFixtures } from './helpers/factories'
+import { ROLES, isRoleKey, type Permission } from '@/modules/permissions'
 
-type Policy =
-  | 'public' // no session needed
-  | 'signed_in' // any session; object ownership is checked in the handler (see ownership tests)
-  | 'member'
-  | 'admin' // admin or super admin
-  | 'super_admin'
+type Requirement =
+  | { public: true } // no session (health; the Stripe webhook authenticates by signature)
+  | { member: true }
+  | { perm: Permission }
+  | { memberOr: Permission } // a member (ownership checked in the handler) or staff with the permission
+  | { staffSession: true } // any staff session, even before MFA (enrolment)
+  | { staff: true } // any staff with MFA verified (own account)
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
+const perm = (p: Permission): Requirement => ({ perm: p })
 
-const MATRIX: Record<string, Partial<Record<Method, Policy>>> = {
-  'admins': { GET: 'super_admin', POST: 'super_admin' },
-  'admins/[id]': { PATCH: 'super_admin', DELETE: 'super_admin' },
-  'audit': { GET: 'super_admin' },
-  'agreements': { GET: 'signed_in' },
-  'agreements/[id]': { GET: 'signed_in', PATCH: 'signed_in' }, // no DELETE (Gate #1 A3)
-  'contributions': { GET: 'admin', POST: 'admin' },
-  'dashboard': { GET: 'admin' },
-  'health': { GET: 'public' },
-  'loan-history': { GET: 'admin' },
-  'loan-payments': { GET: 'admin', POST: 'admin' },
-  'loans': { GET: 'admin', POST: 'admin' },
-  'loans/[id]': { GET: 'admin', PATCH: 'admin' },
-  'loans/check-policy': { POST: 'admin' },
-  'members': { GET: 'admin', POST: 'admin' },
-  'members/[id]': { GET: 'admin', PATCH: 'admin' }, // no DELETE (Gate #1 A3)
-  'members/[id]/promote-admin': { POST: 'super_admin' },
-  'members/[id]/set-password': { POST: 'admin' },
-  'notifications': { GET: 'admin', POST: 'admin' },
-  'payments': { GET: 'admin' },
-  'payments/[id]/confirm': { POST: 'admin' },
-  'payments/[id]/reject': { POST: 'admin' },
-  'portal/history': { GET: 'member' },
-  'portal/me': { GET: 'member' },
-  'portal/payments': { GET: 'member' },
-  'portal/payments/checkout': { POST: 'member' },
-  // Authenticated by the Stripe signature, not a session.
-  'webhooks/stripe': { POST: 'public' },
-  'withdrawals': { GET: 'admin', POST: 'admin' },
+const MATRIX: Record<string, Partial<Record<Method, Requirement>>> = {
+  'agreements': { GET: { memberOr: 'agreements.read' } },
+  'agreements/[id]': { GET: { memberOr: 'agreements.read' }, PATCH: { memberOr: 'agreements.read' } },
+  'audit': { GET: perm('audit.read') },
+  'contributions': { GET: perm('contributions.read'), POST: perm('contributions.record') },
+  'dashboard': { GET: perm('dashboard.view') },
+  'health': { GET: { public: true } },
+  'loan-history': { GET: perm('loans.read') },
+  'loan-payments': { GET: perm('loan_payments.read'), POST: perm('loan_payments.record') },
+  'loans': { GET: perm('loans.read'), POST: perm('loans.create') },
+  'loans/[id]': { GET: perm('loans.read'), PATCH: perm('loans.update') },
+  'loans/check-policy': { POST: perm('loans.create') },
+  'me': { GET: { staffSession: true } },
+  'me/mfa/recovery-codes': { POST: { staff: true } },
+  'me/mfa/setup': { POST: { staffSession: true } },
+  'me/mfa/verify': { POST: { staffSession: true } },
+  'me/password': { POST: { staff: true } },
+  'me/sessions': { GET: { staff: true }, DELETE: { staff: true } },
+  'members': { GET: perm('members.read'), POST: perm('members.create') },
+  'members/[id]': { GET: perm('members.read'), PATCH: perm('members.update') }, // no DELETE (Gate #1 A3)
+  'members/[id]/promote-admin': { POST: perm('staff.manage') },
+  'members/[id]/set-password': { POST: perm('members.portal_access') },
+  'notifications': { GET: perm('notifications.read'), POST: perm('notifications.send') },
+  'payments': { GET: perm('payments.read') },
+  'payments/[id]/confirm': { POST: perm('payments.review') },
+  'payments/[id]/reject': { POST: perm('payments.review') },
+  'portal/history': { GET: { member: true } },
+  'portal/me': { GET: { member: true } },
+  'portal/payments': { GET: { member: true } },
+  'portal/payments/checkout': { POST: { member: true } },
+  'staff': { GET: perm('staff.read'), POST: perm('staff.manage') },
+  'staff/[id]': { PATCH: perm('staff.manage') }, // no DELETE: accounts are disabled, not deleted
+  'staff/[id]/reset-mfa': { POST: perm('staff.manage') },
+  'staff/[id]/revoke-sessions': { POST: perm('staff.manage') },
+  'webhooks/stripe': { POST: { public: true } },
+  'withdrawals': { GET: perm('withdrawals.read'), POST: perm('withdrawals.record') },
 }
 
 // NextAuth's own sign-in endpoints.
@@ -69,19 +84,44 @@ function discoverRoutes(): string[] {
   return found.sort()
 }
 
-function allowed(policy: Policy, actor: Actor): boolean {
-  switch (policy) {
-    case 'public':
-      return true
-    case 'signed_in':
-      return actor !== 'anonymous'
-    case 'member':
-      return actor === 'member'
-    case 'admin':
-      return actor === 'admin' || actor === 'super_admin'
-    case 'super_admin':
-      return actor === 'super_admin'
+function holds(actor: Actor, permission: Permission): boolean {
+  if (!isRoleKey(actor)) return false
+  return (ROLES[actor].permissions as readonly string[]).includes(permission)
+}
+
+function allowed(req: Requirement, actor: Actor): boolean {
+  const isStaff = actor !== 'anonymous' && actor !== 'member'
+  if ('public' in req) return true
+  if ('member' in req) return actor === 'member'
+  if ('staffSession' in req) return isStaff
+  if ('staff' in req) return isStaff && actor !== 'staff_mfa_pending'
+  if ('memberOr' in req) return actor === 'member' || holds(actor, req.memberOr)
+  return holds(actor, req.perm)
+}
+
+/** What the handler source asks the DAL for, as a Requirement. */
+function declaredRequirement(handlerSource: string): Requirement | null {
+  const m = handlerSource.match(/require(Permission|MemberOrPermission|Member|StaffSession|Staff)\((?:'([^']+)')?\)/)
+  if (!m) return { public: true }
+  const [, kind, arg] = m
+  switch (kind) {
+    case 'Permission': return { perm: arg as Permission }
+    case 'MemberOrPermission': return { memberOr: arg as Permission }
+    case 'Member': return { member: true }
+    case 'StaffSession': return { staffSession: true }
+    case 'Staff': return { staff: true }
   }
+  return null
+}
+
+function handlerSources(source: string): Partial<Record<Method, string>> {
+  const out: Partial<Record<Method, string>> = {}
+  const parts = source.split(/(?=export async function (?:GET|POST|PATCH|PUT|DELETE)\b)/)
+  for (const part of parts) {
+    const m = part.match(/^export async function (GET|POST|PATCH|PUT|DELETE)\b/)
+    if (m) out[m[1] as Method] = part
+  }
+  return out
 }
 
 async function call(route: string, method: Method) {
@@ -109,21 +149,31 @@ describe('authorization matrix', () => {
     }
   })
 
+  it('each handler checks exactly the listed requirement', () => {
+    for (const [route, methods] of Object.entries(MATRIX)) {
+      const source = fs.readFileSync(path.join(API_DIR, route, 'route.ts'), 'utf8')
+      const handlers = handlerSources(source)
+      for (const [method, requirement] of Object.entries(methods)) {
+        expect(declaredRequirement(handlers[method as Method] ?? ''), `${method} /api/${route}`).toEqual(requirement)
+      }
+    }
+  })
+
   const cases = Object.entries(MATRIX).flatMap(([route, methods]) =>
-    Object.entries(methods).flatMap(([method, policy]) =>
-      ACTORS.map((actor) => ({ route, method: method as Method, policy: policy as Policy, actor })),
+    Object.entries(methods).flatMap(([method, requirement]) =>
+      ACTORS.map((actor) => ({ route, method: method as Method, requirement: requirement as Requirement, actor })),
     ),
   )
 
-  it.each(cases)('$method /api/$route as $actor ($policy)', async ({ route, method, policy, actor }) => {
+  it.each(cases)('$method /api/$route as $actor', async ({ route, method, requirement, actor }) => {
     signInAs(actor)
     const res = await call(route, method)
-    if (allowed(policy, actor)) {
+    if (allowed(requirement, actor)) {
       expect([401, 403], `expected ${actor} to get past the auth check`).not.toContain(res.status)
     } else if (actor === 'anonymous') {
       expect(res.status).toBe(401)
     } else {
-      expect([401, 403]).toContain(res.status)
+      expect(res.status).toBe(403)
     }
   })
 })

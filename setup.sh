@@ -16,6 +16,8 @@ if [ ! -f .env.local ]; then
   if command -v openssl >/dev/null 2>&1; then
     secret=$(openssl rand -base64 32)
     sed -i.bak "s#^NEXTAUTH_SECRET=\"\"#NEXTAUTH_SECRET=\"$secret\"#" .env.local && rm -f .env.local.bak
+    mfa_key=$(openssl rand -base64 32)
+    sed -i.bak "s#^MFA_ENCRYPTION_KEY=\"\"#MFA_ENCRYPTION_KEY=\"$mfa_key\"#" .env.local && rm -f .env.local.bak
   fi
   echo "✓ Created .env.local"
 else
@@ -60,6 +62,8 @@ echo "  Run:  npm run dev"
 echo "  Open: http://localhost:3000"
 echo ""
 echo "  Login: admin@millionairesclub.com"
-echo "         with the password you just chose"
+echo "         with the password you just chose."
+echo "  You will set up two-factor authentication (an"
+echo "  authenticator app on your phone) at first sign-in."
 echo "================================================"
 echo ""

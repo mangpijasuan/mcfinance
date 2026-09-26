@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { auditContext, recordAudit } from '@/modules/audit'
 import { badRequest, notFound, readJsonObject } from '@/lib/http'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('members.portal_access')
   if (auth.error) return auth.error
 
   const { id } = await params
@@ -24,6 +24,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (typeof enabled === 'boolean') data.portalEnabled = enabled
   if (password) data.portalPassword = await bcrypt.hash(password, 10)
   if (password && enabled === undefined) data.portalEnabled = true
+  // A new password or switching access off ends the member's existing sessions.
+  if (data.portalPassword || data.portalEnabled === false) data.portalSessionsValidAfter = new Date()
 
   const member = await prisma.$transaction(async (tx) => {
     const updated = await tx.member.update({
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data,
       select: { id: true, legalName: true, portalEnabled: true },
     })
-    await recordAudit(tx, auditContext(req, auth.session), {
+    await recordAudit(tx, auditContext(req, auth.principal), {
       action: 'member.portal_access.update', entityType: 'member', entityId: id,
       before: { portalEnabled: existing.portalEnabled },
       after: { portalEnabled: updated.portalEnabled },

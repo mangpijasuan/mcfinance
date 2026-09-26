@@ -46,14 +46,19 @@ function requestFields(req?: HeaderSource | null) {
   }
 }
 
-/** Context for a request made by a signed-in admin or member. */
-export function auditContext(req: HeaderSource | null | undefined, session: unknown): AuditContext {
-  const user = (session as { user?: Record<string, any> } | null)?.user
-  if (user?.role === 'admin') {
-    return { actorType: 'admin', actorId: user.id ?? null, actorLabel: clip(user.email ?? user.name), ...requestFields(req) }
+type AuditActor =
+  | { kind: 'staff'; id: string; email: string }
+  | { kind: 'member'; memberId: string }
+  | null
+  | undefined
+
+/** Context for a request made by signed-in staff or a member (a DAL principal). */
+export function auditContext(req: HeaderSource | null | undefined, actor: AuditActor): AuditContext {
+  if (actor?.kind === 'staff') {
+    return { actorType: 'admin', actorId: actor.id, actorLabel: clip(actor.email), ...requestFields(req) }
   }
-  if (user?.role === 'member') {
-    return { actorType: 'member', actorId: user.memberId ?? null, actorLabel: clip(user.memberId), ...requestFields(req) }
+  if (actor?.kind === 'member') {
+    return { actorType: 'member', actorId: actor.memberId, actorLabel: clip(actor.memberId), ...requestFields(req) }
   }
   return { actorType: 'anonymous', actorId: null, actorLabel: null, ...requestFields(req) }
 }

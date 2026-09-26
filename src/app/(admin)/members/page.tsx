@@ -6,8 +6,10 @@ import { Plus, ExternalLink, ChevronRight } from 'lucide-react'
 import { Card, Table, EmptyState, Badge, StatusBadge, EligibleBadge, RiskBadge, PaidBadge,
          Button, Modal, Input, Select, PageHeader, FilterBar, SearchInput } from '@/components/ui'
 import { fmt$, fmtDate, fmtDateInput } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 export default function MembersPage() {
+  const { can } = useStaff()
   const router = useRouter()
   const searchParams = useSearchParams()
   const PAGE_SIZE = 10
@@ -62,7 +64,7 @@ export default function MembersPage() {
       <PageHeader
         title="Members"
         sub={`${total} total`}
-        action={<Button onClick={() => setShowAdd(true)}><Plus size={15} /> Add member</Button>}
+        action={can('members.create') ? <Button onClick={() => setShowAdd(true)}><Plus size={15} /> Add member</Button> : undefined}
       />
 
       <FilterBar>

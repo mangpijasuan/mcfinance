@@ -88,8 +88,8 @@ The Finance and Web3 columns are styled differently: dollar amounts and point/to
 | Treasury | fiat: cash position, reserve, lending capacity; MCTN Safes mirror after Gate #2 | `treasury.view` | Stage 3 |
 | Rewards rules | MC Points rules, budgets, manual awards | `rewards.manage` | Stage 4 |
 | Reports | trial balance, portfolio, aging, cash flow, member statements, as of any date | `reports.view` | now (dashboard); ledger-based in Stage 3 |
-| Audit log | who did what, before and after | `audit.read` | Stage 2 |
-| Users & Roles | staff accounts, role assignment, MFA status | `admin.users` | Stage 2 (Admin Access today) |
+| Audit log | who did what, before and after | `audit.read` | now (`/settings/audit`) |
+| Users & Roles | staff accounts, role assignment, MFA status | `staff.read` / `staff.manage` | now (`/settings/staff`) |
 | Compliance | compliance matrix tracker, retention settings, data-subject requests | `compliance.*` | Stage 3 |
 
 ## 5. Public site (WWW)

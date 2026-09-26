@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkLoanPolicy, calcApplicationFee } from '@/lib/loanPolicy'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { badRequest, readJsonObject, requiredString } from '@/lib/http'
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loans.create')
   if (auth.error) return auth.error
 
   const body = await readJsonObject(req)

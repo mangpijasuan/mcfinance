@@ -14,12 +14,17 @@ async function main() {
     throw new Error('Set ADMIN_SEED_PASSWORD (at least 12 characters) before seeding.')
   }
   const hashed = await bcrypt.hash(adminPassword, 10)
-  await prisma.admin.upsert({
+  const admin = await prisma.admin.upsert({
     where: { email: 'admin@millionairesclub.com' },
-    update: { role: 'super_admin' },
-    create: { email: 'admin@millionairesclub.com', name: 'Club Admin', password: hashed, role: 'super_admin' },
+    update: {},
+    create: { email: 'admin@millionairesclub.com', name: 'Club Admin', password: hashed },
   })
-  console.log('✓ Admin account created')
+  await prisma.staffRoleAssignment.upsert({
+    where: { adminId_role: { adminId: admin.id, role: 'super_admin' } },
+    update: {},
+    create: { adminId: admin.id, role: 'super_admin' },
+  })
+  console.log('✓ Admin account created (Super Admin; sets up two-factor authentication at first sign-in)')
 
   // Members
   for (const m of seedData.members) {

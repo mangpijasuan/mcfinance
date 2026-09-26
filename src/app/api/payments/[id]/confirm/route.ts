@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { recordContribution, recordLoanPayment } from '@/lib/paymentActions'
 import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('payments.review')
   if (auth.error) return auth.error
 
   const { id } = await params
@@ -18,10 +18,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'This payment has already been reviewed.' }, { status: 409 })
   }
 
-  const reviewedBy = String((auth.session.user as any)?.email || (auth.session.user as any)?.name || 'Admin')
+  const reviewedBy = auth.principal.email
   const comments = payment.zelleReference ? `Zelle: ${payment.zelleReference}` : 'Zelle payment'
 
-  const ctx = auditContext(req, auth.session)
+  const ctx = auditContext(req, auth.principal)
   const updated = await prisma.$transaction(async (tx) => {
     // Claim the claim: only one confirmation can move it out of "pending".
     // A concurrent confirm blocks on the row lock, then matches nothing.

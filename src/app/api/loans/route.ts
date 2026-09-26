@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkLoanPolicy, calcApplicationFee } from '@/lib/loanPolicy'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { nextPublicId } from '@/lib/publicIds'
 import { auditContext, recordAudit } from '@/modules/audit'
 import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loans.read')
   if (auth.error) return auth.error
 
   const s = new URL(req.url).searchParams
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loans.create')
   if (auth.error) return auth.error
 
   const body = await readJsonObject(req)
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    await recordAudit(tx, auditContext(req, auth.session), {
+    await recordAudit(tx, auditContext(req, auth.principal), {
       action: 'loan.create', entityType: 'loan', entityId: loanId, after: created,
       metadata: { agreementId, applicationFee },
     })

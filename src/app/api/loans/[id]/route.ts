@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { auditContext, recordAudit } from '@/modules/audit'
 import { badRequest, notFound, parseDate, readJsonObject } from '@/lib/http'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loans.read')
   if (auth.error) return auth.error
 
   const { id } = await params
@@ -23,7 +23,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 const EDITABLE_LOAN_FIELDS = ['notes', 'status', 'overdue'] as const
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loans.update')
   if (auth.error) return auth.error
 
   const { id } = await params
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const loan = await prisma.$transaction(async (tx) => {
     const updated = await tx.loan.update({ where: { loanId: id }, data })
-    await recordAudit(tx, auditContext(req, auth.session), {
+    await recordAudit(tx, auditContext(req, auth.principal), {
       action: 'loan.update', entityType: 'loan', entityId: id, before: existing, after: updated,
     })
     return updated

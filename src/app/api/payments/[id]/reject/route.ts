@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('payments.review')
   if (auth.error) return auth.error
 
   const { id } = await params
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const body = await req.json().catch(() => ({}))
-  const reviewedBy = String((auth.session.user as any)?.email || (auth.session.user as any)?.name || 'Admin')
+  const reviewedBy = auth.principal.email
 
   // Conditional update so a reject cannot overwrite a concurrent confirm.
   const updated = await prisma.$transaction(async (tx) => {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
     if (claimed.count === 0) return null
     const after = await tx.portalPayment.findUniqueOrThrow({ where: { id: payment.id } })
-    await recordAudit(tx, auditContext(req, auth.session), {
+    await recordAudit(tx, auditContext(req, auth.principal), {
       action: `payment.${payment.method}.reject`, entityType: 'portal_payment', entityId: payment.publicId,
       before: payment, after,
     })

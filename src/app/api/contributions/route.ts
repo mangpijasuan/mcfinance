@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { recordContribution } from '@/lib/paymentActions'
 import { badRequest, readJsonObject, requiredString } from '@/lib/http'
 import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('contributions.read')
   if (auth.error) return auth.error
 
   const s = new URL(req.url).searchParams
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('contributions.record')
   if (auth.error) return auth.error
 
   const body = await readJsonObject(req)
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       comments: body.comments || null,
       source: 'Admin',
     })
-    await recordAudit(tx, auditContext(req, auth.session), {
+    await recordAudit(tx, auditContext(req, auth.principal), {
       action: 'contribution.create', entityType: 'contribution', entityId: created.transactionId, after: created,
     })
     return created

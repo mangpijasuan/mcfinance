@@ -7,14 +7,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Staff accounts (officers and administrators). What a staff member may
+// do comes from their role assignments, read from the database on every
+// request (src/modules/auth); role definitions live in
+// src/modules/permissions.
 model Admin {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
   password  String
-  role      String   @default("admin")
   linkedMemberId String? @unique
   createdAt DateTime @default(now())
+  disabledAt  DateTime?
+  lastLoginAt DateTime?
+
+  // TOTP multi-factor authentication. Secrets are AES-256-GCM encrypted
+  // with MFA_ENCRYPTION_KEY; mfaLastUsedStep blocks code replay.
+  mfaSecret        String?
+  mfaPendingSecret String?
+  mfaEnabledAt     DateTime?
+  mfaLastUsedStep  Int?
+
+  roles         StaffRoleAssignment[]
+  sessions      StaffSession[]
+  recoveryCodes MfaRecoveryCode[]
+}
+
+model StaffRoleAssignment {
+  id        String   @id @default(cuid())
+  adminId   String
+  role      String   // a role key from src/modules/permissions
+  grantedBy String?  // staff id, or null for migrations and CLI
+  grantedAt DateTime @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, role])
+}
+
+// Server-side staff sessions. The session cookie carries a random token;
+// only its SHA-256 hash is stored here. A session ends after 12 hours, or
+// 30 minutes without activity, or when revoked.
+model StaffSession {
+  id            String    @id // sha256(token)
+  adminId       String
+  createdAt     DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  expiresAt     DateTime
+  mfaVerifiedAt DateTime?
+  revokedAt     DateTime?
+  revokedReason String?
+  ip            String?
+  userAgent     String?
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+}
+
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  adminId   String
+  codeHash  String    @unique // sha256 of the normalised code
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
 }
 
 model Member {
@@ -41,6 +101,9 @@ model Member {
   riskFlag             String    @default("LOW")
   portalEnabled        Boolean   @default(false)
   portalPassword       String?
+  // Portal sessions issued before this moment are rejected (set when the
+  // portal password changes or access is switched off).
+  portalSessionsValidAfter DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

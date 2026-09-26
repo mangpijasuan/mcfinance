@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { badRequest, readJsonObject, requiredString } from '@/lib/http'
 import { recordLoanPayment } from '@/lib/paymentActions'
 import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loan_payments.read')
   if (auth.error) return auth.error
 
   const s = new URL(req.url).searchParams
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loan_payments.record')
   if (auth.error) return auth.error
 
   const body = await readJsonObject(req)
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       source: 'Admin',
     })
     const loanAfter = await tx.loan.findUnique({ where: { loanId }, select: { loanId: true, totalPaid: true, balanceRemaining: true, status: true } })
-    await recordAudit(tx, auditContext(req, auth.session), {
+    await recordAudit(tx, auditContext(req, auth.principal), {
       action: 'loan_payment.create', entityType: 'loan_payment', entityId: created.paymentId, after: created,
       metadata: { loanBefore: loan, loanAfter },
     })

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireMember, sessionMemberId } from '@/lib/apiAuth'
+import { requireMember } from '@/modules/auth'
 import { nextPublicId } from '@/lib/publicIds'
 import { getStripe } from '@/lib/stripe'
 import { badRequest, readJsonObject } from '@/lib/http'
@@ -9,7 +9,7 @@ import { auditContext, recordAudit } from '@/modules/audit'
 export async function POST(req: NextRequest) {
   const auth = await requireMember()
   if (auth.error) return auth.error
-  const memberId = sessionMemberId(auth.session)!
+  const memberId = auth.principal.memberId
 
   const body = await readJsonObject(req)
   if (!body) return badRequest('Invalid request body.')
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const ctx = auditContext(req, auth.session)
+  const ctx = auditContext(req, auth.principal)
   const portalPayment = await prisma.$transaction(async (tx) => {
     const created = await tx.portalPayment.create({
       data: {

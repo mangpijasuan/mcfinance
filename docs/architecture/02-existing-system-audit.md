@@ -44,9 +44,9 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 
 | # | Finding | Sev | Verdict |
 |---|---|:-:|---|
-| S-1 | The role lives inside a 30-day JWT (NextAuth default). Demoting or deleting an admin does not take effect until the token expires. | H | **Refactor**: database-backed session checks (D-07) |
-| S-2 | Two roles only. Every admin can record, edit and confirm any financial event alone. | H | **Replace** with RBAC plus maker/checker (D-06, D-07) |
-| S-3 | No MFA for staff. | H | **Missing** |
+| S-1 | The role lives inside a 30-day JWT (NextAuth default). Demoting or deleting an admin does not take effect until the token expires. | H | **Fixed (Stage 2):** database-backed staff sessions and live role checks (D-07); member sessions 7 days, cut off when portal access or password changes |
+| S-2 | Two roles only. Every admin can record, edit and confirm any financial event alone. | H | **Partly fixed (Stage 2):** nine roles with least-privilege permissions (D-07). Maker/checker (D-06) follows in Stage 3; existing admins keep full access through the transitional Club Officer role until officers are named (A4) |
+| S-3 | No MFA for staff. | H | **Fixed (Stage 2):** TOTP required for every staff account, with recovery codes |
 | S-4 | No audit log of who changed what. | H | **Fixed (Stage 2):** append-only `AuditLog` (database trigger blocks UPDATE, DELETE, TRUNCATE) written in the same transaction by every write route, sign-ins and the Stripe webhook; super-admin viewer at `/settings/audit` |
 | S-5 | Login rate limiting is in-memory: it resets on restart and is per process. | M | **Refactor** to database- or Redis-backed |
 | S-6 | Backups sit on the same VM as the database, are unencrypted, and have never had a restore tested. | H | **Refactor** |

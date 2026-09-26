@@ -6,8 +6,10 @@ import { Plus, ExternalLink, AlertTriangle, CheckCircle, AlertCircle, ChevronRig
 import { Card, Table, EmptyState, LoanStatusBadge, Badge, Button, Modal, Input, Select,
          PageHeader, FilterBar, SearchInput } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 export default function LoansPage() {
+  const { can } = useStaff()
   const router = useRouter()
   const [loans, setLoans]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +56,7 @@ export default function LoansPage() {
       <PageHeader
         title="Loans"
         sub={`${loans.filter(l => l.status === 'Active').length} active · ${fmt$(totalOutstanding)} outstanding`}
-        action={<Button onClick={() => setShowNew(true)}><Plus size={15} /> New loan</Button>}
+        action={can('loans.create') ? <Button onClick={() => setShowNew(true)}><Plus size={15} /> New loan</Button> : undefined}
       />
 
       <FilterBar>

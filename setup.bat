@@ -11,7 +11,8 @@ echo.
 if not exist .env.local (
     copy .env.example .env.local
     echo [OK] Created .env.local
-    echo      Set NEXTAUTH_SECRET in .env.local to a long random value.
+    echo      Set NEXTAUTH_SECRET and MFA_ENCRYPTION_KEY in .env.local.
+    echo      Each can be generated with: openssl rand -base64 32
 ) else (
     echo [OK] .env.local already exists
 )
@@ -50,7 +51,8 @@ echo   Run:  npm run dev
 echo   Open: http://localhost:3000
 echo.
 echo   Login: admin@millionairesclub.com
-echo          with the password you just chose
+echo          with the password you just chose.
+echo   You will set up two-factor authentication at first sign-in.
 echo ================================================
 echo.
 pause

@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { Card, Table, EmptyState, Button, Modal, Input, Select, PageHeader,
          FilterBar, SearchInput } from '@/components/ui'
 import { fmt$, fmtDate, monthYearOptions } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 const MONTHS = monthYearOptions()
 const METHODS = ['Cash', 'Online', 'Zelle', 'Venmo', 'Check', 'Auto-pay', 'Other']
@@ -23,6 +24,7 @@ function currentMonthYear() {
 }
 
 export default function ContributionsPage() {
+  const { can } = useStaff()
   const [rows, setRows]       = useState<any[]>([])
   const [total, setTotal]     = useState(0)
   const [totalAmt, setTotalAmt] = useState(0)
@@ -132,7 +134,7 @@ export default function ContributionsPage() {
           action={
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => window.print()}>Print monthly report</Button>
-              <Button onClick={() => setShowAdd(true)}><Plus size={15} /> Record payment</Button>
+              {can('contributions.record') && <Button onClick={() => setShowAdd(true)}><Plus size={15} /> Record payment</Button>}
             </div>
           }
         />

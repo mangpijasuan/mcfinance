@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, contributionReminderEmail, loanOverdueEmail, adminSummaryEmail } from '@/lib/email'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function GET() {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('notifications.read')
   if (auth.error) return auth.error
 
   // Return preview stats (who would receive emails)
@@ -25,14 +25,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('notifications.send')
   if (auth.error) return auth.error
 
   const body = await req.json().catch(() => ({}))
   const type = body?.type
   // Emails cannot be un-sent, so the entry is written after the send.
   const audit = (metadata: Record<string, unknown>) =>
-    recordAudit(prisma, auditContext(req, auth.session), {
+    recordAudit(prisma, auditContext(req, auth.principal), {
       action: 'notifications.send', entityType: 'notification', entityId: String(type), metadata,
     })
 

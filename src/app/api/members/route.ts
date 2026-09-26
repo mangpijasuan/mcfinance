@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 import { sanitizeMember } from '@/lib/serializers'
 import { nextMemberId } from '@/lib/publicIds'
 import { auditContext, recordAudit } from '@/modules/audit'
 import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('members.read')
   if (auth.error) return auth.error
 
   const s = new URL(req.url).searchParams
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('members.create')
   if (auth.error) return auth.error
 
   const body = await readJsonObject(req)
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       notes: body.notes || null,
       },
     })
-    await recordAudit(tx, auditContext(req, auth.session), {
+    await recordAudit(tx, auditContext(req, auth.principal), {
       action: 'member.create', entityType: 'member', entityId: created.id, after: created,
     })
     return created

@@ -5,6 +5,7 @@ import { ArrowLeft, Edit2, KeyRound, Globe, Shield } from 'lucide-react'
 import { Card, Table, Badge, StatusBadge, EligibleBadge, RiskBadge, LoanStatusBadge,
          Button, Modal, Input, Select, Spinner } from '@/components/ui'
 import { fmt$, fmtDate, fmtDateInput } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -13,7 +14,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [showEdit, setShowEdit] = useState(false)
   const [showPortal, setShowPortal] = useState(false)
   const [showPromoteAdmin, setShowPromoteAdmin] = useState(false)
-  const [session, setSession] = useState<any>(null)
+  const { can } = useStaff()
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -30,20 +31,11 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     })()
   }, [id])
 
-  useEffect(() => {
-    ;(async () => {
-      const res = await fetch('/api/auth/session')
-      const data = await readJsonSafe(res)
-      if (res.ok && data?.user) setSession(data)
-    })()
-  }, [])
-
   if (error) return <div className="p-8"><div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div></div>
 
   if (!member) return <div className="p-8"><Spinner /></div>
 
   const years = member.yearlyTotals || []
-  const isSuperAdmin = session?.user?.adminRole === 'super_admin'
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl">
@@ -57,11 +49,11 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto sm:shrink-0">
-          {isSuperAdmin && (
-            <Button variant="secondary" size="sm" onClick={() => setShowPromoteAdmin(true)}><Shield size={14} /> {member.linkedAdmin ? 'Linked admin' : 'Promote to admin'}</Button>
+          {can('staff.manage') && (
+            <Button variant="secondary" size="sm" onClick={() => setShowPromoteAdmin(true)}><Shield size={14} /> {member.linkedAdmin ? 'Staff account' : 'Give staff access'}</Button>
           )}
-          <Button variant="secondary" size="sm" onClick={() => setShowPortal(true)}><KeyRound size={14} /> Portal access</Button>
-          <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}><Edit2 size={14} /> Edit</Button>
+          {can('members.portal_access') && <Button variant="secondary" size="sm" onClick={() => setShowPortal(true)}><KeyRound size={14} /> Portal access</Button>}
+          {can('members.update') && <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}><Edit2 size={14} /> Edit</Button>}
         </div>
       </div>
 
@@ -79,12 +71,14 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         <InfoBox label="This month"><Badge variant={member.thisMonth === 'PAID' ? 'green' : 'red'}>{member.thisMonth}</Badge></InfoBox>
         <InfoBox label="Phone">{member.phoneNo || '—'}</InfoBox>
         <InfoBox label="Email">{member.email || '—'}</InfoBox>
-        <InfoBox label="Admin access">
-          {member.linkedAdmin
-            ? <Badge variant="blue">{member.linkedAdmin.roleLabel}</Badge>
-            : '—'}
-        </InfoBox>
-        <InfoBox label="Linked admin email">{member.linkedAdmin?.email || '—'}</InfoBox>
+        {can('staff.read') && <>
+          <InfoBox label="Staff access">
+            {member.linkedAdmin
+              ? <Badge variant={member.linkedAdmin.disabled ? 'gray' : 'blue'}>{member.linkedAdmin.disabled ? 'Disabled' : member.linkedAdmin.roleLabel}</Badge>
+              : '—'}
+          </InfoBox>
+          <InfoBox label="Staff sign-in email">{member.linkedAdmin?.email || '—'}</InfoBox>
+        </>}
       </div>
 
       {/* Payment history by year */}
@@ -363,79 +357,81 @@ function PortalModal({ open, onClose, member, onSaved }: any) {
 function PromoteAdminModal({ open, onClose, member, onSaved }: any) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [role, setRole] = useState<'admin' | 'super_admin'>('admin')
+  const [roles, setRoles] = useState<string[]>([])
+  const [catalogue, setCatalogue] = useState<{ key: string; label: string; description: string; privileged: boolean }[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (open) {
-      setPassword('')
-      setConfirm('')
-      setRole('admin')
-      setError('')
-      setSaving(false)
-    }
+    if (!open) return
+    setPassword('')
+    setConfirm('')
+    setRoles([])
+    setError('')
+    setSaving(false)
+    fetch('/api/staff', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setCatalogue((d?.roles ?? []).filter((r: any) => !r.privileged && !r.transitional)))
+      .catch(() => setCatalogue([]))
   }, [open])
 
   async function promote(e: React.FormEvent) {
     e.preventDefault()
-    if (member?.linkedAdmin) {
-      setError('This member already has a linked admin account.')
-      return
-    }
-    if (!member?.email) {
-      setError('Member needs an email address before promotion.')
-      return
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
-      return
-    }
-    if (password !== confirm) {
-      setError('Passwords do not match.')
-      return
-    }
+    if (member?.linkedAdmin) return setError('This member already has a staff account.')
+    if (!member?.email) return setError('Member needs an email address first.')
+    if (password.length < 12) return setError('Password must be at least 12 characters.')
+    if (password !== confirm) return setError('Passwords do not match.')
+    if (roles.length === 0) return setError('Choose at least one role.')
 
     setSaving(true)
     setError('')
     const res = await fetch(`/api/members/${member.id}/promote-admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password, role }),
+      body: JSON.stringify({ password, roles }),
     })
     const data = await readJsonSafe(res)
     if (res.ok && data) {
       onSaved(data)
       return
     }
-    setError(data?.error || 'Failed to create linked admin account.')
+    setError(data?.error || 'Failed to create the staff account.')
     setSaving(false)
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Promote to admin — ${member?.legalName}`}>
+    <Modal open={open} onClose={onClose} title={`Staff access — ${member?.legalName}`}>
       <div className="space-y-4">
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <p className="text-sm font-semibold text-gray-900">This creates a linked admin account from the member profile.</p>
+          <p className="text-sm font-semibold text-gray-900">Creates a separate staff sign-in linked to this member.</p>
           <p className="mt-1 text-xs text-gray-500">Member ID: <span className="font-mono">{member?.id}</span> · Email: <span className="font-mono">{member?.email || 'missing'}</span></p>
           {member?.linkedAdmin && (
-            <p className="mt-2 text-xs text-blue-700">Already linked to {member.linkedAdmin.email} as {member.linkedAdmin.roleLabel}.</p>
+            <p className="mt-2 text-xs text-blue-700">Already linked to {member.linkedAdmin.email} ({member.linkedAdmin.roleLabel}). Manage it under Staff &amp; Roles.</p>
           )}
         </div>
 
         {!member?.linkedAdmin && (
           <form onSubmit={promote} className="space-y-3">
-            <Select label="Admin role" value={role} onChange={(e) => setRole(e.target.value as 'admin' | 'super_admin')}>
-              <option value="admin">Admin</option>
-              <option value="super_admin">Super Admin</option>
-            </Select>
-            <Input label="Admin login email" value={member?.email || ''} onChange={() => {}} disabled />
-            <Input label="Temporary password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <Input label="Confirm password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+            <p className="text-sm font-medium text-gray-700">Roles</p>
+            <div className="space-y-2">
+              {catalogue.map((r) => (
+                <label key={r.key} className="flex gap-3 rounded-lg border border-gray-200 p-2.5 cursor-pointer">
+                  <input type="checkbox" className="mt-1" checked={roles.includes(r.key)}
+                    onChange={(e) => setRoles(e.target.checked ? [...roles, r.key] : roles.filter((k) => k !== r.key))} />
+                  <span>
+                    <span className="block text-sm font-medium text-gray-900">{r.label}</span>
+                    <span className="block text-xs text-gray-500">{r.description}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <Input label="Temporary password (12+ characters)" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Input label="Confirm password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+            <p className="text-xs text-gray-500">They will set up two-factor authentication at first sign-in.</p>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create linked admin'}</Button>
+              <Button type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create staff account'}</Button>
             </div>
           </form>
         )}

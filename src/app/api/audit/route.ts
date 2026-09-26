@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { requireSuperAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 
 const MAX_LIMIT = 100
 
 // Newest first, cursor-paginated by id. Filters: action (prefix, e.g.
 // "payment."), entityType, entityId, actor (matches id or label).
 export async function GET(req: NextRequest) {
-  const auth = await requireSuperAdmin()
+  const auth = await requirePermission('audit.read')
   if (auth.error) return auth.error
 
   const s = new URL(req.url).searchParams

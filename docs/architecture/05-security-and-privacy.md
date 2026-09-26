@@ -72,6 +72,13 @@ flowchart LR
 **REVERSIBILITY:** moderate
 **REQUIRES LEGAL REVIEW:** no
 **REQUIRES FOUNDER APPROVAL:** yes (role assignments)
+**STATUS:** Implemented (Stage 2, 2026-09-26; Gate #1 A5).
+- Permissions and role definitions live in code (`src/modules/permissions`), so every change to what a role may do is reviewed in git and covered by the authorisation-matrix tests. Role *assignments* are rows in the database, read on every request: a role change, a disabled account or a revoked session takes effect on the next click.
+- One Data Access Layer (`src/modules/auth`) resolves each request: staff session row (token stored hashed; 12-hour limit, 30-minute idle timeout, revocable), account status, current roles, MFA state. The cookie carries identity only.
+- Staff MFA: TOTP authenticator apps, secrets AES-256-GCM encrypted with `MFA_ENCRYPTION_KEY`, codes single-use (replay-protected), ten single-use recovery codes stored hashed, enrolment forced at first sign-in, rate-limited. Passkeys are a later addition.
+- Guards: nobody changes their own roles, password or status through staff management; only a Super Admin grants, revokes or acts on Super Admin; at least one active Super Admin remains; staff accounts are disabled, never deleted. Every Super Admin sign-in is flagged in the audit log and, if `SECURITY_ALERT_EMAIL` is set, emailed.
+- Transition: existing admins hold the **Club Officer** role (their previous access) until the officers are named (A4). Maker/checker ("no role approves its own proposal") arrives with the approvals module in Stage 3; until then approvals are permissions held by the approving roles.
+- Member sessions last 7 days and end when portal access is switched off or the portal password changes.
 
 ### RBAC and maker/checker
 
@@ -95,7 +102,7 @@ No role can approve its own proposal. The Administrator manages accounts but has
 
 ### Operational security baseline (Phase 5 exit criteria)
 
-- MFA enforced for staff; staff sessions time out after 12 hours or 30 minutes idle.
+- MFA enforced for staff; staff sessions time out after 12 hours or 30 minutes idle. *(Done, Stage 2.)*
 - Secrets in environment files on the server with `600` permissions, never in git. Rotate `NEXTAUTH_SECRET` and the database password from their example values.
 - Nightly encrypted backups (e.g. `age`/`gpg`) to off-site object storage; weekly restore test; recovery point objective 24 h, recovery time objective 4 h to start.
 - Content-Security-Policy, HSTS (Caddy), and a dependency audit in CI (`npm audit --audit-level=high`).

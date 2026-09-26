@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Send, Mail, AlertTriangle, BarChart2 } from 'lucide-react'
 import { Card, Button, PageHeader, Badge } from '@/components/ui'
 import { fmtDate } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 function ActionCard({ icon, title, description, detail, buttonLabel, buttonVariant = 'primary', onClick, loading, result, warning }: any) {
   return (
@@ -33,6 +34,7 @@ function ActionCard({ icon, title, description, detail, buttonLabel, buttonVaria
 }
 
 export default function NotificationsPage() {
+  const { can } = useStaff()
   const [stats, setStats]           = useState<any>(null)
   const [loadingType, setLoadingType] = useState('')
   const [results, setResults]       = useState<Record<string, any>>({})
@@ -110,7 +112,7 @@ ADMIN_EMAIL="your@email.com"       # Where to send admin summaries`}
       </Card>
 
       {/* Action cards */}
-      <div className="space-y-4 mb-8">
+      {can('notifications.send') && <div className="space-y-4 mb-8">
         <ActionCard
           icon={<Mail size={18} />}
           title="Monthly contribution reminders"
@@ -146,7 +148,7 @@ ADMIN_EMAIL="your@email.com"       # Where to send admin summaries`}
           result={results['admin_summary']}
           warning={setupWarning}
         />
-      </div>
+      </div>}
 
       {/* Email log */}
       <Card>

@@ -8,7 +8,7 @@
 |---|---|---|---|
 | **M0 Safety** | Production snapshot; verified restore; audit tasks A-1 to A-3 ([02](02-existing-system-audit.md#3-remaining-audit-work-requires-access-outside-this-repository)) | Restore tested; production consistency report reviewed by the Treasurer | — |
 | **M1 One database** ✅ | Postgres in dev and CI; baseline `prisma migrate` from the production schema; drop the SQLite schema (D-02) | CI runs migrations on a clean Postgres | Revert the commit; production unaffected |
-| **M2 Controls first** (audit log ✅; RBAC and MFA next) | Audit log, users/roles/permissions, database-backed DAL, staff MFA (D-07). Existing admins become users with roles | Every write route logs to `audit_log`; roles revoke instantly | Feature flag back to the old checks |
+| **M2 Controls first** ✅ | Audit log, users/roles/permissions, database-backed DAL, staff MFA (D-07). Existing admins become users with roles | Every write route logs to `audit_log`; roles revoke instantly | Feature flag back to the old checks |
 | **M3 Ledger in place, empty** | Money module; ledger tables; chart of accounts approved by the accountant | Invariant tests green | Drop the new tables |
 | **M4 Opening balances** | At a cutover date (proposed **2026-01-01**, matching the start of transaction-level data): see the recipe below | Trial balance balances; account 9000 explained (below) | Delete the draft opening entries (still unposted) |
 | **M5 Dual-write** | New payments, loans and withdrawals post to the ledger **and** update the legacy fields. A nightly job compares the two | 30 consecutive days, including one month-end, with zero differences | Stop ledger writes; legacy remains authoritative |

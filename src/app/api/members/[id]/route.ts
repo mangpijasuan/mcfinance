@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { can, requirePermission } from '@/modules/auth'
+import { roleLabel } from '@/modules/permissions'
 import { sanitizeMember } from '@/lib/serializers'
 import { auditContext, recordAudit } from '@/modules/audit'
 import { badRequest, notFound, parseDate, readJsonObject } from '@/lib/http'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('members.read')
   if (auth.error) return auth.error
 
   const { id } = await params
@@ -29,10 +30,13 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const historical = await prisma.historicalLoan.findMany({
     orderBy: [{ year: 'desc' }, { loanDate: 'desc' }],
   })
-  const linkedAdmin = await prisma.admin.findFirst({
-    where: { linkedMemberId: id },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
-  })
+  // A linked staff account is shown only to people who may see staff.
+  const linkedAdmin = can(auth.principal, 'staff.read')
+    ? await prisma.admin.findFirst({
+        where: { linkedMemberId: id },
+        select: { id: true, email: true, name: true, createdAt: true, disabledAt: true, roles: { select: { role: true } } },
+      })
+    : null
 
   const historicalLoansAsBorrower = historical.filter((loan) => names.has(normalize(loan.borrowerName)))
   const historicalLoansAsCosigner = historical.filter((loan) => loan.cosignerName && names.has(normalize(loan.cosignerName)))
@@ -44,8 +48,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
           id: linkedAdmin.id,
           email: linkedAdmin.email,
           name: linkedAdmin.name,
-          role: linkedAdmin.role === 'super_admin' ? 'super_admin' : 'admin',
-          roleLabel: linkedAdmin.role === 'super_admin' ? 'Super Admin' : 'Admin',
+          roles: linkedAdmin.roles.map((r) => r.role),
+          roleLabel: linkedAdmin.roles.map((r) => roleLabel(r.role)).join(', ') || 'No roles',
+          disabled: Boolean(linkedAdmin.disabledAt),
           createdAt: linkedAdmin.createdAt,
         }
       : null,
@@ -60,7 +65,7 @@ const EDITABLE_MEMBER_FIELDS = [
 ] as const
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('members.update')
   if (auth.error) return auth.error
 
   const { id } = await params
@@ -88,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const member = await prisma.$transaction(async (tx) => {
     const updated = await tx.member.update({ where: { id }, data })
-    await recordAudit(tx, auditContext(req, auth.session), {
+    await recordAudit(tx, auditContext(req, auth.principal), {
       action: 'member.update', entityType: 'member', entityId: id, before: existing, after: updated,
     })
     return updated

@@ -22,7 +22,7 @@ npm run dev
 2. Double-click **`setup.bat`** and wait for it to finish
 3. In Command Prompt: `npm run dev`
 
-Open **http://localhost:3000**. Sign in as `admin@millionairesclub.com` with the password you chose during setup.
+Open **http://localhost:3000**. Sign in as `admin@millionairesclub.com` with the password you chose during setup. The first sign-in asks you to set up two-factor authentication with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).
 
 ---
 
@@ -66,10 +66,17 @@ Tests run against a separate PostgreSQL database that is **wiped on every run**:
 
 ---
 
-**Forgot the admin password?**
+## Staff access: roles and two-factor authentication
+
+Staff permissions come from **roles** (Loan Officer, Finance, Treasurer, Compliance, Auditor, Board, Administrator, Super Admin), assigned under **Staff & Roles**. Role definitions live in `src/modules/permissions`; who holds which role is stored in the database and checked on every request, so a change or a disabled account takes effect immediately. Every staff account must use two-factor authentication. Staff sessions end after 12 hours, or 30 minutes of inactivity.
+
+Accounts that existed before roles were introduced have the transitional **Club Officer** role (the same access as before). Replace it with specific roles once officers are named.
+
+**Locked out** (forgot the password, or lost both the phone and the recovery codes)? From the server shell:
 ```bash
-ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com NEW_ADMIN_PASSWORD='a long passphrase' npm run admin:reset-password
+ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com NEW_ADMIN_PASSWORD='a long passphrase' RESET_MFA=1 npm run admin:reset-password
 ```
+Leave out `RESET_MFA=1` to keep the existing authenticator. For anyone else, a staff administrator can reset their password or two-factor authentication under Staff & Roles.
 
 ---
 

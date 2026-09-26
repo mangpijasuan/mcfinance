@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Card, Table, EmptyState, Badge, Button, PageHeader, Select } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
   try { return await res.json() } catch { return null }
@@ -12,6 +13,7 @@ const statusVariant: Record<string, 'amber' | 'green' | 'red' | 'gray'> = {
 }
 
 export default function PaymentsPage() {
+  const { can } = useStaff()
   const [rows, setRows] = useState<any[]>([])
   const [status, setStatus] = useState('pending')
   const [loading, setLoading] = useState(true)
@@ -101,7 +103,7 @@ export default function PaymentsPage() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  {p.status === 'pending' && p.method === 'zelle' ? (
+                  {p.status === 'pending' && p.method === 'zelle' && can('payments.review') ? (
                     <div className="flex gap-2">
                       <Button size="sm" disabled={busyId === p.id} onClick={() => confirm(p.id)}>Confirm</Button>
                       <Button size="sm" variant="danger" disabled={busyId === p.id} onClick={() => reject(p.id)}>Reject</Button>

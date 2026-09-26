@@ -1,7 +1,7 @@
 # Millionaires Club Platform — Architecture Assessment v1
 
 **Status:** First Assignment deliverable (Master Prompt v2.0, §48). [Founder Decision Gate #1](FOUNDER_DECISION_GATE_1.md) **Part A approved 2026-09-26**; Part B (MCTN, rewards, UMI principles) not yet decided.
-**Progress:** Stage 2 under way — PostgreSQL everywhere with migrations, test harness and append-only audit log done; RBAC and staff MFA next.
+**Progress:** Stage 2 foundation built — PostgreSQL everywhere with migrations, test harness, append-only audit log, role-based access with database-backed sessions, and staff MFA. Remaining Stage 2 exit items: encrypted off-site backups with a tested restore (S-6) and a Content-Security-Policy (S-8).
 
 This assessment keeps the existing application and evolves it. It does not propose a rewrite. Every number cited comes from the current codebase and database (the seeded club data), or from the reproducible models in [`scripts/models/`](../../scripts/models/).
 

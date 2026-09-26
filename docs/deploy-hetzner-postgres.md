@@ -67,6 +67,8 @@ Update these values:
 
 - `NEXTAUTH_URL`
 - `NEXTAUTH_SECRET`
+- `MFA_ENCRYPTION_KEY` (`openssl rand -base64 32`; back it up with your other secrets — losing it means every staff member re-enrols two-factor authentication)
+- `SECURITY_ALERT_EMAIL` (receives an alert on every Super Admin sign-in)
 - `DATABASE_URL`
 - `ADMIN_EMAIL`
 - `EMAIL_FROM`
@@ -108,6 +110,8 @@ The output should contain **only** the `AuditLog` table and its three indexes (a
   docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
   ```
 
+**Upgrading to roles and two-factor authentication** (migration `20260926020000_rbac_mfa`): set `MFA_ENCRYPTION_KEY` in `.env.production` *before* deploying. The migration turns each existing Super Admin into a Super Admin role holder and every other admin into the transitional Club Officer role (the audit log records each one). Every staff member is asked to set up two-factor authentication at their next sign-in, so tell them to have their phone ready.
+
 **Every deploy after that:**
 
 ```bash
@@ -127,6 +131,8 @@ docker compose -f docker-compose.hetzner.yml exec \
   -e ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com -e NEW_ADMIN_PASSWORD='a long passphrase' \
   app npm run admin:reset-password
 ```
+
+Add `-e RESET_MFA=1` if the person also lost their authenticator and recovery codes. All of their sessions end; the reset is recorded in the audit log.
 
 ## 8. Verify
 

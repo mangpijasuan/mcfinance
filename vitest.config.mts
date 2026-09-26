@@ -19,6 +19,9 @@ export default defineConfig({
       DATABASE_URL: databaseUrl,
       TEST_DATABASE_URL: databaseUrl,
       NEXTAUTH_SECRET: 'test-only-secret',
+      // 32 zero bytes: a test-only key for encrypting TOTP secrets.
+      MFA_ENCRYPTION_KEY: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+      SECURITY_ALERT_EMAIL: '',
       STRIPE_SECRET_KEY: '',
       STRIPE_WEBHOOK_SECRET: '',
       RESEND_API_KEY: '',

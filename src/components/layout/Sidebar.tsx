@@ -3,33 +3,23 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { signOut } from 'next-auth/react'
-import { LayoutDashboard, Users, Receipt, Landmark, CreditCard, History, ArrowDownLeft, Bell, FileText, LogOut, Menu, X, Shield, Wallet, ScrollText } from 'lucide-react'
+import { LogOut, Menu, X, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { visibleNav } from '@/components/staff/nav'
 
-const nav = [
-  { href: '/dashboard',      label: 'Dashboard',       icon: LayoutDashboard },
-  { href: '/members',        label: 'Members',          icon: Users },
-  { href: '/contributions',  label: 'Contributions',    icon: Receipt },
-  { href: '/loans',          label: 'Loans',            icon: Landmark },
-  { href: '/agreements',     label: 'Loan Agreement',   icon: FileText },
-  { href: '/loan-payments',  label: 'Loan Payments',    icon: CreditCard },
-  { href: '/loan-history',   label: 'Loan History',     icon: History },
-  { href: '/withdrawals',    label: 'Withdrawals',      icon: ArrowDownLeft },
-  { href: '/payments',       label: 'Pending Payments', icon: Wallet },
-  { href: '/notifications',  label: 'Notifications',    icon: Bell },
-  { label: 'Sign out',       icon: LogOut, action: 'logout' as const },
-]
+type NavEntry = { href?: string; label: string; icon: LucideIcon; action?: 'logout' }
 
-export default function Sidebar({ adminRole, adminRoleLabel }: { adminRole?: string; adminRoleLabel?: string }) {
+export default function Sidebar({ permissions, roleSummary }: { permissions: string[]; roleSummary?: string }) {
   const path = usePathname()
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
 
   const close = () => setOpen(false)
 
-  const items = adminRole === 'super_admin'
-    ? [...nav.slice(0, nav.length - 1), { href: '/settings/admins', label: 'Admin Access', icon: Shield }, { href: '/settings/audit', label: 'Audit Log', icon: ScrollText }, nav[nav.length - 1]]
-    : nav
+  const items: NavEntry[] = [
+    ...visibleNav(permissions).map(({ href, label, icon }) => ({ href, label, icon })),
+    { label: 'Sign out', icon: LogOut, action: 'logout' },
+  ]
 
   const NavContent = (compact = false, withDesktopToggle = false) => (
     <>
@@ -55,7 +45,7 @@ export default function Sidebar({ adminRole, adminRoleLabel }: { adminRole?: str
           {!compact && (
             <div className="min-w-0 text-left">
               <p className="text-white font-semibold text-sm leading-tight truncate">Millionaires Club</p>
-              <p className="text-white/40 text-xs">{adminRoleLabel || 'Admin Panel'}</p>
+              <p className="text-white/40 text-xs">{roleSummary || 'Staff'}</p>
             </div>
           )}
         </div>
@@ -84,6 +74,7 @@ export default function Sidebar({ adminRole, adminRoleLabel }: { adminRole?: str
             )
           }
 
+          if (!href) return null
           const active = path === href || path.startsWith(href + '/')
           return (
             <Link key={href} href={href} onClick={close} className={cn(

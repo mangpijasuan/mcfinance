@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { FileSignature, Eye } from 'lucide-react'
 import { Card, Table, EmptyState, Badge, Button, Modal, PageHeader, FilterBar, SearchInput, Select } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
   try {
@@ -21,6 +22,7 @@ function statusBadge(s: string) {
 }
 
 export default function AgreementsPage() {
+  const { can } = useStaff()
   const [rows, setRows]         = useState<any[]>([])
   const [loading, setLoading]   = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -100,7 +102,7 @@ export default function AgreementsPage() {
                     <Button size="sm" variant="secondary" onClick={() => setSelected(a)}>
                     <Eye size={13} /> View
                     </Button>
-                    {a.status !== 'cancelled' && (
+                    {a.status !== 'cancelled' && can('loans.cancel') && (
                       <Button size="sm" variant="danger" onClick={() => cancelAgreement(a.agreementId)}>
                         Cancel
                       </Button>
@@ -125,6 +127,7 @@ export default function AgreementsPage() {
 }
 
 function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
+  const { can } = useStaff()
   const [agreement, setAgreement] = useState(initial)
   const [sig, setSig]     = useState('')
   const [saving, setSaving] = useState(false)
@@ -255,8 +258,8 @@ function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
         </div>
       </div>
 
-      {/* Admin lender sign section */}
-      {!a.lenderSignature && (
+      {/* Lender signature: officers who may sign for the club */}
+      {!a.lenderSignature && a.status !== 'cancelled' && can('agreements.sign_lender') && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
           <p className="text-sm font-semibold text-indigo-900 flex items-center gap-2">
             <FileSignature size={15} /> Sign as Lender (Millionaires Club)
