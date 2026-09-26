@@ -19,5 +19,11 @@ export async function GET(req: NextRequest) {
     include: { member: { select: { legalName: true } } },
   })
 
-  return NextResponse.json({ payments })
+  // Claims whose confirmation is waiting for a second approver (D-06).
+  const pending = await prisma.approvalRequest.findMany({
+    where: { status: 'pending', entityType: 'portal_payment', entityId: { in: payments.map((p) => p.id) } },
+    select: { entityId: true, publicId: true },
+  })
+  const awaiting = new Map(pending.map((r) => [r.entityId, r.publicId]))
+  return NextResponse.json({ payments: payments.map((p) => ({ ...p, awaitingApproval: awaiting.get(p.id) ?? null })) })
 }

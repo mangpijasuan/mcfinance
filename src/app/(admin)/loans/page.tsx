@@ -208,10 +208,11 @@ function NewLoanModal({ open, onClose, onSaved }: any) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     })
+    const d = await readJsonSafe(res)
     if (res.ok) {
+      if (res.status === 202 && d?.approvalRequest) window.alert(`Sent for approval (${d.approvalRequest.publicId}). Someone else must approve it under Approvals before it takes effect.`)
       onSaved()
     } else {
-      const d = await readJsonSafe(res)
       setError(d?.error || 'Failed to create loan.')
       if (Array.isArray(d?.violations)) setViolations(d.violations)
       setSaving(false)

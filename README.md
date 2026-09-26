@@ -156,6 +156,19 @@ activity and clicks **Confirm** (which records the payment) or **Reject**. `NEXT
 
 The ledger is **empty on purpose** until two things happen: the club's accountant confirms the proposed chart of accounts (the Treasurer records this on the Ledger page; it cannot be undone), and opening balances are loaded from a production snapshot (migration step M4). Posted entries can never be edited or deleted — the database refuses — so mistakes are corrected with reversing entries.
 
+## Approvals (maker / checker)
+
+Some actions need a second person (D-06): the person who proposes them can never approve them. `/approvals` shows the queue.
+
+| Action | Proposed by | Approved by | When |
+|---|---|---|---|
+| Confirm a Zelle claim | anyone who reviews payments | a different reviewer | over $100 |
+| Pay out a withdrawal | Finance | Treasurer | always |
+| Create a loan | Loan Officer | Treasurer or Board | always |
+| Manual journal entry | Finance / Treasurer | Treasurer / Board | always |
+
+The first three are **switched off** until the officers are named (Gate #1 A4) and work with one person, as before. Switch them on with `MAKER_CHECKER_ENFORCED=true`. Manual journal entries always need a second person. When approved, the action runs at that moment; if it no longer passes its rules (for example the borrower is no longer eligible), nothing changes and the request stays pending.
+
 ## Architecture assessment
 
 The platform modernisation plan (financial ledger, security, MCTN / rewards research, UMI feasibility) lives in [docs/architecture/](docs/architecture/README.md). Start with the executive assessment and **Founder Decision Gate #1**. The numbers in it are reproducible with `node scripts/models/tokenomics.mjs` and `node scripts/models/umi.mjs`.

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/modules/auth'
-import { recordContribution, recordLoanPayment } from '@/lib/paymentActions'
-import { auditContext, recordAudit } from '@/modules/audit'
+import { fromLegacyDollars, formatUSD } from '@/lib/money'
+import { operationErrorResponse } from '@/lib/operationError'
+import { submitOrExecute } from '@/modules/approvals'
 
+// Confirming a Zelle claim records the member's payment. Above the D-06
+// threshold (with maker/checker switched on) it is queued for a second
+// person instead: 202 with the approval request.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requirePermission('payments.review')
   if (auth.error) return auth.error
@@ -18,63 +22,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'This payment has already been reviewed.' }, { status: 409 })
   }
 
-  const reviewedBy = auth.principal.email
-  const comments = payment.zelleReference ? `Zelle: ${payment.zelleReference}` : 'Zelle payment'
-
-  const ctx = auditContext(req, auth.principal)
-  const updated = await prisma.$transaction(async (tx) => {
-    // Claim the claim: only one confirmation can move it out of "pending".
-    // A concurrent confirm blocks on the row lock, then matches nothing.
-    const claimed = await tx.portalPayment.updateMany({
-      where: { id: payment.id, status: 'pending' },
-      data: { status: 'completed', reviewedBy, reviewedAt: new Date() },
+  const amountCents = fromLegacyDollars(payment.amount)
+  try {
+    const out = await submitOrExecute({
+      action: 'payment.zelle.confirm',
+      principal: auth.principal,
+      req,
+      amountCents,
+      entityType: 'portal_payment',
+      entityId: payment.id,
+      summary: `Confirm Zelle claim ${payment.publicId}: ${formatUSD(amountCents)} ${payment.type === 'contribution' ? 'contribution' : `loan payment (${payment.loanId})`} from member ${payment.memberId}`,
+      payload: { paymentId: payment.id },
     })
-    if (claimed.count === 0) return null
-
-    if (payment.type === 'contribution') {
-      const record = await recordContribution(tx, {
-        memberId: payment.memberId,
-        amount: payment.amount,
-        paymentDate: new Date(),
-        paymentMethod: 'Zelle',
-        receivedBy: reviewedBy,
-        comments,
-        source: 'Zelle',
-      })
-      const after = await tx.portalPayment.update({
-        where: { id: payment.id },
-        data: { contributionId: record.id },
-      })
-      await recordAudit(tx, ctx, {
-        action: 'payment.zelle.confirm', entityType: 'portal_payment', entityId: payment.publicId,
-        before: payment, after, metadata: { contributionId: record.transactionId },
-      })
-      return after
-    }
-
-    if (!payment.loanId) throw new Error('Missing loanId on loan_payment PortalPayment')
-    const record = await recordLoanPayment(tx, {
-      loanId: payment.loanId,
-      amount: payment.amount,
-      paymentDate: new Date(),
-      paymentMethod: 'Zelle',
-      receivedBy: reviewedBy,
-      comments,
-      source: 'Zelle',
-    })
-    const after = await tx.portalPayment.update({
-      where: { id: payment.id },
-      data: { loanPaymentId: record.id },
-    })
-    await recordAudit(tx, ctx, {
-      action: 'payment.zelle.confirm', entityType: 'portal_payment', entityId: payment.publicId,
-      before: payment, after, metadata: { loanPaymentId: record.paymentId },
-    })
-    return after
-  })
-
-  if (!updated) {
-    return NextResponse.json({ error: 'This payment has already been reviewed.' }, { status: 409 })
+    if ('queued' in out) return NextResponse.json({ approvalRequest: out.queued }, { status: 202 })
+    return NextResponse.json(out.result)
+  } catch (err) {
+    const res = operationErrorResponse(err)
+    if (res) return res
+    throw err
   }
-  return NextResponse.json(updated)
 }

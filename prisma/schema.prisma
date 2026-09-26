@@ -412,3 +412,44 @@ model LedgerPeriod {
   closedAt DateTime?
   closedBy String?
 }
+
+// ── Maker / checker (D-06) ────────────────────────────────────────────
+// A proposed operation waiting for a second, different, authorised person.
+// On approval the operation runs in the same transaction; on rejection or
+// cancellation nothing happens. At most one pending request per action and
+// entity (partial unique index in migration 20260926050000_approvals).
+model ApprovalRequest {
+  id                String    @id @default(cuid())
+  publicId          String    @unique // APR-XXXXXXXXXX
+  action            String // see src/modules/approvals/policy.ts
+  entityType        String
+  entityId          String
+  summary           String
+  amountCents       BigInt?
+  payload           Json
+  status            String    @default("pending") // pending | approved | rejected | cancelled
+  approvalsRequired Int       @default(1)
+  requestedBy       String // staff id (the maker)
+  requestedAt       DateTime  @default(now())
+  decidedAt         DateTime?
+  decisionNote      String?
+  resultRef         String? // what the approved operation created, e.g. a withdrawal or entry number
+
+  decisions ApprovalDecision[]
+
+  @@index([status, requestedAt])
+  @@index([entityType, entityId])
+}
+
+model ApprovalDecision {
+  id        String   @id @default(cuid())
+  requestId String
+  deciderId String // staff id (a checker)
+  decision  String // approve | reject
+  note      String?
+  at        DateTime @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id])
+
+  @@unique([requestId, deciderId])
+}

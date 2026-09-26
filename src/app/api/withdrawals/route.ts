@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/modules/auth'
-import { nextPublicId } from '@/lib/publicIds'
-import { auditContext, recordAudit } from '@/modules/audit'
+import { cents, formatUSD, parseDollars, toLegacyDollars } from '@/lib/money'
+import { operationErrorResponse } from '@/lib/operationError'
+import { submitOrExecute } from '@/modules/approvals'
+import { checkWithdrawal, type WithdrawalInput } from '@/modules/membership/withdrawals'
 import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
 
 export async function GET(req: NextRequest) {
@@ -41,60 +43,41 @@ export async function POST(req: NextRequest) {
   if (!memberId) return badRequest('A member must be selected.')
   const withdrawalDate = parseDate(body.withdrawalDate)
   if (!withdrawalDate) return badRequest('A valid withdrawal date is required.')
-  const amount = parseFloat(body.amount)
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return NextResponse.json({ error: 'Amount must be greater than 0.' }, { status: 400 })
+  let amountCents: number
+  try {
+    amountCents = parseDollars(typeof body.amount === 'number' ? body.amount : String(body.amount ?? ''))
+  } catch {
+    return badRequest('Amount must be a dollar amount with at most two decimals.')
+  }
+  if (amountCents <= 0) return badRequest('Amount must be greater than 0.')
+
+  const input: WithdrawalInput = {
+    memberId,
+    amount: toLegacyDollars(cents(amountCents)),
+    withdrawalDate: withdrawalDate.toISOString(),
+    type: body.type === 'Full Exit' ? 'Full Exit' : 'Partial',
+    reason: body.reason || null,
+    processedBy: body.processedBy || null,
+    notes: body.notes || null,
   }
 
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-    select: {
-      legalName: true,
-      archiveLifetime: true,
-      contributions2026: true,
-      activeAsBorrower: true,
-      activeAsCosigner: true,
-      currentLoanBalance: true,
-    },
-  })
-  if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
-
-  const isFullExit = body.type === 'Full Exit'
-  if (isFullExit && (member.activeAsBorrower > 0 || member.activeAsCosigner > 0 || member.currentLoanBalance > 0)) {
-    return NextResponse.json(
-      { error: 'Member cannot fully exit while they have an active loan or co-signer obligation.' },
-      { status: 409 }
-    )
+  try {
+    const member = await checkWithdrawal(prisma, input)
+    const out = await submitOrExecute({
+      action: 'withdrawal.record',
+      principal: auth.principal,
+      req,
+      amountCents,
+      entityType: 'member',
+      entityId: memberId,
+      summary: `${input.type === 'Full Exit' ? 'Full exit' : 'Partial withdrawal'}: ${formatUSD(cents(amountCents))} to ${member.legalName} (${memberId})`,
+      payload: input,
+    })
+    if ('queued' in out) return NextResponse.json({ approvalRequest: out.queued }, { status: 202 })
+    return NextResponse.json(out.result, { status: 201 })
+  } catch (err) {
+    const res = operationErrorResponse(err)
+    if (res) return res
+    throw err
   }
-
-  const withdrawal = await prisma.$transaction(async (tx) => {
-    const created = await tx.withdrawal.create({
-      data: {
-        withdrawalId: nextPublicId('WD'),
-        memberId,
-        memberName: member.legalName,
-        amount,
-        withdrawalDate,
-        type: isFullExit ? 'Full Exit' : 'Partial',
-        reason: body.reason || null,
-        processedBy: body.processedBy || null,
-        notes: body.notes || null,
-      },
-    })
-
-    // Full exit — mark the member inactive
-    if (isFullExit) {
-      await tx.member.update({
-        where: { id: memberId },
-        data: { status: 'Inactive', eligible: 'NO - Inactive' },
-      })
-    }
-    await recordAudit(tx, auditContext(req, auth.principal), {
-      action: isFullExit ? 'withdrawal.full_exit' : 'withdrawal.create',
-      entityType: 'withdrawal', entityId: created.withdrawalId, after: created,
-    })
-    return created
-  })
-
-  return NextResponse.json(withdrawal, { status: 201 })
 }

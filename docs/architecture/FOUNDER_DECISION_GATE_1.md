@@ -79,7 +79,7 @@ Approving these commits to **principles only**. No token is created, and no cont
 
 | Item | Owed | Blocks |
 |---|---|---|
-| A4 | Names of at least three officers for maker/checker, and which role each holds | Replacing the transitional Club Officer role; turning on maker/checker enforcement (Stage 3) |
+| A4 | Names of at least three officers for maker/checker, and which role each holds | Replacing the transitional Club Officer role; switching maker/checker on (built; one setting, `MAKER_CHECKER_ENFORCED=true`) |
 | A7 | Counsel confirmation of late-fee limits in the club's state | Charging the first late fee (the delinquency job ships with fees switched off until confirmed) |
 | A12 | Counsel engagement and budget | Stage 3a legal scoping; Gate #2 |
 | A13 | Accountant engagement | Posting the chart of accounts (Stage 3) |

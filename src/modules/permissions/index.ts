@@ -33,6 +33,11 @@ export const PERMISSIONS = {
   'notifications.send': 'Send reminder and summary emails',
   'ledger.read': 'View the chart of accounts, journal and trial balance',
   'ledger.manage_accounts': 'Record the accountant’s approval of the chart of accounts',
+  'ledger.propose': 'Propose manual journal entries (they need a checker)',
+  'ledger.approve': 'Approve manual journal entries proposed by someone else',
+  'loans.approve': 'Approve loans proposed by someone else (when maker/checker is on)',
+  'withdrawals.approve': 'Approve withdrawals recorded by someone else (when maker/checker is on)',
+  'approvals.view': 'See the approval queue',
   'audit.read': 'Read the audit log',
   'staff.read': 'View staff accounts and their roles',
   'staff.manage': 'Create staff accounts, assign roles, reset passwords and MFA',
@@ -45,6 +50,7 @@ export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[]
 const READ_EVERYTHING: Permission[] = [
   'dashboard.view', 'members.read', 'contributions.read', 'loans.read', 'loan_payments.read',
   'agreements.read', 'withdrawals.read', 'payments.read', 'notifications.read', 'ledger.read',
+  'approvals.view',
 ]
 
 type RoleDefinition = {
@@ -63,7 +69,7 @@ export const ROLES = {
     description: 'Takes and reviews loan applications.',
     permissions: [
       'dashboard.view', 'members.read', 'contributions.read', 'loans.read', 'loans.create',
-      'loan_payments.read', 'agreements.read', 'agreements.update',
+      'loan_payments.read', 'agreements.read', 'agreements.update', 'approvals.view',
     ],
   },
   finance: {
@@ -71,7 +77,7 @@ export const ROLES = {
     description: 'Records contributions, repayments and withdrawals; edits member contact details.',
     permissions: [
       ...READ_EVERYTHING, 'members.update', 'contributions.record', 'loan_payments.record',
-      'withdrawals.record', 'notifications.send',
+      'withdrawals.record', 'notifications.send', 'ledger.propose',
     ],
   },
   treasurer: {
@@ -80,7 +86,7 @@ export const ROLES = {
     permissions: [
       ...READ_EVERYTHING, 'contributions.record', 'loan_payments.record', 'withdrawals.record',
       'payments.review', 'agreements.sign_lender', 'loans.update', 'loans.cancel', 'audit.read',
-      'ledger.manage_accounts',
+      'ledger.manage_accounts', 'ledger.propose', 'ledger.approve', 'loans.approve', 'withdrawals.approve',
     ],
   },
   compliance: {
@@ -96,7 +102,7 @@ export const ROLES = {
   board: {
     label: 'Board',
     description: 'Oversight and approvals: confirms payments, signs agreements, reads the audit log.',
-    permissions: [...READ_EVERYTHING, 'payments.review', 'agreements.sign_lender', 'audit.read', 'staff.read'],
+    permissions: [...READ_EVERYTHING, 'payments.review', 'agreements.sign_lender', 'audit.read', 'staff.read', 'loans.approve', 'ledger.approve'],
   },
   administrator: {
     label: 'Administrator',

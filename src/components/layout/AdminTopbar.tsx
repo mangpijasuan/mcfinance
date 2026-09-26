@@ -17,6 +17,7 @@ const pageTitles: Record<string, string> = {
   '/payments': 'Pending Payments',
   '/notifications': 'Notifications',
   '/ledger': 'Ledger',
+  '/approvals': 'Approvals',
   '/settings/staff': 'Staff & Roles',
   '/settings/audit': 'Audit Log',
   '/security': 'My Security',

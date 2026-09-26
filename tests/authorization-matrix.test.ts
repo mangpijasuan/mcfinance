@@ -30,6 +30,10 @@ const perm = (p: Permission): Requirement => ({ perm: p })
 const MATRIX: Record<string, Partial<Record<Method, Requirement>>> = {
   'agreements': { GET: { memberOr: 'agreements.read' } },
   'agreements/[id]': { GET: { memberOr: 'agreements.read' }, PATCH: { memberOr: 'agreements.read' } },
+  'approvals': { GET: perm('approvals.view') },
+  'approvals/[id]/approve': { POST: perm('approvals.view') }, // the checker permission is per action, see approvals tests
+  'approvals/[id]/cancel': { POST: perm('approvals.view') },
+  'approvals/[id]/reject': { POST: perm('approvals.view') },
   'audit': { GET: perm('audit.read') },
   'contributions': { GET: perm('contributions.read'), POST: perm('contributions.record') },
   'dashboard': { GET: perm('dashboard.view') },
@@ -41,7 +45,7 @@ const MATRIX: Record<string, Partial<Record<Method, Requirement>>> = {
   'loans/check-policy': { POST: perm('loans.create') },
   'ledger/accounts': { GET: perm('ledger.read') },
   'ledger/accounts/approve': { POST: perm('ledger.manage_accounts') },
-  'ledger/entries': { GET: perm('ledger.read') },
+  'ledger/entries': { GET: perm('ledger.read'), POST: perm('ledger.propose') },
   'ledger/invariants': { GET: perm('ledger.read') },
   'ledger/trial-balance': { GET: perm('ledger.read') },
   'me': { GET: { staffSession: true } },

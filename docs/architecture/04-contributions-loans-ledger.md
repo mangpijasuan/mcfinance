@@ -287,6 +287,7 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 **REVERSIBILITY:** easy (thresholds are configuration)
 **REQUIRES LEGAL REVIEW:** no
 **REQUIRES FOUNDER APPROVAL:** yes (who the officers are; thresholds)
+**STATUS:** Mechanism built (Stage 3, `src/modules/approvals`, admin screen `/approvals`). Built for Zelle confirmations over $100, withdrawals, loans and manual journal entries; loan disbursement, cash deposits, fee waivers and write-offs are added with the loan-lifecycle slice. The maker can never decide their own request (application check and database trigger); two checkers acting at once run an operation only once; an operation that no longer passes its rules (e.g. loan policy) leaves the request pending and changes nothing. **Manual journal entries always need a checker.** For the existing actions, enforcement is switched off (`MAKER_CHECKER_ENFORCED`) until the officers are named (Gate #1 A4), so they keep working with one person as today.
 
 ### Periods and reporting
 
