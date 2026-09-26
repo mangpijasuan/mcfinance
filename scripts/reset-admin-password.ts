@@ -56,7 +56,7 @@ async function main() {
       console.log(`Password updated for ${email}${resetMfa ? '; two-factor authentication cleared' : ''}. All sessions ended.`)
     } else {
       await prisma.$transaction(async (tx) => {
-        const created = await tx.admin.create({ data: { email, name: 'MC Finance Admin', password: hashed } })
+        const created = await tx.admin.create({ data: { email, name: 'Millionaires Club Admin', password: hashed } })
         await tx.staffRoleAssignment.create({ data: { adminId: created.id, role: 'super_admin' } })
         await tx.auditLog.create({ data: audit('admin.create', created.id) })
       })

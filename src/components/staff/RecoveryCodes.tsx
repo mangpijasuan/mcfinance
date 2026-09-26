@@ -23,7 +23,7 @@ export default function RecoveryCodes({ codes }: { codes: string[] }) {
           {copied ? 'Copied' : 'Copy codes'}
         </button>
         <a
-          href={`data:text/plain;charset=utf-8,${encodeURIComponent(`MC Finance recovery codes\n\n${text}\n`)}`}
+          href={`data:text/plain;charset=utf-8,${encodeURIComponent(`Millionaires Club recovery codes\n\n${text}\n`)}`}
           download="mc-recovery-codes.txt"
           className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
         >

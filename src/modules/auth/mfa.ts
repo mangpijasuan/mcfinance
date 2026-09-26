@@ -8,7 +8,7 @@ import type { Prisma, PrismaClient } from '@prisma/client'
 
 type Db = PrismaClient | Prisma.TransactionClient
 
-const ISSUER = 'MC Finance'
+const ISSUER = 'Millionaires Club'
 const PERIOD = 30
 const RECOVERY_CODE_COUNT = 10
 

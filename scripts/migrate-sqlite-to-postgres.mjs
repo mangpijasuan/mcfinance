@@ -70,13 +70,13 @@ async function main() {
   rows.Loan = rows.Loan.map((loan) => ({ ...loan, overdue: Boolean(loan.overdue) }))
   rows.LoanAgreement = rows.LoanAgreement.map((agreement) => ({
     ...agreement,
-    lenderName: agreement.lenderName === 'Millionaires Club' ? 'MC Finance' : agreement.lenderName,
+    lenderName: agreement.lenderName === 'MC Finance' ? 'Millionaires Club' : agreement.lenderName,
   }))
 
   const admins = readTable('Admin').map((row) => ({
     ...select(row, ['id', 'email', 'name', 'password', 'linkedMemberId', 'createdAt'], ['createdAt']),
     email: row.email === 'admin@millionairesclub.com' ? 'admin@mcfinance.local' : row.email,
-    name: row.email === 'admin@millionairesclub.com' ? 'MC Finance Admin' : row.name,
+    name: row.email === 'admin@millionairesclub.com' ? 'Millionaires Club Admin' : row.name,
     legacyRole: row.role,
   }))
 

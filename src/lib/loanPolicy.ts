@@ -1,4 +1,4 @@
-// MC Finance Loan Policy (2025)
+// Millionaires Club Loan Policy (2025)
 // Source: 2025___MC_Loan_Policy_and_Terms.docx
 
 export const POLICY = {
