@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Restore and verify encrypted backups made by scripts/backup-postgres.sh (S-6).
+# Restore and verify encrypted backups made by scripts/ops/backup-postgres.sh (S-6).
 # Needs the age PRIVATE key, so run it on an officer's workstation or a
 # recovery machine, never on the production server.
 #
-#   scripts/restore-postgres.sh verify [backup]
+#   scripts/ops/restore-postgres.sh verify [backup]
 #       Restores a backup (default: the newest one) into a throwaway
 #       database, checks it, and drops it. Run weekly; prints PASS or FAIL.
 #
-#   scripts/restore-postgres.sh restore <backup> <target-database-url>
+#   scripts/ops/restore-postgres.sh restore <backup> <target-database-url>
 #       Restores into an EXISTING, EMPTY database (for disaster recovery,
-#       see docs/backup-and-restore.md). Refuses a database that has tables.
+#       see docs/operations/backup-and-restore.md). Refuses a database that has tables.
 #
 # <backup> is a local file, a file name in $BACKUP_REMOTE, or a full rclone path.
 #
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 mode="${1:-}"
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 [ -f .env.backup ] && set -a && . ./.env.backup && set +a
 
 # Logs go to stderr so command substitutions only capture results.

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Encrypted, off-site PostgreSQL backup (S-6). Run nightly from the repo
 # root on the server, e.g. via cron:
-#   15 3 * * * cd /path/to/mcfinance && ./scripts/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
+#   15 3 * * * cd /path/to/mcfinance && ./scripts/ops/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
 #
 # What it does
 #   1. pg_dump (custom format) of the production database;
 #   2. encrypts it with age to the club's backup PUBLIC key(s). The matching
-#      private key is kept offline (see docs/backup-and-restore.md), so this
+#      private key is kept offline (see docs/operations/backup-and-restore.md), so this
 #      server can write backups but cannot read them;
 #   3. copies the encrypted file off-site with rclone (object storage);
 #   4. keeps a short local copy and pings a health check, if configured.
@@ -23,7 +23,7 @@
 #                               of the docker compose postgres service
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 [ -f .env.backup ] && set -a && . ./.env.backup && set +a
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.hetzner.yml}"

@@ -13,7 +13,7 @@
 **REVERSIBILITY:** easy
 **REQUIRES LEGAL REVIEW:** no
 **REQUIRES FOUNDER APPROVAL:** no
-**STATUS:** Implemented (Stage 2, 2026-09-26). Baseline migration `20260926000000_init`; CI applies migrations to a clean Postgres and fails if `schema.prisma` and the migrations disagree. Existing production databases are baselined once with `prisma migrate resolve` ([deploy guide](../deploy-hetzner-postgres.md#7-initialize-the-database)).
+**STATUS:** Implemented (Stage 2, 2026-09-26). Baseline migration `20260926000000_init`; CI applies migrations to a clean Postgres and fails if `schema.prisma` and the migrations disagree. Existing production databases are baselined once with `prisma migrate resolve` ([deploy guide](../operations/deploy-hetzner-postgres.md#7-initialize-the-database)).
 
 ### Principles
 
@@ -181,7 +181,7 @@ mcfinance/
 │   └── components/             # becomes packages/ui
 ├── prisma/                     # single schema + migrations/ (becomes packages/database)
 ├── tests/                      # integration + e2e (unit tests sit next to modules)
-├── scripts/                    # ops scripts, models/
+├── scripts/                    # jobs/, ops/, data/, dev/, models/
 ├── docs/                       # architecture/ (this), and the §42 documents over time
 └── infrastructure/             # compose files, Caddy, backup + restore scripts
 ```

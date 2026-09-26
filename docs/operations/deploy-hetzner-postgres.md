@@ -94,7 +94,7 @@ docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
 docker compose -f docker-compose.hetzner.yml exec -e ADMIN_SEED_PASSWORD='a long passphrase' app npx prisma db seed
 ```
 
-**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mc_admin mc_admin > pre-migration.dump`, kept off the server — then compare the live schema with the current one:
+**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mc_admin mc_admin > pre-migration.dump`, kept off the server — then compare the live schema with the current one:
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec app \
@@ -115,7 +115,7 @@ The output should contain **only** the `AuditLog` table and its three indexes (a
 **Every deploy after that:**
 
 ```bash
-./scripts/backup-postgres.sh
+./scripts/ops/backup-postgres.sh
 docker compose -f docker-compose.hetzner.yml up -d --build
 docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
 ```
@@ -143,7 +143,7 @@ Check:
 
 ## 9. Set up encrypted off-site backups
 
-Follow [backup-and-restore.md](backup-and-restore.md): create the club's backup key on an officer's computer (never on the server), create a versioned, write-only object-storage bucket, add `.env.backup`, then schedule `scripts/backup-postgres.sh` nightly. An officer runs `scripts/restore-postgres.sh verify` weekly to prove the newest backup restores.
+Follow [backup-and-restore.md](backup-and-restore.md): create the club's backup key on an officer's computer (never on the server), create a versioned, write-only object-storage bucket, add `.env.backup`, then schedule `scripts/ops/backup-postgres.sh` nightly. An officer runs `scripts/ops/restore-postgres.sh verify` weekly to prove the newest backup restores.
 
 Also take a Hetzner server snapshot before any upgrade.
 

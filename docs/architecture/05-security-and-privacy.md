@@ -104,7 +104,7 @@ No role can approve its own proposal. The Administrator manages accounts but has
 
 - MFA enforced for staff; staff sessions time out after 12 hours or 30 minutes idle. *(Done, Stage 2.)*
 - Secrets in environment files on the server with `600` permissions, never in git. Rotate `NEXTAUTH_SECRET` and the database password from their example values.
-- Nightly encrypted backups (e.g. `age`/`gpg`) to off-site object storage; weekly restore test; recovery point objective 24 h, recovery time objective 4 h to start. *(Built, Stage 2: [backup runbook](../backup-and-restore.md); must be switched on for the server.)*
+- Nightly encrypted backups (e.g. `age`/`gpg`) to off-site object storage; weekly restore test; recovery point objective 24 h, recovery time objective 4 h to start. *(Built, Stage 2: [backup runbook](../operations/backup-and-restore.md); must be switched on for the server.)*
 - Content-Security-Policy, HSTS (Caddy), and a dependency audit in CI (`npm audit --audit-level=high`). *(Done, Stage 2.)*
 - Structured logging of authentication events, approvals and postings, with alerts on failed-login spikes, super-admin use, and postings above a threshold. *(Authentication events and approvals are in the audit log; lockouts and Super Admin sign-ins email `SECURITY_ALERT_EMAIL`. Posting alerts come with the ledger in Stage 3.)*
 

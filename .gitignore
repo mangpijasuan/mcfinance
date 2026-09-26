@@ -27,7 +27,7 @@ prisma/dev.db-journal
 # Logs
 *.log
 
-# Backups produced by scripts/backup-postgres.sh
+# Backups produced by scripts/ops/backup-postgres.sh
 backups/
 
 # OS / editor

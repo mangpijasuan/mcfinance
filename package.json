@@ -20,13 +20,13 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
-    "admin:reset-password": "tsx scripts/reset-admin-password.ts",
-    "dues:service": "tsx scripts/service-dues.ts",
-    "contributions:normalize": "node scripts/normalize-contributions.js",
-    "loans:audit": "node scripts/audit-loans.js",
-    "loans:service": "tsx scripts/service-loans.ts",
-    "loans:schedule-report": "tsx scripts/loan-schedule-report.ts",
-    "loans:sync-active-2024-2025": "node scripts/sync-active-historical-loans.js"
+    "admin:reset-password": "tsx scripts/ops/reset-admin-password.ts",
+    "dues:service": "tsx scripts/jobs/service-dues.ts",
+    "contributions:normalize": "node scripts/data/normalize-contributions.js",
+    "loans:audit": "node scripts/data/audit-loans.js",
+    "loans:service": "tsx scripts/jobs/service-loans.ts",
+    "loans:schedule-report": "tsx scripts/data/loan-schedule-report.ts",
+    "loans:sync-active-2024-2025": "node scripts/data/sync-active-historical-loans.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -68,9 +68,9 @@ BACKUP_HEALTHCHECK_URL=https://hc-ping.com/your-check-id
 Run it once by hand, then schedule it:
 
 ```bash
-./scripts/backup-postgres.sh
+./scripts/ops/backup-postgres.sh
 crontab -e
-# 15 3 * * * cd /path/to/mcfinance && ./scripts/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
+# 15 3 * * * cd /path/to/mcfinance && ./scripts/ops/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
 ```
 
 The script refuses to run if a **private** key is put in the recipients file.
@@ -83,7 +83,7 @@ Needs Docker, `age`, `rclone` (with a **read-only** key to the bucket) and Postg
 npm run db:up                          # local scratch Postgres (Docker, port 5433)
 export AGE_IDENTITY_FILE=~/secure/mc-backup-identity.txt
 export BACKUP_REMOTE=mcbackup-read:mc-club-backups/postgres
-./scripts/restore-postgres.sh verify
+./scripts/ops/restore-postgres.sh verify
 ```
 
 The last line reads **PASS** or **FAIL**. A FAIL, or a newest backup more than 30 hours old, means the backups are not working: fix it the same day. Optionally set `VERIFY_HEALTHCHECK_URL` so a missed weekly check is noticed too.
@@ -97,7 +97,7 @@ The last line reads **PASS** or **FAIL**. A FAIL, or a newest backup more than 3
    ```bash
    export AGE_IDENTITY_FILE=~/secure/mc-backup-identity.txt BACKUP_REMOTE=mcbackup-read:mc-club-backups/postgres
    rclone lsf mcbackup-read:mc-club-backups/postgres | sort | tail -3   # pick the newest good one
-   ./scripts/restore-postgres.sh restore mc_admin-YYYYMMDDTHHMMSSZ.dump.age 'postgresql://mc_admin:…@localhost:15432/mc_admin'
+   ./scripts/ops/restore-postgres.sh restore mc_admin-YYYYMMDDTHHMMSSZ.dump.age 'postgresql://mc_admin:…@localhost:15432/mc_admin'
    ```
 
    The restore is a single transaction: it either loads completely or changes nothing. It prints row counts and checks the audit log.
