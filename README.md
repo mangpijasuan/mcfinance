@@ -29,7 +29,7 @@ Open **http://localhost:3000**. Sign in as `admin@mcfinance.local` with the pass
 ## What setup does
 1. Copies `.env.example` → `.env.local` (and `.env`, which the Prisma CLI reads) and generates a `NEXTAUTH_SECRET`
 2. Runs `npm install`
-3. Starts PostgreSQL 16 in Docker (`docker-compose.postgres-local.yml`, port 5433) and applies the migrations in `prisma/migrations/`
+3. Starts PostgreSQL 16 in Docker (`docker-compose.postgres-local.yml`, port 5434) and applies the migrations in `prisma/migrations/`
 4. Seeds the club data and the admin account (asks for the admin password; seeding refuses to run without one)
 
 If you import or edit seed data later, run `npm run contributions:normalize` and `npm run loans:audit` to confirm the database still matches the source data.

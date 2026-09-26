@@ -1,9 +1,11 @@
+name: mcfinance
+
 services:
   postgres:
     image: postgres:16
     restart: unless-stopped
     ports:
-      - "5433:5432"
+      - "5434:5432"
     environment:
       POSTGRES_DB: mcfinance
       POSTGRES_USER: mcfinance
