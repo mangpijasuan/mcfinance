@@ -1,16 +1,17 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import PortalNav from '@/components/portal/PortalNav'
+import { getPrincipal } from '@/modules/auth'
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/portal/login')
-  if ((session.user as any).role !== 'member') redirect('/dashboard')
+  // Checked against the database: portal access switched off, or a
+  // password change, ends the session here and in every portal API.
+  const principal = await getPrincipal()
+  if (!principal) redirect('/portal/login')
+  if (principal.kind !== 'member') redirect('/start')
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PortalNav user={session.user as any} />
+      <PortalNav user={{ memberId: principal.memberId, name: principal.name }} />
       <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
     </div>
   )

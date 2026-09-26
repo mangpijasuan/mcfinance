@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loans.read')
   if (auth.error) return auth.error
 
   const s = new URL(req.url).searchParams
@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
   if (year)   where.year   = parseInt(year)
   if (status) where.status = status
   if (search) where.OR = [
-    { borrowerName: { contains: search } },
-    { cosignerName: { contains: search } },
-    { loanId:       { contains: search } },
+    { borrowerName: { contains: search, mode: 'insensitive' } },
+    { cosignerName: { contains: search, mode: 'insensitive' } },
+    { loanId:       { contains: search, mode: 'insensitive' } },
   ]
 
   const [loans, byYearHistorical, leaderboard, liveLoansCurrentYear] = await Promise.all([

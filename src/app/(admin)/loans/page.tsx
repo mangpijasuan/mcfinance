@@ -1,12 +1,15 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, ExternalLink, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react'
+import { Plus, ExternalLink, AlertTriangle, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react'
 import { Card, Table, EmptyState, LoanStatusBadge, Badge, Button, Modal, Input, Select,
          PageHeader, FilterBar, SearchInput } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 export default function LoansPage() {
+  const { can } = useStaff()
   const router = useRouter()
   const [loans, setLoans]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,11 +52,11 @@ export default function LoansPage() {
   const totalOutstanding = loans.filter(l => l.status === 'Active').reduce((s, l) => s + l.balanceRemaining, 0)
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Loans"
         sub={`${loans.filter(l => l.status === 'Active').length} active · ${fmt$(totalOutstanding)} outstanding`}
-        action={<Button onClick={() => setShowNew(true)}><Plus size={15} /> New loan</Button>}
+        action={can('loans.create') ? <Button onClick={() => setShowNew(true)}><Plus size={15} /> New loan</Button> : undefined}
       />
 
       <FilterBar>
@@ -62,6 +65,7 @@ export default function LoansPage() {
           <option value="">All statuses</option>
           <option value="Active">Active</option>
           <option value="Paid Off">Paid off</option>
+          <option value="Cancelled">Cancelled</option>
         </Select>
       </FilterBar>
 
@@ -72,35 +76,65 @@ export default function LoansPage() {
       )}
 
       <Card>
-        <Table loading={loading} headers={['Loan ID','Borrower','Co-signer','Amount','Monthly due','Paid','Balance','Date','Term','Next due','Status','Agreement','']}>
-          {loans.length === 0 && !loading
-            ? <EmptyState message="No loans found." />
-            : loans.map(l => (
-              <tr key={l.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push(`/loans/${l.loanId}`)}>
-                <td className="px-4 py-3 font-mono text-xs text-indigo-600">{l.loanId}</td>
-                <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{l.borrowerName}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{l.cosignerName || '—'}</td>
-                <td className="px-4 py-3 text-gray-700">{fmt$(l.loanAmount)}</td>
-                <td className="px-4 py-3 text-gray-700">{fmt$(l.monthlyDue)}</td>
-                <td className="px-4 py-3 text-green-700 font-medium">{fmt$(l.totalPaid)}</td>
-                <td className="px-4 py-3 font-bold text-gray-900">{fmt$(l.balanceRemaining)}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(l.loanDate)}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs">{l.termMonths} mo.</td>
-                <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(l.nextDueDate)}</td>
-                <td className="px-4 py-3"><LoanStatusBadge status={l.status} overdue={l.overdue} /></td>
-                <td className="px-4 py-3">
-                  {l.agreement
-                    ? <Badge variant={l.agreement.status === 'fully_signed' ? 'green' : 'amber'}>
-                        {l.agreement.status === 'fully_signed' ? '✓ Signed' : 'Pending'}
-                      </Badge>
-                    : <Badge variant="gray">—</Badge>
-                  }
-                </td>
-                <td className="px-4 py-3 text-gray-400"><ExternalLink size={14} /></td>
-              </tr>
-            ))
-          }
-        </Table>
+        {/* Desktop / tablet table */}
+        <div className="hidden md:block">
+          <Table loading={loading} headers={['Loan ID','Borrower','Co-signer','Amount','Monthly due','Paid','Balance','Date','Term','Next due','Status','Agreement','']}>
+            {loans.length === 0 && !loading
+              ? <EmptyState message="No loans found." />
+              : loans.map(l => (
+                <tr key={l.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push(`/loans/${l.loanId}`)}>
+                  <td className="px-4 py-3 font-mono text-xs text-indigo-600">{l.loanId}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{l.borrowerName}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{l.cosignerName || '—'}</td>
+                  <td className="px-4 py-3 text-gray-700">{fmt$(l.loanAmount)}</td>
+                  <td className="px-4 py-3 text-gray-700">{fmt$(l.monthlyDue)}</td>
+                  <td className="px-4 py-3 text-green-700 font-medium">{fmt$(l.totalPaid)}</td>
+                  <td className="px-4 py-3 font-bold text-gray-900">{fmt$(l.balanceRemaining)}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(l.loanDate)}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{l.termMonths} mo.</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(l.nextDueDate)}</td>
+                  <td className="px-4 py-3"><LoanStatusBadge status={l.status} overdue={l.overdue} /></td>
+                  <td className="px-4 py-3">
+                    {l.agreement
+                      ? <Badge variant={l.agreement.status === 'fully_signed' ? 'green' : 'amber'}>
+                          {l.agreement.status === 'fully_signed' ? '✓ Signed' : 'Pending'}
+                        </Badge>
+                      : <Badge variant="gray">—</Badge>
+                    }
+                  </td>
+                  <td className="px-4 py-3 text-gray-400"><ExternalLink size={14} /></td>
+                </tr>
+              ))
+            }
+          </Table>
+        </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {loading ? (
+            <p className="py-16 text-center text-gray-400 text-sm">Loading…</p>
+          ) : loans.length === 0 ? (
+            <p className="py-16 text-center text-gray-400 text-sm">No loans found.</p>
+          ) : loans.map(l => (
+            <Link key={l.id} href={`/loans/${l.loanId}`} className="flex items-center justify-between gap-3 px-4 py-3 active:bg-gray-50">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-mono text-xs text-indigo-600">{l.loanId}</p>
+                  <LoanStatusBadge status={l.status} overdue={l.overdue} />
+                </div>
+                <p className="font-medium text-gray-900 truncate mt-0.5">{l.borrowerName}</p>
+                {l.cosignerName && <p className="text-xs text-gray-400 truncate">Co-signer: {l.cosignerName}</p>}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gray-900">{fmt$(l.balanceRemaining)}</p>
+                  <p className="text-xs text-gray-400">of {fmt$(l.loanAmount)}</p>
+                </div>
+                <ChevronRight size={16} className="text-gray-300" />
+              </div>
+            </Link>
+          ))}
+        </div>
       </Card>
 
       <NewLoanModal open={showNew} onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load() }} />

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
-import { recalcMemberLoanState } from '@/lib/memberLoanState'
-import { nextPublicId } from '@/lib/publicIds'
+import { requirePermission } from '@/modules/auth'
+import { badRequest, readJsonObject, requiredString } from '@/lib/http'
+import { recordLoanPayment } from '@/lib/paymentActions'
+import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loan_payments.read')
   if (auth.error) return auth.error
 
   const s = new URL(req.url).searchParams
@@ -18,9 +19,9 @@ export async function GET(req: NextRequest) {
   const where: any = {}
   if (loanId) where.loanId = loanId
   if (search) where.OR = [
-    { borrowerName: { contains: search } },
-    { loanId:       { contains: search } },
-    { paymentId:    { contains: search } },
+    { borrowerName: { contains: search, mode: 'insensitive' } },
+    { loanId:       { contains: search, mode: 'insensitive' } },
+    { paymentId:    { contains: search, mode: 'insensitive' } },
   ]
   if (year) {
     const y = parseInt(year)
@@ -55,54 +56,41 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('loan_payments.record')
   if (auth.error) return auth.error
 
-  const body = await req.json()
-  const loan = await prisma.loan.findUnique({ where: { loanId: body.loanId } })
+  const body = await readJsonObject(req)
+  if (!body) return badRequest('Invalid request body.')
+  const loanId = requiredString(body.loanId)
+  if (!loanId) return badRequest('A loan must be selected.')
+  const loan = await prisma.loan.findUnique({ where: { loanId }, select: { loanId: true, totalPaid: true, balanceRemaining: true, status: true } })
   if (!loan) return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
 
-  const amount     = parseFloat(body.amount)
+  const amount = parseFloat(body.amount)
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: 'Amount must be greater than 0.' }, { status: 400 })
   }
-  const newTotal   = loan.totalPaid + amount
-  const newBalance = Math.max(0, loan.balanceRemaining - amount)
-  const paidOff    = newBalance <= 0
-  const paymentId  = nextPublicId('LP')
-  const nextDue    = new Date(body.paymentDate); nextDue.setMonth(nextDue.getMonth() + 1)
-  const d          = new Date(body.paymentDate)
-  const monthYear  = `${d.toLocaleString('en-US', { month: 'short' })}-${d.getFullYear()}`
+  const paymentDate = new Date(body.paymentDate)
+  if (Number.isNaN(paymentDate.getTime())) {
+    return NextResponse.json({ error: 'Invalid payment date' }, { status: 400 })
+  }
 
   const payment = await prisma.$transaction(async (tx) => {
-    const createdPayment = await tx.loanPayment.create({
-      data: {
-        paymentId, loanId: body.loanId,
-        borrowerId: loan.borrowerId, borrowerName: loan.borrowerName,
-        paymentDate: new Date(body.paymentDate), amount,
-        paymentMethod: body.paymentMethod || null,
-        receivedBy: body.receivedBy || null,
-        comments: body.comments || null,
-        monthYear, source: 'Admin',
-      },
+    const created = await recordLoanPayment(tx, {
+      loanId,
+      amount,
+      paymentDate,
+      paymentMethod: body.paymentMethod || null,
+      receivedBy: body.receivedBy || null,
+      comments: body.comments || null,
+      source: 'Admin',
     })
-
-    await tx.loan.update({
-      where: { loanId: body.loanId },
-      data: {
-        totalPaid: newTotal, balanceRemaining: newBalance,
-        status: paidOff ? 'Paid Off' : 'Active',
-        nextDueDate: paidOff ? null : nextDue,
-        overdue: false,
-      },
+    const loanAfter = await tx.loan.findUnique({ where: { loanId }, select: { loanId: true, totalPaid: true, balanceRemaining: true, status: true } })
+    await recordAudit(tx, auditContext(req, auth.principal), {
+      action: 'loan_payment.create', entityType: 'loan_payment', entityId: created.paymentId, after: created,
+      metadata: { loanBefore: loan, loanAfter },
     })
-
-    await recalcMemberLoanState(tx, loan.borrowerId)
-    if (loan.cosignerId) {
-      await recalcMemberLoanState(tx, loan.cosignerId)
-    }
-
-    return createdPayment
+    return created
   })
 
   return NextResponse.json(payment, { status: 201 })

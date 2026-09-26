@@ -1,6 +1,6 @@
 # Hetzner + PostgreSQL Deployment
 
-This repo currently uses SQLite for local setup. For Hetzner production, use PostgreSQL as the source of truth and keep Google Sheets only for import/export workflows.
+PostgreSQL is the database in every environment. Schema changes ship as Prisma migrations in `prisma/migrations/`. Keep Google Sheets only for import/export workflows.
 
 ## Recommended architecture
 
@@ -67,6 +67,8 @@ Update these values:
 
 - `NEXTAUTH_URL`
 - `NEXTAUTH_SECRET`
+- `MFA_ENCRYPTION_KEY` (`openssl rand -base64 32`; back it up with your other secrets — losing it means every staff member re-enrols two-factor authentication)
+- `SECURITY_ALERT_EMAIL` (receives an alert on every Super Admin sign-in)
 - `DATABASE_URL`
 - `ADMIN_EMAIL`
 - `EMAIL_FROM`
@@ -83,18 +85,54 @@ export DOMAIN=admin.your-domain.example
 docker compose -f docker-compose.hetzner.yml up -d --build
 ```
 
-The production image is built from `prisma/schema.postgres.prisma` (see the `Dockerfile`), so no manual schema edit is needed — `prisma/schema.prisma` (SQLite) stays untouched for local dev.
-
 ## 7. Initialize the database
 
-Use the `:postgres` npm scripts so the correct schema file is targeted:
+**New installation** (empty database):
 
 ```bash
-docker compose -f docker-compose.hetzner.yml exec app npm run db:push:postgres
-docker compose -f docker-compose.hetzner.yml exec app npm run db:seed:postgres
+docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
+docker compose -f docker-compose.hetzner.yml exec -e ADMIN_SEED_PASSWORD='a long passphrase' app npx prisma db seed
 ```
 
-Do not run the plain `db:push` / `db:seed` scripts against the production container — those default to `prisma/schema.prisma` (SQLite) and will fail against the Postgres `DATABASE_URL`.
+**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first (`scripts/backup-postgres.sh`), then compare the live schema with the current one:
+
+```bash
+docker compose -f docker-compose.hetzner.yml exec app \
+  sh -c 'npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script'
+```
+
+The output should contain **only** the `AuditLog` table and its three indexes (added by the second migration, `20260926010000_audit_log`). Do not apply those by hand: `migrate deploy` creates them together with the append-only trigger.
+
+- If anything else appears (for example `CREATE TABLE "PortalPayment"`, when the server predates online payments), apply just those statements with `npx prisma db execute --stdin < extra.sql`, then re-run the check.
+- Then mark the baseline as applied and apply the remaining migrations:
+  ```bash
+  docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate resolve --applied 20260926000000_init
+  docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
+  ```
+
+**Upgrading to roles and two-factor authentication** (migration `20260926020000_rbac_mfa`): set `MFA_ENCRYPTION_KEY` in `.env.production` *before* deploying. The migration turns each existing Super Admin into a Super Admin role holder and every other admin into the transitional Club Officer role (the audit log records each one). Every staff member is asked to set up two-factor authentication at their next sign-in, so tell them to have their phone ready.
+
+**Every deploy after that:**
+
+```bash
+./scripts/backup-postgres.sh
+docker compose -f docker-compose.hetzner.yml up -d --build
+docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
+```
+
+Never run `prisma db push` or `prisma migrate reset` against production.
+
+The `AuditLog` table is append-only: a database trigger rejects `UPDATE`, `DELETE` and `TRUNCATE`. It is included in the nightly `pg_dump` backups; keep it when restoring.
+
+**Admin password reset** (no default passwords exist):
+
+```bash
+docker compose -f docker-compose.hetzner.yml exec \
+  -e ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com -e NEW_ADMIN_PASSWORD='a long passphrase' \
+  app npm run admin:reset-password
+```
+
+Add `-e RESET_MFA=1` if the person also lost their authenticator and recovery codes. All of their sessions end; the reset is recorded in the audit log.
 
 ## 8. Verify
 

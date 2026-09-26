@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { FileSignature, Eye } from 'lucide-react'
 import { Card, Table, EmptyState, Badge, Button, Modal, PageHeader, FilterBar, SearchInput, Select } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
   try {
@@ -21,6 +22,7 @@ function statusBadge(s: string) {
 }
 
 export default function AgreementsPage() {
+  const { can } = useStaff()
   const [rows, setRows]         = useState<any[]>([])
   const [loading, setLoading]   = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -48,23 +50,18 @@ export default function AgreementsPage() {
   useEffect(() => { load() }, [load])
 
   async function cancelAgreement(agreementId: string) {
-    if (!confirm(`Cancel application ${agreementId}?`)) return
+    if (!confirm(`Cancel application ${agreementId}? The loan and agreement are kept, marked cancelled.`)) return
     const res = await fetch(`/api/agreements/${agreementId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'cancel' }),
     })
     if (res.ok) load()
-  }
-
-  async function deleteAgreement(agreementId: string) {
-    if (!confirm(`Delete application ${agreementId}? This cannot be undone.`)) return
-    const res = await fetch(`/api/agreements/${agreementId}`, { method: 'DELETE' })
-    if (res.ok) load()
+    else alert((await res.json().catch(() => ({}))).error || 'Could not cancel this agreement.')
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Loan Application"
         sub={`${rows.length} agreements · ${rows.filter(r => r.status === 'fully_signed').length} fully signed`}
@@ -105,14 +102,11 @@ export default function AgreementsPage() {
                     <Button size="sm" variant="secondary" onClick={() => setSelected(a)}>
                     <Eye size={13} /> View
                     </Button>
-                    {a.status !== 'cancelled' && (
+                    {a.status !== 'cancelled' && can('loans.cancel') && (
                       <Button size="sm" variant="danger" onClick={() => cancelAgreement(a.agreementId)}>
                         Cancel
                       </Button>
                     )}
-                    <Button size="sm" variant="secondary" onClick={() => deleteAgreement(a.agreementId)}>
-                      Delete
-                    </Button>
                   </div>
                 </td>
               </tr>
@@ -133,6 +127,7 @@ export default function AgreementsPage() {
 }
 
 function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
+  const { can } = useStaff()
   const [agreement, setAgreement] = useState(initial)
   const [sig, setSig]     = useState('')
   const [saving, setSaving] = useState(false)
@@ -263,8 +258,8 @@ function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
         </div>
       </div>
 
-      {/* Admin lender sign section */}
-      {!a.lenderSignature && (
+      {/* Lender signature: officers who may sign for the club */}
+      {!a.lenderSignature && a.status !== 'cancelled' && can('agreements.sign_lender') && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
           <p className="text-sm font-semibold text-indigo-900 flex items-center gap-2">
             <FileSignature size={15} /> Sign as Lender (Millionaires Club)

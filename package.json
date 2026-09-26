@@ -2,44 +2,58 @@
   "name": "mc-admin",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "rm -rf .next && next dev",
     "build": "next build",
     "start": "next start",
-    "setup": "npm install && npx prisma generate && npx prisma db push && npx tsx prisma/seed.ts",
-    "db:push": "npx prisma db push",
-    "db:seed": "npx tsx prisma/seed.ts",
-    "db:generate:postgres": "npx prisma generate --schema prisma/schema.postgres.prisma",
-    "db:push:postgres": "npx prisma db push --schema prisma/schema.postgres.prisma",
-    "db:seed:postgres": "npx tsx prisma/seed.ts",
-    "db:reset": "npx prisma db push --force-reset && npx tsx prisma/seed.ts",
-    "db:studio": "npx prisma studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "setup": "npm install && npm run db:up && npx prisma migrate deploy && npx prisma db seed",
+    "db:up": "docker compose -f docker-compose.postgres-local.yml up -d --wait",
+    "db:down": "docker compose -f docker-compose.postgres-local.yml down",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "admin:reset-password": "tsx scripts/reset-admin-password.ts",
     "contributions:normalize": "node scripts/normalize-contributions.js",
     "loans:audit": "node scripts/audit-loans.js",
     "loans:sync-active-2024-2025": "node scripts/sync-active-historical-loans.js"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
-    "next": "14.2.5",
+    "@prisma/client": "^5.15.0",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.400.0",
+    "next": "^16.3.6",
+    "next-auth": "^4.24.7",
+    "otpauth": "^9.5.2",
+    "qrcode": "^1.5.4",
     "react": "^18",
     "react-dom": "^18",
-    "@prisma/client": "^5.15.0",
-    "next-auth": "^4.24.7",
-    "bcryptjs": "^2.4.3",
     "recharts": "^2.12.7",
-    "date-fns": "^3.6.0",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.400.0"
+    "stripe": "^22.3.2"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.20.4",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "@types/bcryptjs": "^2.4.6",
-    "typescript": "^5",
-    "tailwindcss": "^3.4.4",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.39",
     "prisma": "^5.15.0",
-    "tsx": "^4.16.0"
+    "tailwindcss": "^3.4.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.0.2"
   }
 }

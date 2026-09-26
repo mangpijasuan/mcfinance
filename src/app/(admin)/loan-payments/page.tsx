@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { Card, Table, EmptyState, Button, Modal, Input, Select, PageHeader,
          FilterBar, SearchInput } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 const METHODS = ['Cash', 'Online', 'Zelle', 'Venmo', 'Check', 'Other']
 
@@ -16,6 +17,7 @@ async function readJsonSafe<T>(res: Response): Promise<T | null> {
 }
 
 export default function LoanPaymentsPage() {
+  const { can } = useStaff()
   const currentYear = new Date().getFullYear()
   const yearOptions = Array.from({ length: Math.max(1, currentYear - 2021 + 1) }, (_, i) => String(currentYear - i))
 
@@ -54,11 +56,11 @@ export default function LoanPaymentsPage() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Loan Payments"
         sub={`${total} records · ${fmt$(totalAmt)} collected`}
-        action={<Button onClick={() => setShowAdd(true)}><Plus size={15} /> Record repayment</Button>}
+        action={can('loan_payments.record') ? <Button onClick={() => setShowAdd(true)}><Plus size={15} /> Record repayment</Button> : undefined}
       />
 
       <FilterBar>

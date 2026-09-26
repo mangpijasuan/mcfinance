@@ -3,18 +3,78 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// Staff accounts (officers and administrators). What a staff member may
+// do comes from their role assignments, read from the database on every
+// request (src/modules/auth); role definitions live in
+// src/modules/permissions.
 model Admin {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
   password  String
-  role      String   @default("admin")
   linkedMemberId String? @unique
   createdAt DateTime @default(now())
+  disabledAt  DateTime?
+  lastLoginAt DateTime?
+
+  // TOTP multi-factor authentication. Secrets are AES-256-GCM encrypted
+  // with MFA_ENCRYPTION_KEY; mfaLastUsedStep blocks code replay.
+  mfaSecret        String?
+  mfaPendingSecret String?
+  mfaEnabledAt     DateTime?
+  mfaLastUsedStep  Int?
+
+  roles         StaffRoleAssignment[]
+  sessions      StaffSession[]
+  recoveryCodes MfaRecoveryCode[]
+}
+
+model StaffRoleAssignment {
+  id        String   @id @default(cuid())
+  adminId   String
+  role      String   // a role key from src/modules/permissions
+  grantedBy String?  // staff id, or null for migrations and CLI
+  grantedAt DateTime @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, role])
+}
+
+// Server-side staff sessions. The session cookie carries a random token;
+// only its SHA-256 hash is stored here. A session ends after 12 hours, or
+// 30 minutes without activity, or when revoked.
+model StaffSession {
+  id            String    @id // sha256(token)
+  adminId       String
+  createdAt     DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  expiresAt     DateTime
+  mfaVerifiedAt DateTime?
+  revokedAt     DateTime?
+  revokedReason String?
+  ip            String?
+  userAgent     String?
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+}
+
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  adminId   String
+  codeHash  String    @unique // sha256 of the normalised code
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
 }
 
 model Member {
@@ -41,6 +101,9 @@ model Member {
   riskFlag             String    @default("LOW")
   portalEnabled        Boolean   @default(false)
   portalPassword       String?
+  // Portal sessions issued before this moment are rejected (set when the
+  // portal password changes or access is switched off).
+  portalSessionsValidAfter DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -50,6 +113,7 @@ model Member {
   loanPayments    LoanPayment[]
   yearlyTotals    YearlyTotal[]
   withdrawals     Withdrawal[]
+  portalPayments  PortalPayment[]
 }
 
 model YearlyTotal {
@@ -139,9 +203,6 @@ model HistoricalLoan {
   createdAt        DateTime @default(now())
 }
 
-// Note: run `npx prisma db push` after adding these fields to Member above
-// Portal fields are added via migration script - see add-portal-fields.js
-
 model Withdrawal {
   id            String   @id @default(cuid())
   withdrawalId  String   @unique
@@ -203,4 +264,59 @@ model LoanAgreement {
   createdAt        DateTime  @default(now())
 
   loan Loan @relation(fields: [loanId], references: [loanId])
+}
+
+// Member-initiated online payments (Stripe checkout or a claimed Zelle
+// transfer). Stripe rows are completed automatically by the webhook;
+// Zelle rows sit "pending" until an admin confirms them against their
+// bank activity — Zelle has no merchant API, so there is no way to
+// verify a Zelle payment happened without a human checking.
+model PortalPayment {
+  id                     String    @id @default(cuid())
+  publicId               String    @unique
+  memberId               String
+  type                   String    // "contribution" | "loan_payment"
+  loanId                 String?
+  amount                 Float
+  method                 String    // "stripe" | "zelle"
+  status                 String    @default("pending") // "pending" | "completed" | "rejected" | "failed"
+  stripeSessionId        String?   @unique
+  stripePaymentIntentId  String?
+  zelleReference         String?
+  rejectionReason        String?
+  reviewedBy             String?
+  reviewedAt             DateTime?
+  contributionId         String?
+  loanPaymentId          String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  member Member @relation(fields: [memberId], references: [id])
+}
+
+// Append-only record of who changed what. A database trigger rejects
+// UPDATE, DELETE and TRUNCATE on this table (migration
+// 20260926010000_audit_log), so entries cannot be edited or removed
+// through the application. Written in the same transaction as the change
+// it describes. Secrets (password hashes, tokens) are redacted before
+// they are stored — see src/modules/audit.
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  at         DateTime @default(now())
+  actorType  String   // "admin" | "member" | "system" | "anonymous"
+  actorId    String?
+  actorLabel String?
+  action     String   // e.g. "member.update", "payment.zelle.confirm"
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  metadata   Json?
+  requestId  String?
+  ip         String?
+  userAgent  String?
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([at])
 }

@@ -27,7 +27,7 @@ export default function PortalLoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-400 text-[#1B2A4A] font-bold text-xl mb-4">MC</div>
+          <img src="/mc-logo.png" alt="Millionaires Club" className="inline-block w-14 h-14 mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-white">Millionaires Club</h1>
           <p className="text-white/50 text-sm mt-1">Member Portal</p>
         </div>

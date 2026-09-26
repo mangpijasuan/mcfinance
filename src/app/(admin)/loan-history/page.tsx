@@ -31,7 +31,7 @@ export default function LoanHistoryPage() {
   const totalLoans = data?.byYear?.reduce((s: number, r: any) => s + (r._count?.id || 0), 0) || 0
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader title="Loan History" sub={`${totalLoans} loans · ${fmt$(totalLent)} lent ${START_YEAR}–${currentYear}`} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">

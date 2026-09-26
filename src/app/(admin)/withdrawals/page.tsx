@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { Card, Table, EmptyState, Badge, Button, Modal, Input, Select,
          PageHeader, FilterBar, SearchInput } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { useStaff } from '@/components/staff/StaffContext'
 
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
   try {
@@ -14,6 +15,7 @@ async function readJsonSafe<T>(res: Response): Promise<T | null> {
 }
 
 export default function WithdrawalsPage() {
+  const { can } = useStaff()
   const [rows, setRows]         = useState<any[]>([])
   const [total, setTotal]       = useState(0)
   const [totalAmt, setTotalAmt] = useState(0)
@@ -49,11 +51,11 @@ export default function WithdrawalsPage() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Withdrawals"
         sub={`${total} records · ${fmt$(totalAmt)} total withdrawn`}
-        action={<Button onClick={() => setShowAdd(true)}><Plus size={15} /> Record withdrawal</Button>}
+        action={can('withdrawals.record') ? <Button onClick={() => setShowAdd(true)}><Plus size={15} /> Record withdrawal</Button> : undefined}
       />
 
       <FilterBar>

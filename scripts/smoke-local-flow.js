@@ -2,8 +2,17 @@ const { PrismaClient } = require('@prisma/client')
 
 const BASE_URL = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:3000'
 const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL || 'admin@millionairesclub.com'
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || 'admin123'
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || process.env.ADMIN_SEED_PASSWORD
+// The admin account's authenticator secret (base32), shown during MFA
+// setup under "Can't scan? Enter this key instead". Needed once the
+// account has two-factor authentication turned on.
+const ADMIN_TOTP_SECRET = process.env.SMOKE_ADMIN_TOTP_SECRET
 const MEMBER_PASSWORD = process.env.SMOKE_MEMBER_PASSWORD || 'SmokeTest123!'
+
+if (!ADMIN_PASSWORD) {
+  console.error('Set SMOKE_ADMIN_PASSWORD (or ADMIN_SEED_PASSWORD) to the admin password.')
+  process.exit(1)
+}
 
 const prisma = new PrismaClient()
 
@@ -111,6 +120,9 @@ async function main() {
   const admin = await login('admin', {
     email: ADMIN_EMAIL,
     password: ADMIN_PASSWORD,
+    code: ADMIN_TOTP_SECRET
+      ? new (require('otpauth').TOTP)({ secret: require('otpauth').Secret.fromBase32(ADMIN_TOTP_SECRET) }).generate()
+      : '',
   })
   assert(admin.session.user.role === 'admin', 'Admin session role mismatch')
 

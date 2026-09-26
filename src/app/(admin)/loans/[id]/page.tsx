@@ -1,22 +1,23 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Card, LoanStatusBadge, Button, Spinner } from '@/components/ui'
 import { fmt$, fmtDate } from '@/lib/utils'
 
-export default function LoanDetailPage({ params }: { params: { id: string } }) {
+export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const { id } = use(params)
   const [loan, setLoan] = useState<any>(null)
 
-  useEffect(() => { fetch(`/api/loans/${params.id}`).then(r => r.json()).then(setLoan) }, [params.id])
+  useEffect(() => { fetch(`/api/loans/${id}`).then(r => r.json()).then(setLoan) }, [id])
 
   if (!loan) return <div className="p-8"><Spinner /></div>
 
   const pct = Math.round((loan.totalPaid / loan.loanAmount) * 100)
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-8 max-w-3xl">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="sm" onClick={() => router.push('/loans')}><ArrowLeft size={15} /> Back</Button>
         <div className="flex-1">

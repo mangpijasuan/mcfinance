@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/apiAuth'
+import { requirePermission } from '@/modules/auth'
 
 export async function GET() {
-  const auth = await requireAdmin()
+  const auth = await requirePermission('dashboard.view')
   if (auth.error) return auth.error
 
   const currentYear = new Date().getFullYear()

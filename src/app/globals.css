@@ -24,3 +24,16 @@ a {
 * {
 	box-sizing: border-box;
 }
+
+/* Shows a soft shadow on whichever edge still has more content to scroll to,
+   and hides it once you've scrolled past it — no JS needed. */
+.scroll-shadow-x {
+	background:
+		linear-gradient(to right, white 30%, rgba(255, 255, 255, 0)) 0 0,
+		linear-gradient(to left, white 30%, rgba(255, 255, 255, 0)) 100% 0,
+		linear-gradient(to right, rgba(15, 23, 42, 0.12), rgba(255, 255, 255, 0)) 0 0,
+		linear-gradient(to left, rgba(15, 23, 42, 0.12), rgba(255, 255, 255, 0)) 100% 0;
+	background-repeat: no-repeat;
+	background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+	background-attachment: local, local, scroll, scroll;
+}

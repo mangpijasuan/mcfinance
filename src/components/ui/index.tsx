@@ -126,7 +126,7 @@ export function Textarea({ label, error, className, ...props }: React.TextareaHT
 /* ── Table ──────────────────────────────────────────────── */
 export function Table({ headers, children, loading }: { headers: string[]; children: React.ReactNode; loading?: boolean }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto scroll-shadow-x">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50/80">
@@ -200,12 +200,12 @@ export function StatCard({ label, value, sub, color = 'navy', icon }: {
 /* ── Page header ────────────────────────────────────────── */
 export function PageHeader({ title, sub, action }: { title: string; sub?: string; action?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+      <div className="min-w-0">
         <h1 className="text-xl font-bold text-gray-900">{title}</h1>
         {sub && <p className="text-sm text-gray-500 mt-0.5">{sub}</p>}
       </div>
-      {action}
+      {action && <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{action}</div>}
     </div>
   )
 }

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireMember, sessionMemberId } from '@/lib/apiAuth'
+import { requireMember } from '@/modules/auth'
 
 export async function GET() {
   const auth = await requireMember()
   if (auth.error) return auth.error
-  const memberId = sessionMemberId(auth.session)!
+  const memberId = auth.principal.memberId
 
   const [member, yearlyTotals, contributions2026, historical] = await Promise.all([
     prisma.member.findUnique({

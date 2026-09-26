@@ -9,14 +9,22 @@ async function main() {
   console.log('🌱 Seeding database...')
 
   // Default admin account
-  const adminPassword = process.env.ADMIN_SEED_PASSWORD || 'change-me-now'
+  const adminPassword = process.env.ADMIN_SEED_PASSWORD
+  if (!adminPassword || adminPassword.length < 12) {
+    throw new Error('Set ADMIN_SEED_PASSWORD (at least 12 characters) before seeding.')
+  }
   const hashed = await bcrypt.hash(adminPassword, 10)
-  await prisma.admin.upsert({
+  const admin = await prisma.admin.upsert({
     where: { email: 'admin@millionairesclub.com' },
-    update: { role: 'super_admin' },
-    create: { email: 'admin@millionairesclub.com', name: 'Club Admin', password: hashed, role: 'super_admin' },
+    update: {},
+    create: { email: 'admin@millionairesclub.com', name: 'Club Admin', password: hashed },
   })
-  console.log('✓ Admin account created')
+  await prisma.staffRoleAssignment.upsert({
+    where: { adminId_role: { adminId: admin.id, role: 'super_admin' } },
+    update: {},
+    create: { adminId: admin.id, role: 'super_admin' },
+  })
+  console.log('✓ Admin account created (Super Admin; sets up two-factor authentication at first sign-in)')
 
   // Members
   for (const m of seedData.members) {
@@ -93,11 +101,13 @@ async function main() {
 
   console.log('\n✅ Done!')
   console.log('📧 Login: admin@millionairesclub.com')
-  console.log(`🔑 Password: ${adminPassword}`)
-  if (!process.env.ADMIN_SEED_PASSWORD) {
-    console.log('⚠️  ADMIN_SEED_PASSWORD not set. The fallback password is for local setup only.')
-  }
-  console.log('⚠️  Change this password immediately after first login!')
+  console.log('🔑 Password: the value of ADMIN_SEED_PASSWORD')
+  console.log('⚠️  Change this password after first login!')
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect())
+main()
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : err)
+    process.exitCode = 1
+  })
+  .finally(() => prisma.$disconnect())
