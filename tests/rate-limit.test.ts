@@ -87,3 +87,27 @@ describe('housekeeping', () => {
     expect(await prisma.rateLimitAttempt.findMany({ select: { key: true } })).toEqual([{ key: 'new' }])
   })
 })
+
+describe('lockout alerts', () => {
+  it('emails the security contact once per hour per target', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }))
+    const saved = { to: process.env.SECURITY_ALERT_EMAIL, key: process.env.RESEND_API_KEY }
+    process.env.SECURITY_ALERT_EMAIL = 'board@example.test'
+    process.env.RESEND_API_KEY = 're_test'
+    try {
+      vi.resetModules()
+      const { authOptions: fresh } = await import('@/lib/auth')
+      const p = fresh.providers.find((x: any) => (x.options?.id ?? x.id) === 'admin') as any
+      const attempt = () => p.options.authorize({ email, password: 'wrong password' }, { headers: { 'x-forwarded-for': '203.0.113.60' } })
+      for (let i = 0; i < 11; i++) await attempt() // 8 failures, then 3 blocked attempts
+      const alerts = fetchSpy.mock.calls.filter(([url]) => String(url).includes('resend.com'))
+      expect(alerts).toHaveLength(1)
+      expect(JSON.parse(String((alerts[0][1] as any).body))).toMatchObject({ to: 'board@example.test', subject: 'Repeated failed sign-ins' })
+    } finally {
+      process.env.SECURITY_ALERT_EMAIL = saved.to
+      process.env.RESEND_API_KEY = saved.key
+      fetchSpy.mockRestore()
+      vi.resetModules()
+    }
+  })
+})

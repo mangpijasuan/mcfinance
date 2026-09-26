@@ -45,7 +45,7 @@ flowchart LR
 | **Information disclosure** | A member reads another member's loan | Server-side ownership checks on portal and agreement routes | Keep; add automated authorisation tests per route |
 | | PII leaked from git or backups | Private repository | Seed PII in git (S-7); unencrypted same-host backups (S-6) → encrypt, off-site, rotate |
 | | Leaked session token | HttpOnly cookie | 30-day JWT, not revocable (S-1) → database sessions, 8–12 h staff idle timeout |
-| **Denial of service** | Login flooding; webhook flooding | In-memory rate limit | Persistent limits at the proxy and app; Caddy request limits |
+| **Denial of service** | Login flooding; webhook flooding | Database-backed limits per account and per IP (Stage 2) | Caddy request limits for webhooks |
 | **Elevation of privilege** | A demoted admin keeps access | none | S-1 → authorisation reads roles from the database on every sensitive action (Next.js "Data Access Layer" pattern) |
 | | Admin creates another super admin | Super-admin-only route | Require board approval for super-admin grants; alert on every grant |
 
@@ -104,9 +104,9 @@ No role can approve its own proposal. The Administrator manages accounts but has
 
 - MFA enforced for staff; staff sessions time out after 12 hours or 30 minutes idle. *(Done, Stage 2.)*
 - Secrets in environment files on the server with `600` permissions, never in git. Rotate `NEXTAUTH_SECRET` and the database password from their example values.
-- Nightly encrypted backups (e.g. `age`/`gpg`) to off-site object storage; weekly restore test; recovery point objective 24 h, recovery time objective 4 h to start.
-- Content-Security-Policy, HSTS (Caddy), and a dependency audit in CI (`npm audit --audit-level=high`).
-- Structured logging of authentication events, approvals and postings, with alerts on failed-login spikes, super-admin use, and postings above a threshold.
+- Nightly encrypted backups (e.g. `age`/`gpg`) to off-site object storage; weekly restore test; recovery point objective 24 h, recovery time objective 4 h to start. *(Built, Stage 2: [backup runbook](../backup-and-restore.md); must be switched on for the server.)*
+- Content-Security-Policy, HSTS (Caddy), and a dependency audit in CI (`npm audit --audit-level=high`). *(Done, Stage 2.)*
+- Structured logging of authentication events, approvals and postings, with alerts on failed-login spikes, super-admin use, and postings above a threshold. *(Authentication events and approvals are in the audit log; lockouts and Super Admin sign-ins email `SECURITY_ALERT_EMAIL`. Posting alerts come with the ledger in Stage 3.)*
 
 ## 2. Privacy architecture
 
@@ -124,7 +124,7 @@ No role can approve its own proposal. The Administrator manages accounts but has
 | Location | Data | Action |
 |---|---|---|
 | PostgreSQL | everything | Keep; encrypted volume; least-privilege database users (app user cannot `DELETE`/`UPDATE` posted ledger rows) |
-| `prisma/seed-data.json`, `historical-loans.json` in git | 211 real members, loans | Move real data to an encrypted import file outside git; dev and CI use a synthetic fixture. Consider history rewriting only if the repository is ever shared (founder decision) |
+| ~~`prisma/seed-data.json`, `historical-loans.json` in git~~ | 211 real members, loans | **Done (Stage 2):** removed; synthetic `prisma/demo-data.json` for development; real data only via an encrypted file outside git (`SEED_DATA_FILE`). Still present in git history (founder decision A15: no rewrite, repository stays private) |
 | Backups | full database | Encrypt; off-site; retention policy |
 | Resend (email) | names, member IDs, amounts in reminder emails | Processor; keep emails minimal; a data-processing agreement |
 | Stripe | payment metadata (`portalPaymentId` only by design) | Keep metadata non-identifying |

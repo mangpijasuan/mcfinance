@@ -48,10 +48,10 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 | S-2 | Two roles only. Every admin can record, edit and confirm any financial event alone. | H | **Partly fixed (Stage 2):** nine roles with least-privilege permissions (D-07). Maker/checker (D-06) follows in Stage 3; existing admins keep full access through the transitional Club Officer role until officers are named (A4) |
 | S-3 | No MFA for staff. | H | **Fixed (Stage 2):** TOTP required for every staff account, with recovery codes |
 | S-4 | No audit log of who changed what. | H | **Fixed (Stage 2):** append-only `AuditLog` (database trigger blocks UPDATE, DELETE, TRUNCATE) written in the same transaction by every write route, sign-ins and the Stripe webhook; super-admin viewer at `/settings/audit` |
-| S-5 | Login rate limiting is in-memory: it resets on restart and is per process. | M | **Refactor** to database- or Redis-backed |
-| S-6 | Backups sit on the same VM as the database, are unencrypted, and have never had a restore tested. | H | **Refactor** |
-| S-7 | Real member names and financial history are committed to git in `prisma/seed-data.json` and `historical-loans.json`. The repository is private. | M | **Refactor**: move to an encrypted import, anonymise dev fixtures |
-| S-8 | No Content-Security-Policy. Other security headers were added this session. | L | **Refactor** |
+| S-5 | Login rate limiting is in-memory: it resets on restart and is per process. | M | **Fixed (Stage 2):** limits stored in PostgreSQL; per account, per IP (password spraying) and tighter for two-factor codes; lockouts emailed to the security contact |
+| S-6 | Backups sit on the same VM as the database, are unencrypted, and have never had a restore tested. | H | **Fixed (Stage 2):** age-encrypted to officers' public keys, copied off-site to a write-only versioned bucket, health-checked; weekly scripted restore check ([runbook](../backup-and-restore.md)). Setting it up on the server is an operations task |
+| S-7 | Real member names and financial history are committed to git in `prisma/seed-data.json` and `historical-loans.json`. The repository is private. | M | **Fixed going forward (Stage 2, Gate A15):** removed from the repository; development uses generated synthetic data; real data loads only from an encrypted file outside git. Still in git history by founder decision — the repository must stay private |
+| S-8 | No Content-Security-Policy. Other security headers were added this session. | L | **Fixed (Stage 2):** nonce-based CSP on every page (no inline or injected scripts), HSTS at Caddy |
 | S-9 | Previously found and fixed this session: Next.js critical CVEs, mass assignment, portal brute force, stray routes, a root Docker user, unescaped email HTML. | — | Done |
 
 ### Engineering

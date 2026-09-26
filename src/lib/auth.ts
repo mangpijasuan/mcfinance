@@ -52,6 +52,22 @@ async function notifyBreakGlass(email: string, ip: string | null) {
     .catch((err) => console.error('break-glass notification failed', err))
 }
 
+// A sign-in was refused because an account or an IP address hit its
+// failure limit — a likely guessing attack. Alert once per hour per target
+// (throttled through the same attempts table).
+async function alertLockout(kind: 'admin' | 'member', attempted: string, ip: string | null) {
+  const to = process.env.SECURITY_ALERT_EMAIL
+  if (!to) return
+  const target = `${kind}:${attempted.toLowerCase()}|${ip ?? '-'}`
+  const hourly = { max: 1, windowMs: 60 * 60 * 1000 }
+  if (await isRateLimited(`alert:${target}`, hourly)) return
+  await recordFailedAttempt(`alert:${target}`)
+  const clean = (v: string) => v.replace(/[<>&"]/g, '')
+  await sendEmail(to, 'Repeated failed sign-ins',
+    `<p>Sign-in attempts for ${kind === 'admin' ? 'staff account' : 'member'} <b>${clean(attempted)}</b>${ip ? ` from ${clean(ip)}` : ''} were blocked after too many failures at ${new Date().toISOString()}.</p><p>Details are in the audit log (auth.login.blocked).</p>`)
+    .catch((err) => console.error('lockout alert failed', err))
+}
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: MEMBER_SESSION_MAX_AGE_S },
   jwt: { maxAge: MEMBER_SESSION_MAX_AGE_S },
@@ -73,6 +89,7 @@ export const authOptions: NextAuthOptions = {
         const ip = clientIp(headerSource(req).headers.get)
         if ((await isRateLimited(rateLimitKey)) || (ip && (await isRateLimited(ipKey(ip)!, LIMITS.ip)))) {
           await auditSignIn(req, 'auth.login.blocked', 'admin', email)
+          await alertLockout('admin', email, ip)
           return null
         }
 
@@ -138,6 +155,7 @@ export const authOptions: NextAuthOptions = {
         const ip = clientIp(headerSource(req).headers.get)
         if ((await isRateLimited(rateLimitKey)) || (ip && (await isRateLimited(ipKey(ip)!, LIMITS.ip)))) {
           await auditSignIn(req, 'auth.login.blocked', 'member', attempted)
+          await alertLockout('member', attempted, ip)
           return null
         }
         const member = await prisma.member.findUnique({ where: { id: attempted } })
