@@ -126,6 +126,7 @@ Changes from today:
 **REVERSIBILITY:** easy
 **REQUIRES LEGAL REVIEW:** yes (fees, any future interest, disclosure obligations)
 **REQUIRES FOUNDER APPROVAL:** yes (late-fee enforcement, allocation order)
+**STATUS:** Engine built (Stage 3, `src/modules/loans/amortization`); loans do not use it yet. Wiring it into the loan lifecycle is the next Stage 3 slice.
 
 ## 3. Loan calculation engine
 
@@ -166,6 +167,7 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 **REVERSIBILITY:** moderate
 **REQUIRES LEGAL REVIEW:** no
 **REQUIRES FOUNDER APPROVAL:** no
+**STATUS:** `src/lib/money` built and used by the ledger and the loan engine (100% test coverage, enforced in CI). The legacy tables keep their `Float` columns until they are retired (migration step M7); new money paths use cents only.
 
 ## 4. Financial ledger
 
@@ -180,6 +182,7 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 **REVERSIBILITY:** difficult (once live, the ledger is the books)
 **REQUIRES LEGAL REVIEW:** yes (accounting classification of member capital, below)
 **REQUIRES FOUNDER APPROVAL:** yes
+**STATUS:** Ledger built and empty (migration step M3; `src/modules/accounting/ledger`, admin screen `/ledger`). The database enforces invariants 1–3 and 6 below, the approved-accounts rule and closed periods; `checkInvariants` covers all seven for a nightly job. The chart below is loaded as **proposed**, and no entry can be posted until the Treasurer records the accountant's confirmation (Gate #1 A13).
 
 ### Chart of accounts (proposed; accountant to confirm)
 

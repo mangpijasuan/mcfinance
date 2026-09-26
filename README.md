@@ -150,6 +150,12 @@ activity and clicks **Confirm** (which records the payment) or **Reject**. `NEXT
 
 ---
 
+## Ledger
+
+`/ledger` (for Finance, Treasurer, Compliance, Auditor, Board) shows the club's double-entry books: chart of accounts, trial balance as of any date, integrity checks and the journal. Amounts are exact integer cents.
+
+The ledger is **empty on purpose** until two things happen: the club's accountant confirms the proposed chart of accounts (the Treasurer records this on the Ledger page; it cannot be undone), and opening balances are loaded from a production snapshot (migration step M4). Posted entries can never be edited or deleted — the database refuses — so mistakes are corrected with reversing entries.
+
 ## Architecture assessment
 
 The platform modernisation plan (financial ledger, security, MCTN / rewards research, UMI feasibility) lives in [docs/architecture/](docs/architecture/README.md). Start with the executive assessment and **Founder Decision Gate #1**. The numbers in it are reproducible with `node scripts/models/tokenomics.mjs` and `node scripts/models/umi.mjs`.

@@ -1,7 +1,8 @@
 # Millionaires Club Platform — Architecture Assessment v1
 
 **Status:** First Assignment deliverable (Master Prompt v2.0, §48). [Founder Decision Gate #1](FOUNDER_DECISION_GATE_1.md) **Part A approved 2026-09-26**; Part B (MCTN, rewards, UMI principles) not yet decided.
-**Progress:** Stage 2 (foundation) is built: PostgreSQL everywhere with migrations, test harness, append-only audit log, role-based access with database-backed sessions, staff MFA, encrypted off-site backups with a restore check, Content-Security-Policy, persistent rate limits, and real data out of the repository. What remains for Stage 2 is operational: switch the backups on in production and run the first restore check. Next: Stage 3, the financial core.
+**Progress:** Stage 2 (foundation) is built: PostgreSQL everywhere with migrations, test harness, append-only audit log, role-based access with database-backed sessions, staff MFA, encrypted off-site backups with a restore check, Content-Security-Policy, persistent rate limits, and real data out of the repository. What remains for Stage 2 is operational: switch the backups on in production and run the first restore check.
+**Stage 3 (financial core) under way:** Money in integer cents, the loan calculation engine, and the double-entry ledger with database-enforced invariants are built (migration step M3). The chart of accounts waits for the accountant (A13); maker/checker approvals and the loan lifecycle are the next slices.
 
 This assessment keeps the existing application and evolves it. It does not propose a rewrite. Every number cited comes from the current codebase and database (the seeded club data), or from the reproducible models in [`scripts/models/`](../../scripts/models/).
 
