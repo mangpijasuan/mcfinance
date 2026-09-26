@@ -202,8 +202,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
                   }`}
                 >
-                  <div className="flex items-center space-x-3">
-                    <Icon className={`w-4 h-4 transition-colors ${
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <Icon className={`w-4 h-4 shrink-0 transition-colors ${
                       isActive ? 'text-slate-950' : 'text-amber-400/90 group-hover:text-amber-300'
                     }`} />
                     <span className="truncate">{item.label}</span>
