@@ -156,8 +156,8 @@ Both are safe to run more than once a day. Run `dues:service` once by hand right
 
 ```bash
 crontab -e
-# 20 6 * * * cd /path/to/mc-management && docker compose -f docker-compose.hetzner.yml exec -T app npm run dues:service >> /var/log/mc-dues.log 2>&1
-# 30 6 * * * cd /path/to/mc-management && docker compose -f docker-compose.hetzner.yml exec -T app npm run loans:service >> /var/log/mc-loans.log 2>&1
+# 20 6 * * * cd /path/to/mcfinance && docker compose -f docker-compose.hetzner.yml exec -T app npm run dues:service >> /var/log/mc-dues.log 2>&1
+# 30 6 * * * cd /path/to/mcfinance && docker compose -f docker-compose.hetzner.yml exec -T app npm run loans:service >> /var/log/mc-loans.log 2>&1
 ```
 
 A non-zero exit means a member or loan could not be processed; the log names it.

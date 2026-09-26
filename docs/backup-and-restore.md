@@ -70,7 +70,7 @@ Run it once by hand, then schedule it:
 ```bash
 ./scripts/backup-postgres.sh
 crontab -e
-# 15 3 * * * cd /path/to/mc-management && ./scripts/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
+# 15 3 * * * cd /path/to/mcfinance && ./scripts/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
 ```
 
 The script refuses to run if a **private** key is put in the recipients file.

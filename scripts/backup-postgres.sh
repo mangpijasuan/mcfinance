@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Encrypted, off-site PostgreSQL backup (S-6). Run nightly from the repo
 # root on the server, e.g. via cron:
-#   15 3 * * * cd /path/to/mc-management && ./scripts/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
+#   15 3 * * * cd /path/to/mcfinance && ./scripts/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
 #
 # What it does
 #   1. pg_dump (custom format) of the production database;

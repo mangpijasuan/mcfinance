@@ -11,7 +11,7 @@
 ### Mac / Linux
 
 ```bash
-cd mc-management
+cd mcfinance
 sh setup.sh
 npm run dev
 ```
