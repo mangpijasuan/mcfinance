@@ -41,7 +41,7 @@ export default function Sidebar({ permissions, roleSummary }: { permissions: str
           )}
           <img
             src="/mc-logo.png" alt={APP_NAME}
-            className={cn('shrink-0 object-contain', compact ? 'w-7 h-7' : 'w-8 h-8')}
+            className={cn('shrink-0 object-contain', compact ? 'w-10 h-7' : 'w-12 h-8')}
           />
           {!compact && (
             <div className="min-w-0 text-left">
@@ -106,7 +106,7 @@ export default function Sidebar({ permissions, roleSummary }: { permissions: str
           >
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <img src="/mc-logo.png" alt={APP_NAME} className="w-7 h-7 shrink-0 object-contain" />
+          <img src="/mc-logo.png" alt={APP_NAME} className="w-11 h-7 shrink-0 object-contain" />
           <span className="text-white font-semibold text-sm truncate">{APP_NAME}</span>
         </div>
         <div className="w-8 shrink-0" />
