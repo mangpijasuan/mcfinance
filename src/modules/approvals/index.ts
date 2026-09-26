@@ -16,6 +16,9 @@ import { LedgerError, postEntry, type EntryInput } from '@/modules/accounting/le
 import { confirmZelleClaim } from '@/modules/payments/zelle'
 import { recordWithdrawal, type WithdrawalInput } from '@/modules/membership/withdrawals'
 import { createLoan, type LoanInput } from '@/modules/loans/create'
+import {
+  type DisburseInput, type WaiveInput, type WriteOffInput, disburseLoan, waiveLateFee, writeOffLoan,
+} from '@/modules/loans/lifecycle'
 import { APPROVAL_POLICIES, type ApprovalAction, needsApproval } from './policy'
 import type { Actors, StaffRef } from './actors'
 
@@ -26,6 +29,9 @@ export type ApprovalPayload = {
   'withdrawal.record': WithdrawalInput
   'loan.create': LoanInput
   'journal.manual': Omit<EntryInput, 'createdBy' | 'approvedBy'>
+  'loan.disburse': DisburseInput
+  'loan.fee.waive': WaiveInput
+  'loan.write_off': WriteOffInput
 }
 
 /** Run an operation, now (no approval needed) or when its request is approved. */
@@ -44,6 +50,18 @@ export async function executeOperation<A extends ApprovalAction>(
     }
     case 'loan.create': {
       const result = await createLoan(tx, payload as LoanInput, actors, ctx)
+      return { resultRef: result.loanId, result }
+    }
+    case 'loan.disburse': {
+      const result = await disburseLoan(tx, payload as DisburseInput, actors, ctx)
+      return { resultRef: result.loanId, result }
+    }
+    case 'loan.fee.waive': {
+      const result = await waiveLateFee(tx, payload as WaiveInput, actors, ctx)
+      return { resultRef: result.feeId, result }
+    }
+    case 'loan.write_off': {
+      const result = await writeOffLoan(tx, payload as WriteOffInput, actors, ctx)
       return { resultRef: result.loanId, result }
     }
     case 'journal.manual': {

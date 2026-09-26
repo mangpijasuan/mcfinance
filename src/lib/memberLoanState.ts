@@ -1,5 +1,5 @@
 export async function recalcMemberLoanState(tx: any, memberId: string) {
-  const [borrowerAgg, cosignerAgg] = await Promise.all([
+  const [borrowerAgg, cosignerAgg, writtenOff] = await Promise.all([
     tx.loan.aggregate({
       where: { borrowerId: memberId, status: 'Active' },
       _count: { loanId: true },
@@ -9,6 +9,7 @@ export async function recalcMemberLoanState(tx: any, memberId: string) {
       where: { cosignerId: memberId, status: 'Active' },
       _count: { loanId: true },
     }),
+    tx.loan.count({ where: { borrowerId: memberId, lifecycle: 'charged_off' } }),
   ])
 
   const activeAsBorrower = (borrowerAgg._count.loanId ?? 0) > 0 ? 1 : 0
@@ -21,7 +22,8 @@ export async function recalcMemberLoanState(tx: any, memberId: string) {
       activeAsBorrower,
       activeAsCosigner,
       currentLoanBalance,
-      eligible: activeAsBorrower === 0 && activeAsCosigner === 0 ? 'YES' : 'NO - Active Loan/Cosign',
+      eligible: writtenOff > 0 ? 'NO - Loan written off'
+        : activeAsBorrower === 0 && activeAsCosigner === 0 ? 'YES' : 'NO - Active Loan/Cosign',
     },
   })
 }

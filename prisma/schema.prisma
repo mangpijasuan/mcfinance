@@ -12,14 +12,14 @@ datasource db {
 // request (src/modules/auth); role definitions live in
 // src/modules/permissions.
 model Admin {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String
-  linkedMemberId String? @unique
-  createdAt DateTime @default(now())
-  disabledAt  DateTime?
-  lastLoginAt DateTime?
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  password       String
+  linkedMemberId String?   @unique
+  createdAt      DateTime  @default(now())
+  disabledAt     DateTime?
+  lastLoginAt    DateTime?
 
   // TOTP multi-factor authentication. Secrets are AES-256-GCM encrypted
   // with MFA_ENCRYPTION_KEY; mfaLastUsedStep blocks code replay.
@@ -36,8 +36,8 @@ model Admin {
 model StaffRoleAssignment {
   id        String   @id @default(cuid())
   adminId   String
-  role      String   // a role key from src/modules/permissions
-  grantedBy String?  // staff id, or null for migrations and CLI
+  role      String // a role key from src/modules/permissions
+  grantedBy String? // staff id, or null for migrations and CLI
   grantedAt DateTime @default(now())
 
   admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
@@ -78,38 +78,38 @@ model MfaRecoveryCode {
 }
 
 model Member {
-  id                   String    @id
-  legalName            String
-  nickname             String?
-  joinDate             DateTime
-  status               String    @default("Active")
-  phoneNo              String?
-  email                String?
-  beneficiary          String?
-  notes                String?
-  archiveLifetime      Float     @default(0)
-  contributions2026    Float     @default(0)
-  overallContributions Float     @default(0)
-  monthsActive         Int       @default(0)
-  maxLoanAmount        Float     @default(0)
-  currentLoanBalance   Float     @default(0)
-  eligible             String    @default("NO")
-  activeAsBorrower     Int       @default(0)
-  activeAsCosigner     Int       @default(0)
-  lastContributionDate DateTime?
-  thisMonth            String    @default("NOT PAID")
-  riskFlag             String    @default("LOW")
-  portalEnabled        Boolean   @default(false)
-  portalPassword       String?
+  id                       String    @id
+  legalName                String
+  nickname                 String?
+  joinDate                 DateTime
+  status                   String    @default("Active")
+  phoneNo                  String?
+  email                    String?
+  beneficiary              String?
+  notes                    String?
+  archiveLifetime          Float     @default(0)
+  contributions2026        Float     @default(0)
+  overallContributions     Float     @default(0)
+  monthsActive             Int       @default(0)
+  maxLoanAmount            Float     @default(0)
+  currentLoanBalance       Float     @default(0)
+  eligible                 String    @default("NO")
+  activeAsBorrower         Int       @default(0)
+  activeAsCosigner         Int       @default(0)
+  lastContributionDate     DateTime?
+  thisMonth                String    @default("NOT PAID")
+  riskFlag                 String    @default("LOW")
+  portalEnabled            Boolean   @default(false)
+  portalPassword           String?
   // Portal sessions issued before this moment are rejected (set when the
   // portal password changes or access is switched off).
   portalSessionsValidAfter DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   contributions   Contribution[]
-  loansAsBorrower Loan[]         @relation("Borrower")
-  loansAsCosigner Loan[]         @relation("Cosigner")
+  loansAsBorrower Loan[]          @relation("Borrower")
+  loansAsCosigner Loan[]          @relation("Cosigner")
   loanPayments    LoanPayment[]
   yearlyTotals    YearlyTotal[]
   withdrawals     Withdrawal[]
@@ -143,8 +143,8 @@ model Contribution {
 }
 
 model Loan {
-  id               String      @id @default(cuid())
-  loanId           String      @unique
+  id               String    @id @default(cuid())
+  loanId           String    @unique
   borrowerId       String
   borrowerName     String
   cosignerId       String?
@@ -153,20 +153,91 @@ model Loan {
   termMonths       Int
   loanAmount       Float
   monthlyDue       Float
-  totalPaid        Float       @default(0)
+  totalPaid        Float     @default(0)
   balanceRemaining Float
-  status           String      @default("Active")
+  status           String    @default("Active")
   endDate          DateTime?
   nextDueDate      DateTime?
-  overdue          Boolean     @default(false)
+  overdue          Boolean   @default(false)
   notes            String?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  borrower Member        @relation("Borrower", fields: [borrowerId], references: [id])
-  cosigner Member?       @relation("Cosigner", fields: [cosignerId], references: [id])
-  payments  LoanPayment[]
-  agreement LoanAgreement?
+  // Lifecycle (docs/architecture/04 §2). Loans made before the loan engine
+  // have no stored schedule (principalCents is null) and keep today's
+  // hand-kept fields until their schedules are backfilled. createLoan sets
+  // "approved"; the default is for rows imported by the seed and the
+  // legacy scripts, which were all paid out long ago.
+  lifecycle             String    @default("disbursed") // approved | agreement_signed | disbursed | paid_off | charged_off | cancelled
+  principalCents        BigInt?
+  applicationFeeCents   BigInt?
+  policyVersion         String?
+  dueDay                Int?
+  graceDays             Int?
+  disbursedOn           DateTime? @db.Date
+  disbursedAmountCents  BigInt? // principal minus the application fee (Gate #1 A8)
+  disbursementMethod    String?
+  disbursementReference String?
+  disbursedBy           String? // staff id (maker)
+  disbursementEntry     String? // journal entry number, once posted
+  delinquency           String? // current | delinquent — set only by the servicing job
+  daysPastDue           Int       @default(0)
+  servicedOn            DateTime? @db.Date // last run of the servicing job for this loan
+  chargedOffOn          DateTime? @db.Date
+  chargeOffEntry        String?
+  cancelledAt           DateTime?
+
+  borrower     Member            @relation("Borrower", fields: [borrowerId], references: [id])
+  cosigner     Member?           @relation("Cosigner", fields: [cosignerId], references: [id])
+  payments     LoanPayment[]
+  agreement    LoanAgreement?
+  installments LoanInstallment[]
+  fees         LoanFee[]
+
+  @@index([lifecycle])
+}
+
+/// One row per scheduled installment, from the loan engine at creation.
+/// Immutable (a database trigger refuses changes); a restructure will add
+/// a new schedule version rather than edit this one.
+model LoanInstallment {
+  id             String   @id @default(cuid())
+  loanId         String
+  number         Int
+  dueDate        DateTime @db.Date
+  principalCents BigInt
+  interestCents  BigInt   @default(0)
+  createdAt      DateTime @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [loanId])
+
+  @@unique([loanId, number])
+}
+
+/// A fee charged on a loan: today only late fees, at most one per
+/// installment (unique), waivable with a checker.
+model LoanFee {
+  id                String    @id @default(cuid())
+  feeId             String    @unique // FEE-XXXXXXXXXX
+  loanId            String
+  installmentNumber Int
+  kind              String    @default("late_fee")
+  amountCents       BigInt
+  assessedOn        DateTime  @db.Date
+  status            String    @default("charged") // charged | waived
+  journalEntry      String?
+  waivedOn          DateTime? @db.Date
+  waivedAt          DateTime? // when the waiver was recorded (orders it among payments)
+  waivedBy          String? // staff id (maker of the waiver)
+  waiverReason      String?
+  waiverEntry       String?
+  eventSeq          BigInt    @default(dbgenerated("next_loan_event()"))
+  waiverSeq         BigInt? // set by the database when the fee is waived
+  createdAt         DateTime  @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [loanId])
+
+  @@unique([loanId, installmentNumber, kind])
 }
 
 model LoanPayment {
@@ -183,45 +254,47 @@ model LoanPayment {
   source        String?
   monthYear     String?
   createdAt     DateTime @default(now())
+  journalEntry  String? // once posted to the ledger (loans on the loan engine)
+  eventSeq      BigInt   @default(dbgenerated("next_loan_event()")) // recording order (see src/modules/loans/state.ts)
 
   loan     Loan   @relation(fields: [loanId], references: [loanId])
   borrower Member @relation(fields: [borrowerId], references: [id])
 }
 
 model HistoricalLoan {
-  id               String   @id @default(cuid())
-  loanId           String   @unique
+  id               String    @id @default(cuid())
+  loanId           String    @unique
   year             Int
   borrowerName     String
   cosignerName     String?
   loanDate         DateTime
   endDate          DateTime?
   loanAmount       Float
-  totalPaid        Float    @default(0)
-  balanceRemaining Float    @default(0)
-  status           String   @default("Paid Off")
-  createdAt        DateTime @default(now())
+  totalPaid        Float     @default(0)
+  balanceRemaining Float     @default(0)
+  status           String    @default("Paid Off")
+  createdAt        DateTime  @default(now())
 }
 
 model Withdrawal {
-  id            String   @id @default(cuid())
-  withdrawalId  String   @unique
-  memberId      String
-  memberName    String
-  amount        Float
+  id             String   @id @default(cuid())
+  withdrawalId   String   @unique
+  memberId       String
+  memberName     String
+  amount         Float
   withdrawalDate DateTime
-  type          String   @default("Partial") // "Partial" | "Full Exit"
-  reason        String?
-  processedBy   String?
-  notes         String?
-  createdAt     DateTime @default(now())
+  type           String   @default("Partial") // "Partial" | "Full Exit"
+  reason         String?
+  processedBy    String?
+  notes          String?
+  createdAt      DateTime @default(now())
 
   member Member @relation(fields: [memberId], references: [id])
 }
 
 model EmailLog {
   id        String   @id @default(cuid())
-  type      String   // "contribution_reminder" | "loan_overdue" | "admin_summary"
+  type      String // "contribution_reminder" | "loan_overdue" | "admin_summary"
   recipient String
   subject   String
   status    String   @default("sent") // "sent" | "failed"
@@ -229,27 +302,27 @@ model EmailLog {
 }
 
 model LoanAgreement {
-  id               String    @id @default(cuid())
-  agreementId      String    @unique
-  loanId           String    @unique
+  id          String @id @default(cuid())
+  agreementId String @unique
+  loanId      String @unique
 
-  borrowerName     String
-  borrowerId       String
-  borrowerAddress  String?
-  borrowerCity     String?
-  borrowerState    String?
+  borrowerName    String
+  borrowerId      String
+  borrowerAddress String?
+  borrowerCity    String?
+  borrowerState   String?
 
-  cosignerName     String?
-  cosignerId       String?
+  cosignerName String?
+  cosignerId   String?
 
-  lenderName       String    @default("Millionaires Club")
-  applicationFee   Float     @default(0)
+  lenderName     String @default("Millionaires Club")
+  applicationFee Float  @default(0)
 
-  loanAmount       Float
-  monthlyPayment   Float
-  termMonths       Int
-  startDate        DateTime
-  endDate          DateTime
+  loanAmount     Float
+  monthlyPayment Float
+  termMonths     Int
+  startDate      DateTime
+  endDate        DateTime
 
   borrowerSignature  String?
   borrowerSignedAt   DateTime?
@@ -257,11 +330,18 @@ model LoanAgreement {
   cosignerSignedAt   DateTime?
   lenderSignature    String?
   lenderSignedAt     DateTime?
+  // SHA-256 of the agreement terms each party signed, so the signed text
+  // is provable (docs/architecture/04 §2).
+  termsHash          String?
+  borrowerSignedHash String?
+  cosignerSignedHash String?
+  lenderSignedHash   String?
+  amountPaidOut      Float? // loan amount minus the application fee (Gate #1 A8)
 
-  status           String    @default("pending")
+  status String @default("pending")
   // pending | borrower_signed | cosigner_signed | fully_signed
 
-  createdAt        DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   loan Loan @relation(fields: [loanId], references: [loanId])
 }
@@ -272,24 +352,24 @@ model LoanAgreement {
 // bank activity — Zelle has no merchant API, so there is no way to
 // verify a Zelle payment happened without a human checking.
 model PortalPayment {
-  id                     String    @id @default(cuid())
-  publicId               String    @unique
-  memberId               String
-  type                   String    // "contribution" | "loan_payment"
-  loanId                 String?
-  amount                 Float
-  method                 String    // "stripe" | "zelle"
-  status                 String    @default("pending") // "pending" | "completed" | "rejected" | "failed"
-  stripeSessionId        String?   @unique
-  stripePaymentIntentId  String?
-  zelleReference         String?
-  rejectionReason        String?
-  reviewedBy             String?
-  reviewedAt             DateTime?
-  contributionId         String?
-  loanPaymentId          String?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  publicId              String    @unique
+  memberId              String
+  type                  String // "contribution" | "loan_payment"
+  loanId                String?
+  amount                Float
+  method                String // "stripe" | "zelle"
+  status                String    @default("pending") // "pending" | "completed" | "rejected" | "failed"
+  stripeSessionId       String?   @unique
+  stripePaymentIntentId String?
+  zelleReference        String?
+  rejectionReason       String?
+  reviewedBy            String?
+  reviewedAt            DateTime?
+  contributionId        String?
+  loanPaymentId         String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   member Member @relation(fields: [memberId], references: [id])
 }
@@ -303,10 +383,10 @@ model PortalPayment {
 model AuditLog {
   id         BigInt   @id @default(autoincrement())
   at         DateTime @default(now())
-  actorType  String   // "admin" | "member" | "system" | "anonymous"
+  actorType  String // "admin" | "member" | "system" | "anonymous"
   actorId    String?
   actorLabel String?
-  action     String   // e.g. "member.update", "payment.zelle.confirm"
+  action     String // e.g. "member.update", "payment.zelle.confirm"
   entityType String
   entityId   String
   before     Json?
@@ -326,7 +406,7 @@ model AuditLog {
 // Rows older than a day are pruned as new failures are recorded.
 model RateLimitAttempt {
   id  BigInt   @id @default(autoincrement())
-  key String   // "admin:<email>", "member:<id>", "mfa:<staff id>", "ip:<address>", …
+  key String // "admin:<email>", "member:<id>", "mfa:<staff id>", "ip:<address>", …
   at  DateTime @default(now())
 
   @@index([key, at])

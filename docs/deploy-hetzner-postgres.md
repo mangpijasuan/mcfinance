@@ -147,6 +147,17 @@ Follow [backup-and-restore.md](backup-and-restore.md): create the club's backup 
 
 Also take a Hetzner server snapshot before any upgrade.
 
+## 10. Schedule the daily loan job
+
+It marks loans delinquent from their schedules, charges late fees once they are switched on (Gate #1 A7), and posts anything waiting for the ledger. It is safe to run more than once a day.
+
+```bash
+crontab -e
+# 30 6 * * * cd /path/to/mc-management && docker compose -f docker-compose.hetzner.yml exec -T app npm run loans:service >> /var/log/mc-loans.log 2>&1
+```
+
+A non-zero exit means a loan could not be serviced; the log names it.
+
 ## Google Sheets recommendation
 
 Use Google Sheets only for:

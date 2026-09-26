@@ -10,7 +10,11 @@ export function fmt$(n: number) {
 
 export function fmtDate(d: Date | string | null | undefined) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  const date = new Date(d)
+  // A date without a time (stored as midnight UTC) is shown as that calendar
+  // date; in US time zones it would otherwise show as the day before.
+  const dateOnly = date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0 && date.getUTCMilliseconds() === 0
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', ...(dateOnly ? { timeZone: 'UTC' } : {}) })
 }
 
 export function fmtDateInput(d: Date | string | null | undefined) {

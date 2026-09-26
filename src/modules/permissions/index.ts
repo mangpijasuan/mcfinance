@@ -37,6 +37,12 @@ export const PERMISSIONS = {
   'ledger.approve': 'Approve manual journal entries proposed by someone else',
   'loans.approve': 'Approve loans proposed by someone else (when maker/checker is on)',
   'withdrawals.approve': 'Approve withdrawals recorded by someone else (when maker/checker is on)',
+  'loans.disburse': 'Record that a loan was paid out to the borrower',
+  'loans.approve_disbursement': 'Approve a loan payout recorded by someone else (when maker/checker is on)',
+  'loan_fees.waive': 'Propose waiving a late fee (needs a checker)',
+  'loan_fees.approve_waiver': 'Approve a late-fee waiver proposed by someone else',
+  'loans.write_off': 'Propose writing off a delinquent loan (needs two Board approvals)',
+  'loans.approve_write_off': 'Approve a loan write-off proposed by someone else',
   'approvals.view': 'See the approval queue',
   'audit.read': 'Read the audit log',
   'staff.read': 'View staff accounts and their roles',
@@ -69,7 +75,7 @@ export const ROLES = {
     description: 'Takes and reviews loan applications.',
     permissions: [
       'dashboard.view', 'members.read', 'contributions.read', 'loans.read', 'loans.create',
-      'loan_payments.read', 'agreements.read', 'agreements.update', 'approvals.view',
+      'loan_payments.read', 'agreements.read', 'agreements.update', 'approvals.view', 'loan_fees.waive',
     ],
   },
   finance: {
@@ -87,6 +93,7 @@ export const ROLES = {
       ...READ_EVERYTHING, 'contributions.record', 'loan_payments.record', 'withdrawals.record',
       'payments.review', 'agreements.sign_lender', 'loans.update', 'loans.cancel', 'audit.read',
       'ledger.manage_accounts', 'ledger.propose', 'ledger.approve', 'loans.approve', 'withdrawals.approve',
+      'loans.disburse', 'loan_fees.waive', 'loan_fees.approve_waiver', 'loans.write_off',
     ],
   },
   compliance: {
@@ -102,7 +109,10 @@ export const ROLES = {
   board: {
     label: 'Board',
     description: 'Oversight and approvals: confirms payments, signs agreements, reads the audit log.',
-    permissions: [...READ_EVERYTHING, 'payments.review', 'agreements.sign_lender', 'audit.read', 'staff.read', 'loans.approve', 'ledger.approve'],
+    permissions: [
+      ...READ_EVERYTHING, 'payments.review', 'agreements.sign_lender', 'audit.read', 'staff.read', 'loans.approve', 'ledger.approve',
+      'loans.approve_disbursement', 'loans.approve_write_off',
+    ],
   },
   administrator: {
     label: 'Administrator',

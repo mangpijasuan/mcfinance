@@ -92,6 +92,8 @@ stateDiagram-v2
     Cancelled --> [*]
 ```
 
+*Built in Stage 3:* Draft/Submitted/UnderReview are the pending `loan.create` approval request; `Loan.lifecycle` then holds `approved → agreement_signed → disbursed → paid_off | charged_off`, or `cancelled` before disbursement. `Current`/`Delinquent` is `Loan.delinquency`, set only by the servicing job and by payments. A database trigger refuses any other move. `Restructured` is not built yet.
+
 Changes from today:
 
 - **Cancellation is only possible before disbursement**, and it is a status change, not a deletion. After disbursement the only exits are payoff, restructure or charge-off, each with ledger entries (F-3).
@@ -126,7 +128,7 @@ Changes from today:
 **REVERSIBILITY:** easy
 **REQUIRES LEGAL REVIEW:** yes (fees, any future interest, disclosure obligations)
 **REQUIRES FOUNDER APPROVAL:** yes (late-fee enforcement, allocation order)
-**STATUS:** Engine built (Stage 3, `src/modules/loans/amortization`); loans do not use it yet. Wiring it into the loan lifecycle is the next Stage 3 slice.
+**STATUS:** Built and in use (Stage 3). Every new loan stores its schedule (`LoanInstallment`, immutable) and runs the lifecycle below in `src/modules/loans`: payout with the fee netted, repayments split by the engine, a daily servicing job (`npm run loans:service`) for delinquency and late fees (charging switched off, A7), fee waivers and write-offs with checkers, and ledger postings once the chart is approved. Not yet: restructuring, recoveries after a write-off, and moving older loans onto the engine (with M4).
 
 ## 3. Loan calculation engine
 
@@ -235,6 +237,10 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 | Collector deposits $400 | 1000 Bank $400 | 1030 Cash — collector X $400 |
 | Loan of $5,000 disbursed, $70 application fee netted (A8) | 1100 Loans receivable (member, loan) $5,000 | 1000 Bank $4,930 · 4000 Application fee income $70 |
 | Repayment $211.25 (Zelle) | 1020 Zelle clearing → then 1000 Bank | 1100 Loans receivable (member, loan) |
+| Late fee charged (when enabled) | 1110 Fees receivable (member) $5 | 4010 Late fee income $5 |
+| Repayment that also pays that fee | the receiving account (1010 card, 1020 Zelle/transfer, 1030 cash, 1000 other) | 1110 Fees receivable $5 · 1100 Loans receivable (rest) · 2100 Unapplied (any overpayment) |
+| Late fee waived (checker approved) | 4010 Late fee income | 1110 Fees receivable (member) |
+| Loan written off (two Board approvals) | 5100 Loan losses (principal + fees unpaid) | 1100 Loans receivable · 1110 Fees receivable |
 | Member withdrawal $500 | 2000 Member capital (member) $500 | 1000 Bank $500 |
 | Correction of a mis-keyed $20 | a **reversal** of the original entry, then a new correct entry | — |
 | Opening balance (migration) | 9000 Opening balance equity | 2000 Member capital (member), per member |

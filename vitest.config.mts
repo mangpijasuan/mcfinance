@@ -17,7 +17,10 @@ export default defineConfig({
     // `npm run test:coverage` fails if any of these drops below 100%.
     coverage: {
       provider: 'v8',
-      include: ['src/lib/money/**', 'src/modules/loans/amortization/**', 'src/modules/accounting/ledger/**'],
+      include: [
+        'src/lib/money/**', 'src/lib/dates.ts', 'src/modules/loans/amortization/**', 'src/modules/accounting/ledger/**',
+        'src/modules/loans/state.ts', 'src/modules/loans/postings.ts',
+      ],
       exclude: ['**/*.test.ts'],
       thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
       reporter: ['text-summary'],

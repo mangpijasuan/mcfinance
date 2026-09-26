@@ -41,6 +41,7 @@ export function LoanStatusBadge({ status, overdue }: { status: string; overdue?:
   if (overdue) return <Badge variant="red">⚠ Overdue</Badge>
   if (status === 'Active') return <Badge variant="amber">Active</Badge>
   if (status === 'Paid Off') return <Badge variant="green">Paid Off</Badge>
+  if (status === 'Charged Off') return <Badge variant="red">Written off</Badge>
   return <Badge variant="gray">{status}</Badge>
 }
 

@@ -23,6 +23,8 @@
     "admin:reset-password": "tsx scripts/reset-admin-password.ts",
     "contributions:normalize": "node scripts/normalize-contributions.js",
     "loans:audit": "node scripts/audit-loans.js",
+    "loans:service": "tsx scripts/service-loans.ts",
+    "loans:schedule-report": "tsx scripts/loan-schedule-report.ts",
     "loans:sync-active-2024-2025": "node scripts/sync-active-historical-loans.js"
   },
   "prisma": {

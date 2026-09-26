@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { repaymentBlocker } from '@/lib/paymentActions'
 import { prisma } from '@/lib/prisma'
 import { requireMember } from '@/modules/auth'
 import { nextPublicId } from '@/lib/publicIds'
@@ -27,12 +28,12 @@ export async function POST(req: NextRequest) {
   if (type === 'loan_payment') {
     loanId = String(body.loanId || '')
     if (!loanId) return NextResponse.json({ error: 'A loan must be selected.' }, { status: 400 })
-    const loan = await prisma.loan.findUnique({ where: { loanId }, select: { loanId: true, borrowerId: true, status: true, balanceRemaining: true } })
+    const loan = await prisma.loan.findUnique({ where: { loanId }, select: { loanId: true, borrowerId: true, status: true, balanceRemaining: true, lifecycle: true, principalCents: true } })
     if (!loan || loan.borrowerId !== memberId) {
       return NextResponse.json({ error: 'Loan not found.' }, { status: 404 })
     }
-    if (loan.status !== 'Active') {
-      return NextResponse.json({ error: 'This loan is not active.' }, { status: 409 })
+    if (loan.status !== 'Active' || repaymentBlocker(loan)) {
+      return NextResponse.json({ error: repaymentBlocker(loan) ?? 'This loan is not active.' }, { status: 409 })
     }
     if (amount > loan.balanceRemaining) {
       return NextResponse.json({ error: 'Amount exceeds the remaining loan balance.' }, { status: 400 })

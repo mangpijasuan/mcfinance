@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { MoneyError, cents, parseDollars, sum } from '@/lib/money'
 import {
   LoanEngineError, POLICY_VERSION, applyPayment, buildSchedule, chargeFee, daysBetween, delinquency, lateFeesDue,
-  openPosition, outstandingPrincipal, payoffAmount, replay, type ExcessRule, type LoanEvent,
+  openPosition, outstandingPrincipal, payoffAmount, replay, waiveFee, type ExcessRule, type LoanEvent,
 } from '.'
 
 const $ = (s: string) => parseDollars(s)
@@ -145,6 +145,7 @@ describe('applyPayment', () => {
       let unapplied = 0
       for (const e of events as LoanEvent[]) {
         if (e.type === 'fee') { p = chargeFee(p, e.amount); feesCharged += e.amount; continue }
+        if (e.type !== 'payment') continue
         const r = applyPayment(p, e.amount, e.asOf, e.excess)
         if (sum(r.allocations.map((a) => a.amount)) + r.unapplied !== e.amount) return false
         if (r.allocations.some((a) => a.amount <= 0)) return false
@@ -173,6 +174,29 @@ describe('replay and reversal', () => {
     expect(replay(s, withMistake).position).not.toEqual(replay(s, before).position)
     expect(replay(s, withMistake.slice(0, -1))).toEqual(replay(s, before))
     expect(replay(s, before).allocations).toHaveLength(3)
+  })
+
+  it('a waived fee leaves the position as if it had never been charged', () => {
+    const s = schedule('1000', 10)
+    const pay: LoanEvent = { type: 'payment', amount: $('100'), asOf: '2026-03-01' }
+    const waived = replay(s, [{ type: 'fee', amount: $('5') }, { type: 'fee_waiver', amount: $('5') }, pay])
+    expect(waived.position).toEqual(replay(s, [pay]).position)
+    expect(waived.allocations).toEqual([[], [], replay(s, [pay]).allocations[0]])
+  })
+})
+
+describe('waiveFee', () => {
+  const p = chargeFee(openPosition(schedule('1000', 10)), $('5'))
+
+  it('reduces unpaid fees', () => {
+    expect(waiveFee(p, $('5')).feesOutstanding).toBe(0)
+    expect(payoffAmount(waiveFee(p, $('2')))).toBe($('1003'))
+  })
+
+  it('refuses a fee that is not unpaid, or a non-positive amount', () => {
+    expect(() => waiveFee(p, $('6'))).toThrow(LoanEngineError)
+    expect(() => waiveFee(p, cents(0))).toThrow(MoneyError)
+    expect(() => waiveFee(p, 1.5 as never)).toThrow(MoneyError)
   })
 })
 

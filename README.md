@@ -165,9 +165,35 @@ Some actions need a second person (D-06): the person who proposes them can never
 | Confirm a Zelle claim | anyone who reviews payments | a different reviewer | over $100 |
 | Pay out a withdrawal | Finance | Treasurer | always |
 | Create a loan | Loan Officer | Treasurer or Board | always |
+| Pay out a loan | Treasurer | Board | always |
 | Manual journal entry | Finance / Treasurer | Treasurer / Board | always |
+| Waive a late fee | Loan Officer / Treasurer | Treasurer | always |
+| Write off a loan | Treasurer | **two** Board members | always |
 
-The first three are **switched off** until the officers are named (Gate #1 A4) and work with one person, as before. Switch them on with `MAKER_CHECKER_ENFORCED=true`. Manual journal entries always need a second person. When approved, the action runs at that moment; if it no longer passes its rules (for example the borrower is no longer eligible), nothing changes and the request stays pending.
+The first four are **switched off** until the officers are named (Gate #1 A4) and work with one person, as before. Switch them on with `MAKER_CHECKER_ENFORCED=true`. Manual journal entries, fee waivers and write-offs always need a second person. When approved, the action runs at that moment; if it no longer passes its rules (for example the borrower is no longer eligible), nothing changes and the request stays pending.
+
+## Loans
+
+A loan made from now on follows its lifecycle (docs/architecture/04 §2), shown as a progress bar on the loan's page:
+
+1. **Approved.** Creating a loan stores its repayment schedule in exact cents: installments on the 10th of each month, the last one absorbing any rounding.
+2. **Agreement signed.** Borrower, co-signer and the club sign. Each signature stores a SHA-256 hash of the terms signed.
+3. **Paid out.** The Treasurer records the payout: the loan amount **less the application fee** (Gate #1 A8). The borrower repays the full amount. Repayments are refused before this step.
+4. **Being repaid.** Each repayment is split by the loan engine: fees first, then overdue installments, then the current one, then prepayment (Gate #1 A6). A loan is *delinquent* when an installment is more than 15 days late. The daily job computes this; nobody sets it by hand.
+5. **Paid off**, or **written off** (a delinquent loan, with two Board approvals; the borrower cannot borrow again). Cancelling is only possible before the payout.
+
+Run the servicing job once a day (on the server, from cron):
+
+```bash
+npm run loans:service              # delinquency, late fees, pending ledger postings
+npm run loans:service -- --dry-run # report only
+```
+
+**Late fees are switched off** until counsel confirms the state's limits (Gate #1 A7). Until then the job only reports the fees it would charge; set `LATE_FEES_ENABLED=true` afterwards. A fee is charged at most once per installment and can be waived with a checker.
+
+Payouts, repayments, fees, waivers and write-offs **post to the ledger** once the accountant has approved the chart of accounts. Anything recorded before that is posted by the next daily run.
+
+Loans made **before** this change keep working the old way (hand-kept balance and overdue flag) until they are migrated with the opening balances (M4). `npm run loans:schedule-report` compares each of them with the schedule the engine would give it. It changes nothing; run it on the production snapshot (A14).
 
 ## Architecture assessment
 

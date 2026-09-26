@@ -4,6 +4,8 @@ import { can, requireMemberOrPermission } from '@/modules/auth'
 import { recalcMemberLoanState } from '@/lib/memberLoanState'
 import { badRequest, readJsonObject, requiredString } from '@/lib/http'
 import { auditContext, recordAudit } from '@/modules/audit'
+import { agreementTermsHash, cancellationBlocker, onAgreementFullySigned } from '@/modules/loans/lifecycle'
+import { cancelPendingFor } from '@/modules/approvals'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireMemberOrPermission('agreements.read')
@@ -52,19 +54,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!can(principal, 'loans.cancel')) return forbidden()
     const cancelled = await prisma.$transaction(async (tx) => {
       const repayments = await tx.loanPayment.count({ where: { loanId: agreement.loanId } })
-      if (repayments > 0) return null
+      if (repayments > 0) return { error: 'Repayments have already been recorded on this loan, so it cannot be cancelled. Record a payoff instead.' }
+      const loanBefore = await tx.loan.findUnique({ where: { loanId: agreement.loanId } })
+      const blocker = loanBefore ? cancellationBlocker(loanBefore) : null
+      if (blocker) return { error: blocker }
 
       const cancelledAgreement = await tx.loanAgreement.update({
         where: { agreementId: id },
         data: { status: 'cancelled' },
       })
-      const loanBefore = await tx.loan.findUnique({ where: { loanId: agreement.loanId } })
       const loanAfter = loanBefore
         ? await tx.loan.update({
             where: { loanId: agreement.loanId },
-            data: { status: 'Cancelled', balanceRemaining: 0, nextDueDate: null, overdue: false },
+            data: { status: 'Cancelled', lifecycle: 'cancelled', cancelledAt: new Date(), balanceRemaining: 0, nextDueDate: null, overdue: false, delinquency: null },
           })
         : null
+      // A payout waiting for approval no longer applies.
+      await cancelPendingFor(tx, 'loan', agreement.loanId, 'The loan was cancelled')
 
       await recalcMemberLoanState(tx, cancelledAgreement.borrowerId)
       if (cancelledAgreement.cosignerId) {
@@ -75,16 +81,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         action: 'agreement.cancel', entityType: 'agreement', entityId: id,
         before: agreement, after: cancelledAgreement, metadata: { loanBefore, loanAfter },
       })
-      return cancelledAgreement
+      return { agreement: cancelledAgreement }
     })
 
-    if (!cancelled) {
-      return NextResponse.json(
-        { error: 'Repayments have already been recorded on this loan, so it cannot be cancelled. Record a payoff instead.' },
-        { status: 409 },
-      )
-    }
-    return NextResponse.json(cancelled)
+    if ('error' in cancelled) return NextResponse.json({ error: cancelled.error }, { status: 409 })
+    return NextResponse.json(cancelled.agreement)
   }
 
   // Build update
@@ -133,13 +134,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return isStaff ? badRequest('Nothing to change.') : forbidden()
   }
 
-  // Apply the change and recalculate the status together
+  // Apply the change and recalculate the status together. Each signature
+  // stores the SHA-256 of the terms as signed.
   const final = await prisma.$transaction(async (tx) => {
     const updated = await tx.loanAgreement.update({ where: { agreementId: id }, data })
+    const hash = agreementTermsHash(updated)
+    const signedHash = {
+      ...(data.lenderSignature ? { lenderSignedHash: hash } : {}),
+      ...(data.borrowerSignature ? { borrowerSignedHash: hash } : {}),
+      ...(data.cosignerSignature ? { cosignerSignedHash: hash } : {}),
+    }
     const saved = await tx.loanAgreement.update({
       where: { agreementId: id },
-      data: { status: getStatus(updated) },
+      data: { status: getStatus(updated), ...signedHash },
     })
+    if (saved.status === 'fully_signed') await onAgreementFullySigned(tx, saved.loanId)
     await recordAudit(tx, ctx, {
       action: signerType ? `agreement.sign.${signerType}` : 'agreement.update',
       entityType: 'agreement', entityId: id, before: agreement, after: saved,

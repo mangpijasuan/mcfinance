@@ -3,7 +3,9 @@
 // decision (thresholds, officers); it is code so every change is reviewed.
 import type { Permission } from '@/modules/permissions'
 
-export type ApprovalAction = 'payment.zelle.confirm' | 'withdrawal.record' | 'loan.create' | 'journal.manual'
+export type ApprovalAction =
+  | 'payment.zelle.confirm' | 'withdrawal.record' | 'loan.create' | 'journal.manual'
+  | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off'
 
 type Policy = {
   label: string
@@ -53,6 +55,36 @@ export const APPROVAL_POLICIES: Record<ApprovalAction, Policy> = {
     checkerPermission: 'ledger.approve',
     thresholdCents: null,
     approvalsRequired: 1,
+    alwaysEnforced: true,
+  },
+  // Paying out a loan is part of the everyday loan flow (the money was
+  // always paid out, just never recorded), so it follows the same switch
+  // as approving the loan. D-06: Treasurer records, Board approves.
+  'loan.disburse': {
+    label: 'Pay out a loan',
+    makerPermission: 'loans.disburse',
+    checkerPermission: 'loans.approve_disbursement',
+    thresholdCents: null,
+    approvalsRequired: 1,
+    alwaysEnforced: false,
+  },
+  // Waivers and write-offs reduce what a member owes and never existed
+  // before, so they always need a second person. D-06: Loan Officer →
+  // Treasurer for waivers; Treasurer → two Board approvals for write-offs.
+  'loan.fee.waive': {
+    label: 'Waive a late fee',
+    makerPermission: 'loan_fees.waive',
+    checkerPermission: 'loan_fees.approve_waiver',
+    thresholdCents: null,
+    approvalsRequired: 1,
+    alwaysEnforced: true,
+  },
+  'loan.write_off': {
+    label: 'Write off a loan',
+    makerPermission: 'loans.write_off',
+    checkerPermission: 'loans.approve_write_off',
+    thresholdCents: null,
+    approvalsRequired: 2,
     alwaysEnforced: true,
   },
 }

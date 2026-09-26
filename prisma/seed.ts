@@ -97,6 +97,7 @@ async function main() {
       update: {},
       create: {
         ...l,
+        lifecycle: l.status === 'Paid Off' ? 'paid_off' : l.status === 'Cancelled' ? 'cancelled' : 'disbursed',
         loanDate: new Date(l.loanDate),
         endDate: l.endDate ? new Date(l.endDate) : null,
         nextDueDate: l.nextDueDate ? new Date(l.nextDueDate) : null,

@@ -161,7 +161,12 @@ function SignModal({ agreement: initial, me, onClose, onSigned }: any) {
                 <p><strong>A. Payment:</strong> Monthly installments of <strong>${a.monthlyPayment.toFixed(2)}</strong>, beginning {fmtDate(a.startDate)} and ending {fmtDate(a.endDate)}.</p>
                 <p><strong>B. Late Fee:</strong> $5.00 for each installment unpaid more than 15 days after due date.</p>
                 <p><strong>C. Prepayment:</strong> Right to pay in full at any time, no penalty.</p>
-                {a.applicationFee > 0 && <p><strong>D. Application Fee:</strong> ${a.applicationFee.toFixed(2)} (non-refundable).</p>}
+                {a.applicationFee > 0 && (
+                  <p>
+                    <strong>D. Application Fee:</strong> ${a.applicationFee.toFixed(2)} (non-refundable)
+                    {a.amountPaidOut != null && <>, deducted from the loan when it is paid out. Amount financed: <strong>${a.loanAmount.toFixed(2)}</strong>. Amount paid to you: <strong>${a.amountPaidOut.toFixed(2)}</strong>. You repay the amount financed</>}.
+                  </p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 border-t border-amber-200 px-5 py-4">

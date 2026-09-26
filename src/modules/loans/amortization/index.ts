@@ -216,6 +216,13 @@ export function chargeFee(position: LoanPosition, fee: Cents): LoanPosition {
   return { ...position, feesOutstanding: add(position.feesOutstanding, fee) }
 }
 
+/** Remove a waived fee from the position; it must still be unpaid. */
+export function waiveFee(position: LoanPosition, fee: Cents): LoanPosition {
+  if (!Number.isSafeInteger(fee) || fee <= 0) throw new MoneyError('fee must be a positive number of cents')
+  if (fee > position.feesOutstanding) throw new LoanEngineError('cannot waive more than the unpaid fees')
+  return { ...position, feesOutstanding: subtract(position.feesOutstanding, fee) }
+}
+
 // ── Delinquency and late fees ──────────────────────────────────────────
 
 export type Delinquency = {
@@ -268,6 +275,7 @@ export function lateFeesDue(
 export type LoanEvent =
   | { type: 'payment'; amount: Cents; asOf: IsoDate; excess?: ExcessRule }
   | { type: 'fee'; amount: Cents }
+  | { type: 'fee_waiver'; amount: Cents }
 
 /**
  * The position after a list of events, from scratch. Positions are always
@@ -281,6 +289,9 @@ export function replay(schedule: Schedule, events: readonly LoanEvent[]) {
   for (const event of events) {
     if (event.type === 'fee') {
       position = chargeFee(position, event.amount)
+      allocations.push([])
+    } else if (event.type === 'fee_waiver') {
+      position = waiveFee(position, event.amount)
       allocations.push([])
     } else {
       const result = applyPayment(position, event.amount, event.asOf, event.excess)

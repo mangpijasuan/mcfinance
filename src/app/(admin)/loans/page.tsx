@@ -299,7 +299,7 @@ function NewLoanModal({ open, onClose, onSaved }: any) {
         {/* Application fee notice */}
         {policy?.eligible && policy.applicationFee > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
-            💰 Application fee of <strong>{fmt$(policy.applicationFee)}</strong> applies per loan policy. Collect this separately from the borrower.
+            💰 Application fee of <strong>{fmt$(policy.applicationFee)}</strong> applies per loan policy. It is deducted from the payout (Gate #1 A8): the borrower receives the loan amount less the fee and repays the full loan amount.
           </div>
         )}
 
