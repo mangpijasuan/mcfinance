@@ -31,7 +31,7 @@ Each recommendation links to its full rationale.
 | A14 | Provide engineering a confidential production snapshot and bank statements for the remaining audit (A-1 to A-3) | Approve ([02 §3](02-existing-system-audit.md#3-remaining-audit-work-requires-access-outside-this-repository)) | ☐ | ☐ | ☐ |
 | A15 | Remove real member data from the repository's seed files going forward (encrypted import instead); decide whether to purge it from git history | Approve going forward; purge history: yes ☐ / no ☐ | ☐ | ☐ | ☐ |
 
-| A16 | Adopt the product map: `mcfinance.us` (public), `app.` (members), `admin.` (staff, access-gated) with isolated sessions; public-site copy and "mcfinance" branding reviewed by counsel before launch. **Confirm the club controls the `mcfinance.us` domain** | Approve ([D-17](13-product-map.md#d-17)) | ☐ | ☐ | ☐ |
+| A16 | Adopt the product map: `mcfinance.us` (public), `app.` (members), `admin.` (staff, access-gated) with isolated sessions; public-site copy and "mcfinance" branding reviewed by counsel before launch. **Domain: confirmed, the club owns `mcfinance.us`** (founder, 2026-09-26) | Approve ([D-17](13-product-map.md#d-17)) | ☐ | ☐ | ☐ |
 
 **Blocking facts to supply with Part A:** the answers to open questions Q-1, Q-2, Q-4, Q-6, Q-7, Q-10, Q-12 and Q-23 ([open questions](12-open-questions.md)).
 
