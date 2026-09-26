@@ -11,3 +11,5 @@ prisma/dev.db
 .venv
 .pdfenv
 
+backups/
+*.age

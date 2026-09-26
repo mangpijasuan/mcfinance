@@ -37,3 +37,8 @@ backups/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Backup configuration and any key material never belong in git
+.env.backup
+*.age
+age-identity*.txt

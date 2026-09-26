@@ -142,5 +142,6 @@ The platform modernisation plan (financial ledger, security, MCTN / rewards rese
 For a production-oriented Hetzner setup with Docker, PostgreSQL, and Caddy, use:
 
 - [docs/deploy-hetzner-postgres.md](docs/deploy-hetzner-postgres.md)
+- [docs/backup-and-restore.md](docs/backup-and-restore.md) — encrypted off-site backups, weekly restore check, disaster recovery
 - `docker-compose.hetzner.yml`
 - `.env.production.example`
