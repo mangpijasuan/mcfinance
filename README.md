@@ -121,6 +121,10 @@ When you want to deploy publicly, swap SQLite for a free PostgreSQL database:
 4. Run `npm run db:push && npm run db:seed`
 5. Deploy to [vercel.com](https://vercel.com) (free)
 
+## Architecture assessment
+
+The platform modernisation plan (financial ledger, security, MCTN / rewards research, UMI feasibility) lives in [docs/architecture/](docs/architecture/README.md). Start with the executive assessment and **Founder Decision Gate #1**. The numbers in it are reproducible with `node scripts/models/tokenomics.mjs` and `node scripts/models/umi.mjs`.
+
 ## Hetzner deployment
 For a production-oriented Hetzner setup with Docker, PostgreSQL, and Caddy, use:
 
