@@ -3,7 +3,7 @@
 ## ⚡ Quick Setup
 
 ### Prerequisites
-- **Node.js 20+** ([nodejs.org](https://nodejs.org))
+- **Node.js 22+** ([nodejs.org](https://nodejs.org))
 - **Docker** ([docker.com](https://docs.docker.com/get-docker/)) — runs the local PostgreSQL database
 
 ---
@@ -50,6 +50,21 @@ npm run db:studio   # browse the database
 ```
 
 Never use `prisma db push` — it changes the database without recording a migration.
+
+## Tests
+
+```bash
+npm test          # run once
+npm run test:watch
+```
+
+Tests run against a separate PostgreSQL database that is **wiped on every run**: `mc_admin_test` on the Docker database by default, or `TEST_DATABASE_URL`. The name must end in `_test`, otherwise the run refuses to start. Fixtures are synthetic; never put real member data in tests.
+
+- `tests/authorization-matrix.test.ts` — every API route × method × caller (anonymous, member, admin, super admin). Adding a route without adding it to the matrix fails the build.
+- `tests/ownership.test.ts` — members only reach their own agreements, loans and payments.
+- `tests/payments.test.ts` — Zelle confirm/reject and the Stripe webhook record money exactly once, including under concurrent requests.
+
+---
 
 **Forgot the admin password?**
 ```bash

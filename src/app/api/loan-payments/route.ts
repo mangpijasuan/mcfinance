@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
+import { badRequest, readJsonObject, requiredString } from '@/lib/http'
 import { recordLoanPayment } from '@/lib/paymentActions'
 
 export async function GET(req: NextRequest) {
@@ -17,9 +18,9 @@ export async function GET(req: NextRequest) {
   const where: any = {}
   if (loanId) where.loanId = loanId
   if (search) where.OR = [
-    { borrowerName: { contains: search } },
-    { loanId:       { contains: search } },
-    { paymentId:    { contains: search } },
+    { borrowerName: { contains: search, mode: 'insensitive' } },
+    { loanId:       { contains: search, mode: 'insensitive' } },
+    { paymentId:    { contains: search, mode: 'insensitive' } },
   ]
   if (year) {
     const y = parseInt(year)
@@ -57,8 +58,11 @@ export async function POST(req: NextRequest) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const body = await req.json()
-  const loan = await prisma.loan.findUnique({ where: { loanId: body.loanId }, select: { loanId: true } })
+  const body = await readJsonObject(req)
+  if (!body) return badRequest('Invalid request body.')
+  const loanId = requiredString(body.loanId)
+  if (!loanId) return badRequest('A loan must be selected.')
+  const loan = await prisma.loan.findUnique({ where: { loanId }, select: { loanId: true } })
   if (!loan) return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
 
   const amount = parseFloat(body.amount)
@@ -71,7 +75,7 @@ export async function POST(req: NextRequest) {
   }
 
   const payment = await prisma.$transaction((tx) => recordLoanPayment(tx, {
-    loanId: body.loanId,
+    loanId,
     amount,
     paymentDate,
     paymentMethod: body.paymentMethod || null,

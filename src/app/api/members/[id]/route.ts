@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { sanitizeMember } from '@/lib/serializers'
+import { badRequest, notFound, parseDate, readJsonObject } from '@/lib/http'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
@@ -62,25 +63,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (auth.error) return auth.error
 
   const { id } = await params
-  const body = await req.json()
+  const body = await readJsonObject(req)
+  if (!body) return badRequest('Invalid request body.')
+  const existing = await prisma.member.findUnique({ where: { id }, select: { id: true } })
+  if (!existing) return notFound()
+
   const data: Record<string, unknown> = {}
   for (const field of EDITABLE_MEMBER_FIELDS) {
     if (body[field] !== undefined) data[field] = body[field]
   }
-  if (body.joinDate !== undefined) data.joinDate = body.joinDate ? new Date(body.joinDate) : undefined
+  if (data.legalName !== undefined && !(typeof data.legalName === 'string' && data.legalName.trim())) {
+    return badRequest('Legal name cannot be empty.')
+  }
+  if (body.joinDate !== undefined) {
+    const joinDate = parseDate(body.joinDate)
+    if (!joinDate) return badRequest('Invalid join date.')
+    data.joinDate = joinDate
+  }
   if (body.lastContributionDate !== undefined) {
-    data.lastContributionDate = body.lastContributionDate ? new Date(body.lastContributionDate) : undefined
+    data.lastContributionDate = body.lastContributionDate ? parseDate(body.lastContributionDate) : null
+    if (body.lastContributionDate && !data.lastContributionDate) return badRequest('Invalid last contribution date.')
   }
 
   const member = await prisma.member.update({ where: { id }, data })
   return NextResponse.json(sanitizeMember(member))
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAdmin()
-  if (auth.error) return auth.error
-
-  const { id } = await params
-  await prisma.member.delete({ where: { id } })
-  return NextResponse.json({ ok: true })
-}
+// No DELETE: members are never hard-deleted (Gate #1 A3). Set the status
+// to Inactive instead, which keeps their financial history intact.

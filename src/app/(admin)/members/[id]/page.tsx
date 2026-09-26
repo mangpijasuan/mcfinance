@@ -299,7 +299,7 @@ function PortalModal({ open, onClose, member, onSaved }: any) {
   async function save(e: React.FormEvent) {
     e.preventDefault()
     if (password && password !== confirm) { setError('Passwords do not match.'); return }
-    if (password && password.length < 6)  { setError('Password must be at least 6 characters.'); return }
+    if (password && password.length < 8)  { setError('Password must be at least 8 characters.'); return }
     setSaving(true); setError('')
     const res = await fetch(`/api/members/${member.id}/set-password`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

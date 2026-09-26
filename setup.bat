@@ -4,7 +4,7 @@ echo ================================================
 echo   Millionaires Club Admin -- Setup
 echo ================================================
 echo.
-echo Needs Node.js 20+ and Docker Desktop (for the local PostgreSQL database).
+echo Needs Node.js 22+ and Docker Desktop (for the local PostgreSQL database).
 echo.
 
 :: 1. Env files

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { nextPublicId } from '@/lib/publicIds'
+import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin()
@@ -15,8 +16,8 @@ export async function GET(req: NextRequest) {
 
   const where: any = {}
   if (search) where.OR = [
-    { memberName: { contains: search } },
-    { memberId:   { contains: search } },
+    { memberName: { contains: search, mode: 'insensitive' } },
+    { memberId:   { contains: search, mode: 'insensitive' } },
   ]
   if (type) where.type = type
 
@@ -33,10 +34,19 @@ export async function POST(req: NextRequest) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const body   = await req.json()
-  const wId    = nextPublicId('WD')
+  const body = await readJsonObject(req)
+  if (!body) return badRequest('Invalid request body.')
+  const memberId = requiredString(body.memberId)
+  if (!memberId) return badRequest('A member must be selected.')
+  const withdrawalDate = parseDate(body.withdrawalDate)
+  if (!withdrawalDate) return badRequest('A valid withdrawal date is required.')
+  const amount = parseFloat(body.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return NextResponse.json({ error: 'Amount must be greater than 0.' }, { status: 400 })
+  }
+
   const member = await prisma.member.findUnique({
-    where: { id: body.memberId },
+    where: { id: memberId },
     select: {
       legalName: true,
       archiveLifetime: true,
@@ -48,10 +58,6 @@ export async function POST(req: NextRequest) {
   })
   if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
 
-  const amount = parseFloat(body.amount)
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return NextResponse.json({ error: 'Amount must be greater than 0.' }, { status: 400 })
-  }
   const isFullExit = body.type === 'Full Exit'
   if (isFullExit && (member.activeAsBorrower > 0 || member.activeAsCosigner > 0 || member.currentLoanBalance > 0)) {
     return NextResponse.json(
@@ -60,27 +66,30 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const withdrawal = await prisma.withdrawal.create({
-    data: {
-      withdrawalId: wId,
-      memberId: body.memberId,
-      memberName: member.legalName,
-      amount,
-      withdrawalDate: new Date(body.withdrawalDate),
-      type: body.type || 'Partial',
-      reason: body.reason || null,
-      processedBy: body.processedBy || null,
-      notes: body.notes || null,
-    },
-  })
-
-  // If full exit — mark member inactive
-  if (isFullExit) {
-    await prisma.member.update({
-      where: { id: body.memberId },
-      data: { status: 'Inactive', eligible: 'NO - Inactive' },
+  const withdrawal = await prisma.$transaction(async (tx) => {
+    const created = await tx.withdrawal.create({
+      data: {
+        withdrawalId: nextPublicId('WD'),
+        memberId,
+        memberName: member.legalName,
+        amount,
+        withdrawalDate,
+        type: isFullExit ? 'Full Exit' : 'Partial',
+        reason: body.reason || null,
+        processedBy: body.processedBy || null,
+        notes: body.notes || null,
+      },
     })
-  }
+
+    // Full exit — mark the member inactive
+    if (isFullExit) {
+      await tx.member.update({
+        where: { id: memberId },
+        data: { status: 'Inactive', eligible: 'NO - Inactive' },
+      })
+    }
+    return created
+  })
 
   return NextResponse.json(withdrawal, { status: 201 })
 }

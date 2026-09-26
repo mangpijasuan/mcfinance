@@ -21,6 +21,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const comments = payment.zelleReference ? `Zelle: ${payment.zelleReference}` : 'Zelle payment'
 
   const updated = await prisma.$transaction(async (tx) => {
+    // Claim the claim: only one confirmation can move it out of "pending".
+    // A concurrent confirm blocks on the row lock, then matches nothing.
+    const claimed = await tx.portalPayment.updateMany({
+      where: { id: payment.id, status: 'pending' },
+      data: { status: 'completed', reviewedBy, reviewedAt: new Date() },
+    })
+    if (claimed.count === 0) return null
+
     if (payment.type === 'contribution') {
       const record = await recordContribution(tx, {
         memberId: payment.memberId,
@@ -33,7 +41,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       })
       return tx.portalPayment.update({
         where: { id: payment.id },
-        data: { status: 'completed', contributionId: record.id, reviewedBy, reviewedAt: new Date() },
+        data: { contributionId: record.id },
       })
     }
 
@@ -49,9 +57,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     })
     return tx.portalPayment.update({
       where: { id: payment.id },
-      data: { status: 'completed', loanPaymentId: record.id, reviewedBy, reviewedAt: new Date() },
+      data: { loanPaymentId: record.id },
     })
   })
 
+  if (!updated) {
+    return NextResponse.json({ error: 'This payment has already been reviewed.' }, { status: 409 })
+  }
   return NextResponse.json(updated)
 }

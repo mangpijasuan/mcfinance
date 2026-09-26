@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
 
   const where: any = {}
   if (search) where.OR = [
-    { memberName:    { contains: search } },
-    { memberId:      { contains: search } },
-    { transactionId: { contains: search } },
+    { memberName:    { contains: search, mode: 'insensitive' } },
+    { memberId:      { contains: search, mode: 'insensitive' } },
+    { transactionId: { contains: search, mode: 'insensitive' } },
   ]
   if (month)  where.monthYear      = month
   if (method) where.paymentMethod  = method

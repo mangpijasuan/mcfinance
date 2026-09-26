@@ -7,7 +7,7 @@ echo "  Millionaires Club Admin — Setup"
 echo "================================================"
 echo ""
 
-# Needs Node.js 20+ and Docker (for the local PostgreSQL database).
+# Needs Node.js 22+ and Docker (for the local PostgreSQL database).
 command -v docker >/dev/null 2>&1 || { echo "Docker is required: https://docs.docker.com/get-docker/"; exit 1; }
 
 # 1. Env files

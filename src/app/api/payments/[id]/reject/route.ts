@@ -16,8 +16,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json().catch(() => ({}))
   const reviewedBy = String((auth.session.user as any)?.email || (auth.session.user as any)?.name || 'Admin')
 
-  const updated = await prisma.portalPayment.update({
-    where: { id: payment.id },
+  // Conditional update so a reject cannot overwrite a concurrent confirm.
+  const claimed = await prisma.portalPayment.updateMany({
+    where: { id: payment.id, status: 'pending' },
     data: {
       status: 'rejected',
       rejectionReason: body.reason ? String(body.reason).slice(0, 500) : null,
@@ -25,6 +26,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       reviewedAt: new Date(),
     },
   })
+  if (claimed.count === 0) {
+    return NextResponse.json({ error: 'This payment has already been reviewed.' }, { status: 409 })
+  }
 
+  const updated = await prisma.portalPayment.findUnique({ where: { id: payment.id } })
   return NextResponse.json(updated)
 }

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { sanitizeMember } from '@/lib/serializers'
 import { nextMemberId } from '@/lib/publicIds'
+import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin()
@@ -18,9 +19,9 @@ export async function GET(req: NextRequest) {
 
   const where: any = {}
   if (search) where.OR = [
-    { legalName: { contains: search } },
-    { nickname:  { contains: search } },
-    { id:        { contains: search } },
+    { legalName: { contains: search, mode: 'insensitive' } },
+    { nickname:  { contains: search, mode: 'insensitive' } },
+    { id:        { contains: search, mode: 'insensitive' } },
   ]
   if (status) where.status   = status
   if (risk)   where.riskFlag = risk
@@ -37,15 +38,20 @@ export async function POST(req: NextRequest) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const body = await req.json()
+  const body = await readJsonObject(req)
+  if (!body) return badRequest('Invalid request body.')
+  const legalName = requiredString(body.legalName)
+  if (!legalName) return badRequest('Legal name is required.')
+  const joinDate = parseDate(body.joinDate)
+  if (!joinDate) return badRequest('A valid join date is required.')
   const id = nextMemberId()
 
   const member = await prisma.member.create({
     data: {
       id,
-      legalName: body.legalName,
+      legalName,
       nickname: body.nickname || null,
-      joinDate: new Date(body.joinDate),
+      joinDate,
       status: body.status || 'Active',
       phoneNo: body.phoneNo || null,
       email: body.email || null,

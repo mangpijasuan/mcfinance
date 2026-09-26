@@ -9,47 +9,44 @@ export const runtime = 'nodejs'
 async function completeCheckout(session: Stripe.Checkout.Session) {
   const portalPaymentId = session.metadata?.portalPaymentId || session.client_reference_id
   if (!portalPaymentId) return
+  // Card payments are "paid" at completion; anything else waits for
+  // checkout.session.async_payment_succeeded.
+  if (session.payment_status !== 'paid') return
 
   const payment = await prisma.portalPayment.findUnique({ where: { id: portalPaymentId } })
-  if (!payment) return
-  if (payment.status === 'completed') return // already processed — idempotent on webhook retries
+  if (!payment || payment.method !== 'stripe') return
 
   const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id
+  const details = {
+    paymentDate: new Date(),
+    paymentMethod: 'Card (Stripe)',
+    comments: `Stripe checkout ${session.id}`,
+    source: 'Stripe',
+  }
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Stripe retries and can deliver the same event concurrently. Only
+      // one delivery can move the payment to "completed"; the rest match
+      // nothing here (after waiting on the row lock) and record nothing.
+      const claimed = await tx.portalPayment.updateMany({
+        where: { id: payment.id, status: { not: 'completed' } },
+        data: { status: 'completed', stripePaymentIntentId: paymentIntentId, reviewedAt: new Date() },
+      })
+      if (claimed.count === 0) return
+
       if (payment.type === 'contribution') {
-        const record = await recordContribution(tx, {
-          memberId: payment.memberId,
-          amount: payment.amount,
-          paymentDate: new Date(),
-          paymentMethod: 'Card (Stripe)',
-          comments: `Stripe checkout ${session.id}`,
-          source: 'Stripe',
-        })
-        await tx.portalPayment.update({
-          where: { id: payment.id },
-          data: { status: 'completed', stripePaymentIntentId: paymentIntentId, contributionId: record.id, reviewedAt: new Date() },
-        })
+        const record = await recordContribution(tx, { memberId: payment.memberId, amount: payment.amount, ...details })
+        await tx.portalPayment.update({ where: { id: payment.id }, data: { contributionId: record.id } })
       } else {
         if (!payment.loanId) throw new Error('Missing loanId on loan_payment PortalPayment')
-        const record = await recordLoanPayment(tx, {
-          loanId: payment.loanId,
-          amount: payment.amount,
-          paymentDate: new Date(),
-          paymentMethod: 'Card (Stripe)',
-          comments: `Stripe checkout ${session.id}`,
-          source: 'Stripe',
-        })
-        await tx.portalPayment.update({
-          where: { id: payment.id },
-          data: { status: 'completed', stripePaymentIntentId: paymentIntentId, loanPaymentId: record.id, reviewedAt: new Date() },
-        })
+        const record = await recordLoanPayment(tx, { loanId: payment.loanId, amount: payment.amount, ...details })
+        await tx.portalPayment.update({ where: { id: payment.id }, data: { loanPaymentId: record.id } })
       }
     })
   } catch (err: any) {
-    await prisma.portalPayment.update({
-      where: { id: payment.id },
+    await prisma.portalPayment.updateMany({
+      where: { id: payment.id, status: { not: 'completed' } },
       data: { status: 'failed', rejectionReason: err?.message?.slice(0, 500) || 'Failed to record payment' },
     })
   }
@@ -58,9 +55,10 @@ async function completeCheckout(session: Stripe.Checkout.Session) {
 async function expireCheckout(session: Stripe.Checkout.Session) {
   const portalPaymentId = session.metadata?.portalPaymentId || session.client_reference_id
   if (!portalPaymentId) return
-  const payment = await prisma.portalPayment.findUnique({ where: { id: portalPaymentId } })
-  if (!payment || payment.status !== 'pending') return
-  await prisma.portalPayment.update({ where: { id: payment.id }, data: { status: 'failed' } })
+  await prisma.portalPayment.updateMany({
+    where: { id: portalPaymentId, method: 'stripe', status: 'pending' },
+    data: { status: 'failed' },
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -81,6 +79,7 @@ export async function POST(req: NextRequest) {
 
   switch (event.type) {
     case 'checkout.session.completed':
+    case 'checkout.session.async_payment_succeeded':
       await completeCheckout(event.data.object as Stripe.Checkout.Session)
       break
     case 'checkout.session.async_payment_failed':

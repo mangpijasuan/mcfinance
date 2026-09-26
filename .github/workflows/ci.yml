@@ -25,12 +25,13 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://mc_admin:mc_admin_ci@127.0.0.1:5432/mc_admin_test?schema=public
+      TEST_DATABASE_URL: postgresql://mc_admin:mc_admin_ci@127.0.0.1:5432/mc_admin_test?schema=public
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -46,6 +47,12 @@ jobs:
 
       - name: Type check
         run: npx tsc --noEmit
+
+      - name: Tests (unit, integration, authorization matrix)
+        run: npm test
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
 
       - name: Build
         run: npm run build

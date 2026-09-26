@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
   if (year)   where.year   = parseInt(year)
   if (status) where.status = status
   if (search) where.OR = [
-    { borrowerName: { contains: search } },
-    { cosignerName: { contains: search } },
-    { loanId:       { contains: search } },
+    { borrowerName: { contains: search, mode: 'insensitive' } },
+    { cosignerName: { contains: search, mode: 'insensitive' } },
+    { loanId:       { contains: search, mode: 'insensitive' } },
   ]
 
   const [loans, byYearHistorical, leaderboard, liveLoansCurrentYear] = await Promise.all([

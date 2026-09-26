@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
   if (role === 'admin') {
     if (status) where.status = status
     if (search) where.OR = [
-      { borrowerName:  { contains: search } },
-      { agreementId:   { contains: search } },
-      { loanId:        { contains: search } },
+      { borrowerName:  { contains: search, mode: 'insensitive' } },
+      { agreementId:   { contains: search, mode: 'insensitive' } },
+      { loanId:        { contains: search, mode: 'insensitive' } },
     ]
   } else {
     where.OR = [

@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkLoanPolicy, calcApplicationFee } from '@/lib/loanPolicy'
 import { requireAdmin } from '@/lib/apiAuth'
+import { badRequest, readJsonObject, requiredString } from '@/lib/http'
 
 export async function POST(req: NextRequest) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const { memberId, amount, termMonths } = await req.json()
+  const body = await readJsonObject(req)
+  if (!body) return badRequest('Invalid request body.')
+  const memberId = requiredString(body.memberId)
+  if (!memberId) return badRequest('A member must be selected.')
+  const { amount, termMonths } = body
 
   const member = await prisma.member.findUnique({
     where: { id: memberId },
