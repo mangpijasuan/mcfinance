@@ -4,7 +4,7 @@ import { badRequest, readJsonObject } from '@/lib/http'
 import { requireStaffSession } from '@/modules/auth'
 import { decryptSecret, issueRecoveryCodes, totpStep } from '@/modules/auth/mfa'
 import { revokeStaffSessions } from '@/modules/auth/sessions'
-import { isRateLimited, recordFailedAttempt, clearAttempts } from '@/lib/rateLimit'
+import { LIMITS, clearAttempts, isRateLimited, recordFailedAttempt } from '@/lib/rateLimit'
 import { auditContext, recordAudit } from '@/modules/audit'
 
 // Step 2 of enrolment: prove the authenticator works. Activates MFA,
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!/^\d{6}$/.test(code)) return badRequest('Enter the 6-digit code from your authenticator app.')
 
   const limitKey = `mfa-enrol:${principal.id}`
-  if (isRateLimited(limitKey)) {
+  if (await isRateLimited(limitKey, LIMITS.mfa)) {
     return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 })
   }
 
@@ -30,10 +30,10 @@ export async function POST(req: NextRequest) {
   if (!admin.mfaPendingSecret) return badRequest('Start the setup first.')
   const step = totpStep(decryptSecret(admin.mfaPendingSecret), code)
   if (step === null) {
-    recordFailedAttempt(limitKey)
+    await recordFailedAttempt(limitKey)
     return badRequest('That code did not match. Check the time on your phone and try the newest code.')
   }
-  clearAttempts(limitKey)
+  await clearAttempts(limitKey)
 
   const recoveryCodes = await prisma.$transaction(async (tx) => {
     const activated = await tx.admin.updateMany({

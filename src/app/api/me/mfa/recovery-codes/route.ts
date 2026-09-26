@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { badRequest, readJsonObject } from '@/lib/http'
 import { requireStaff } from '@/modules/auth'
 import { issueRecoveryCodes, verifySecondFactor } from '@/modules/auth/mfa'
-import { isRateLimited, recordFailedAttempt, clearAttempts } from '@/lib/rateLimit'
+import { LIMITS, clearAttempts, isRateLimited, recordFailedAttempt } from '@/lib/rateLimit'
 import { auditContext, recordAudit } from '@/modules/audit'
 
 // New recovery codes (old ones stop working). Needs a current
@@ -16,16 +16,16 @@ export async function POST(req: NextRequest) {
   if (!/^\d{6}$/.test(code)) return badRequest('Enter the 6-digit code from your authenticator app.')
 
   const limitKey = `mfa:${auth.principal.id}`
-  if (isRateLimited(limitKey)) {
+  if (await isRateLimited(limitKey, LIMITS.mfa)) {
     return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 })
   }
   const admin = await prisma.admin.findUniqueOrThrow({ where: { id: auth.principal.id } })
   const result = await verifySecondFactor(prisma, admin, code)
   if (!result.ok) {
-    recordFailedAttempt(limitKey)
+    await recordFailedAttempt(limitKey)
     return badRequest('That code did not match.')
   }
-  clearAttempts(limitKey)
+  await clearAttempts(limitKey)
 
   const recoveryCodes = await prisma.$transaction(async (tx) => {
     const codes = await issueRecoveryCodes(tx, auth.principal.id)

@@ -320,3 +320,15 @@ model AuditLog {
   @@index([actorId])
   @@index([at])
 }
+
+// Failed sign-in and verification attempts, for rate limiting (S-5). Kept
+// in the database so limits survive restarts and apply across instances.
+// Rows older than a day are pruned as new failures are recorded.
+model RateLimitAttempt {
+  id  BigInt   @id @default(autoincrement())
+  key String   // "admin:<email>", "member:<id>", "mfa:<staff id>", "ip:<address>", …
+  at  DateTime @default(now())
+
+  @@index([key, at])
+  @@index([at])
+}
