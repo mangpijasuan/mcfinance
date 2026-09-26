@@ -101,7 +101,7 @@ Changes from today:
 - **Agreement**: keep the current e-sign flow. Add a SHA-256 hash of the rendered agreement at each signature, so the signed text is provable.
 - **Co-signer**: recorded on the loan. A co-signer's liability becomes a ledger matter only if the board invokes it.
 
-### Payment allocation order (proposed; founder decision)
+### Payment allocation order (approved, Gate #1 A6)
 
 1. Fees due (late fee, if enforced)
 2. Oldest overdue installment principal
@@ -112,8 +112,8 @@ Changes from today:
 
 | Fee | Policy today | Recorded today | Proposal |
 |---|---|---|---|
-| Application fee ($30 / $50 / $70) | yes | **no** | Posted at disbursement: `Dr Bank / Cr 4000 Application fee income`, or netted from the disbursement if the board prefers |
-| Late fee ($5 after 15 days) | yes | **never applied** | Founder decision whether to enforce. If yes: applied by the delinquency job, waivable by a checker with a reason. **LEGAL REVIEW REQUIRED** on late-fee limits |
+| Application fee ($30 / $50 / $70) | yes | **no** | **Approved (Gate #1 A8): netted from the disbursement.** The borrower receives the principal minus the fee and repays the full principal. The fee posts as income at disbursement (see *Example postings*). The agreement must state the amount financed and the amount paid out. **LEGAL REVIEW REQUIRED** on disclosure |
+| Late fee ($5 after 15 days) | yes | **never applied** | **Approved (Gate #1 A7): enforce.** Applied once per installment by the delinquency job, waivable by a checker with a reason. The job ships with fee charging **switched off** until counsel confirms the state's late-fee limits. **LEGAL REVIEW REQUIRED** |
 
 <a id="d-08"></a>
 ### D-08 — Loan engine defaults
@@ -230,8 +230,7 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 | Stripe payout to bank | 1000 Bank | 1010 Stripe clearing |
 | $20 cash to a collector | 1030 Cash — collector X | 2000 Member capital (member) |
 | Collector deposits $400 | 1000 Bank $400 | 1030 Cash — collector X $400 |
-| Loan disbursed $5,000 | 1100 Loans receivable (member, loan) $5,000 | 1000 Bank $5,000 |
-| Application fee $70 | 1000 Bank $70 | 4000 Application fee income $70 |
+| Loan of $5,000 disbursed, $70 application fee netted (A8) | 1100 Loans receivable (member, loan) $5,000 | 1000 Bank $4,930 · 4000 Application fee income $70 |
 | Repayment $211.25 (Zelle) | 1020 Zelle clearing → then 1000 Bank | 1100 Loans receivable (member, loan) |
 | Member withdrawal $500 | 2000 Member capital (member) $500 | 1000 Bank $500 |
 | Correction of a mis-keyed $20 | a **reversal** of the original entry, then a new correct entry | — |
