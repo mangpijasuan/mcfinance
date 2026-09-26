@@ -48,8 +48,8 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Tests (unit, integration, authorization matrix)
-        run: npm test
+      - name: Tests (unit, integration, authorization matrix; 100% coverage on the money path)
+        run: npm run test:coverage
 
       - name: Dependency audit
         run: npm audit --audit-level=high

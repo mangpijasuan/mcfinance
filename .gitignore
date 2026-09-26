@@ -42,3 +42,4 @@ backups/
 .env.backup
 *.age
 age-identity*.txt
+coverage

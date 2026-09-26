@@ -332,3 +332,83 @@ model RateLimitAttempt {
   @@index([key, at])
   @@index([at])
 }
+
+// ── General ledger (D-04) ─────────────────────────────────────────────
+// Double-entry books in integer cents (D-03). The database enforces the
+// invariants (migration 20260926040000_ledger): every entry balances,
+// posted entries and lines can never be changed or deleted, lines only
+// post to APPROVED accounts, and nothing posts into a closed period.
+// Proposals awaiting approval live elsewhere (approvals); every row here
+// is posted and final. Corrections are reversing entries (D-05).
+
+model LedgerAccount {
+  code          String    @id // "1000"
+  name          String
+  type          String // asset | contra_asset | liability | equity | income | expense
+  normalBalance String // debit | credit
+  subledger     String? // member | loan | collector | bank: lines must name one
+  description   String?
+  // "proposed" until the club's accountant confirms the chart (Gate #1 A13).
+  // The ledger accepts postings only to approved accounts.
+  status        String    @default("proposed") // proposed | approved | retired
+  approvedAt    DateTime?
+  approvedBy    String? // staff id who recorded the approval
+  approvalNote  String? // e.g. "Confirmed by <accountant>, letter of <date>"
+  createdAt     DateTime  @default(now())
+
+  lines JournalLine[]
+}
+
+model JournalEntry {
+  id              String   @id @default(cuid())
+  entryNumber     String   @unique // JE-2026-000123
+  effectiveDate   DateTime @db.Date
+  type            String // contribution | loan_disbursement | loan_repayment | fee | withdrawal | adjustment | reversal | opening_balance | …
+  description     String
+  reference       String? // bank reference, Stripe event id, receipt number
+  sourceType      String?
+  sourceId        String?
+  idempotencyKey  String   @unique
+  requestHash     String // detects an idempotency key reused for a different entry
+  reversesEntryId String?  @unique // at most one reversal per entry
+  currency        String   @default("USD")
+  createdBy       String? // staff id, or null for the system
+  approvedBy      String? // checker, when maker/checker applied (D-06)
+  postedAt        DateTime @default(now())
+
+  lines      JournalLine[]
+  reverses   JournalEntry? @relation("Reversal", fields: [reversesEntryId], references: [id])
+  reversedBy JournalEntry? @relation("Reversal")
+
+  @@index([effectiveDate])
+  @@index([sourceType, sourceId])
+}
+
+model JournalLine {
+  id          String  @id @default(cuid())
+  entryId     String
+  lineNo      Int
+  accountCode String
+  memberId    String?
+  loanId      String?
+  debitCents  BigInt  @default(0)
+  creditCents BigInt  @default(0)
+  memo        String?
+
+  entry   JournalEntry  @relation(fields: [entryId], references: [id])
+  account LedgerAccount @relation(fields: [accountCode], references: [code])
+
+  @@unique([entryId, lineNo])
+  @@index([accountCode, memberId])
+  @@index([memberId])
+  @@index([loanId])
+}
+
+// Accounting periods ("2026-09"). A closed period accepts no entries;
+// corrections go into the current period.
+model LedgerPeriod {
+  period   String    @id
+  status   String    @default("open") // open | closed
+  closedAt DateTime?
+  closedBy String?
+}
