@@ -54,7 +54,7 @@ export default function LoanPaymentsPage() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Loan Payments"
         sub={`${total} records · ${fmt$(totalAmt)} collected`}

@@ -7,22 +7,24 @@ import { fmtDate } from '@/lib/utils'
 function ActionCard({ icon, title, description, detail, buttonLabel, buttonVariant = 'primary', onClick, loading, result, warning }: any) {
   return (
     <Card className="p-6">
-      <div className="flex items-start gap-4">
-        <div className="w-10 h-10 rounded-xl bg-[#1B2A4A]/10 flex items-center justify-center shrink-0 text-[#1B2A4A]">
-          {icon}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="flex flex-1 items-start gap-4 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-[#1B2A4A]/10 flex items-center justify-center shrink-0 text-[#1B2A4A]">
+            {icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+            {detail && <p className="text-sm font-semibold text-indigo-700 mt-2">{detail}</p>}
+            {warning && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">{warning}</p>}
+            {result && (
+              <div className={`text-sm font-medium mt-3 px-3 py-2 rounded-lg ${result.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                {result.error ? `⚠ ${result.error}` : `✓ Sent ${result.sent} · Failed ${result.failed}`}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900">{title}</h3>
-          <p className="text-sm text-gray-500 mt-0.5">{description}</p>
-          {detail && <p className="text-sm font-semibold text-indigo-700 mt-2">{detail}</p>}
-          {warning && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">{warning}</p>}
-          {result && (
-            <div className={`text-sm font-medium mt-3 px-3 py-2 rounded-lg ${result.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-              {result.error ? `⚠ ${result.error}` : `✓ Sent ${result.sent} · Failed ${result.failed}`}
-            </div>
-          )}
-        </div>
-        <Button onClick={onClick} disabled={loading} size="sm" variant={buttonVariant}>
+        <Button onClick={onClick} disabled={loading} size="sm" variant={buttonVariant} className="w-full sm:w-auto sm:shrink-0">
           {loading ? 'Sending…' : buttonLabel}
         </Button>
       </div>
@@ -77,7 +79,7 @@ export default function NotificationsPage() {
   const setupWarning = 'Requires RESEND_API_KEY in your .env file. See setup instructions below.'
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader title="Notifications" sub="Send emails to members and admins" />
 
       {error && (
@@ -90,7 +92,7 @@ export default function NotificationsPage() {
       <Card className="p-5 mb-6 bg-indigo-50 border-indigo-200">
         <div className="flex items-start gap-3">
           <Mail size={18} className="text-indigo-600 mt-0.5 shrink-0" />
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-indigo-900">Email setup required</p>
             <p className="text-sm text-indigo-700 mt-1">
               Add these two lines to your <code className="bg-indigo-100 px-1.5 py-0.5 rounded text-xs">.env</code> file, then restart the app:

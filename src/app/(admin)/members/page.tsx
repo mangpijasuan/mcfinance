@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, ExternalLink } from 'lucide-react'
+import { Plus, ExternalLink, ChevronRight } from 'lucide-react'
 import { Card, Table, EmptyState, Badge, StatusBadge, EligibleBadge, RiskBadge, PaidBadge,
          Button, Modal, Input, Select, PageHeader, FilterBar, SearchInput } from '@/components/ui'
 import { fmt$, fmtDate, fmtDateInput } from '@/lib/utils'
@@ -57,7 +58,7 @@ export default function MembersPage() {
   useEffect(() => { fetchMembers() }, [fetchMembers])
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Members"
         sub={`${total} total`}
@@ -90,29 +91,61 @@ export default function MembersPage() {
       )}
 
       <Card>
-        <Table loading={loading} headers={['Member ID','Name','Nickname','Joined','Status','Contributions','Loan balance','Eligible','This month','Risk','']}>
-          {members.length === 0 && !loading
-            ? <EmptyState message="No members found." />
-            : members.map(m => (
-              <tr key={m.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push(`/members/${m.id}`)}>
-                <td className="px-4 py-3 font-mono text-xs text-indigo-600">{m.id}</td>
-                <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{m.legalName}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs">{m.nickname || '—'}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(m.joinDate)}</td>
-                <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
-                <td className="px-4 py-3 text-gray-700 font-medium">{fmt$(m.overallContributions)}</td>
-                <td className="px-4 py-3 text-gray-700">{m.currentLoanBalance > 0 ? fmt$(m.currentLoanBalance) : '—'}</td>
-                <td className="px-4 py-3"><EligibleBadge eligible={m.eligible} /></td>
-                <td className="px-4 py-3"><PaidBadge paid={m.thisMonth} /></td>
-                <td className="px-4 py-3"><RiskBadge risk={m.riskFlag} /></td>
-                <td className="px-4 py-3 text-gray-400"><ExternalLink size={14} /></td>
-              </tr>
-            ))
-          }
-        </Table>
+        {/* Desktop / tablet table */}
+        <div className="hidden md:block">
+          <Table loading={loading} headers={['Member ID','Name','Nickname','Joined','Status','Contributions','Loan balance','Eligible','This month','Risk','']}>
+            {members.length === 0 && !loading
+              ? <EmptyState message="No members found." />
+              : members.map(m => (
+                <tr key={m.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push(`/members/${m.id}`)}>
+                  <td className="px-4 py-3 font-mono text-xs text-indigo-600">{m.id}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{m.legalName}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{m.nickname || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(m.joinDate)}</td>
+                  <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
+                  <td className="px-4 py-3 text-gray-700 font-medium">{fmt$(m.overallContributions)}</td>
+                  <td className="px-4 py-3 text-gray-700">{m.currentLoanBalance > 0 ? fmt$(m.currentLoanBalance) : '—'}</td>
+                  <td className="px-4 py-3"><EligibleBadge eligible={m.eligible} /></td>
+                  <td className="px-4 py-3"><PaidBadge paid={m.thisMonth} /></td>
+                  <td className="px-4 py-3"><RiskBadge risk={m.riskFlag} /></td>
+                  <td className="px-4 py-3 text-gray-400"><ExternalLink size={14} /></td>
+                </tr>
+              ))
+            }
+          </Table>
+        </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {loading ? (
+            <p className="py-16 text-center text-gray-400 text-sm">Loading…</p>
+          ) : members.length === 0 ? (
+            <p className="py-16 text-center text-gray-400 text-sm">No members found.</p>
+          ) : members.map(m => (
+            <Link key={m.id} href={`/members/${m.id}`} className="flex items-center justify-between gap-3 px-4 py-3 active:bg-gray-50">
+              <div className="min-w-0">
+                <p className="font-medium text-gray-900 truncate">{m.legalName}</p>
+                <p className="text-xs text-gray-400 font-mono">{m.id}{m.nickname ? ` · "${m.nickname}"` : ''}</p>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  <StatusBadge status={m.status} />
+                  <EligibleBadge eligible={m.eligible} />
+                  <PaidBadge paid={m.thisMonth} />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-gray-900">{fmt$(m.overallContributions)}</p>
+                  <p className="text-xs text-gray-400">{m.currentLoanBalance > 0 ? `${fmt$(m.currentLoanBalance)} owed` : 'no loan'}</p>
+                </div>
+                <ChevronRight size={16} className="text-gray-300" />
+              </div>
+            </Link>
+          ))}
+        </div>
+
         {/* Pagination */}
         {total > PAGE_SIZE && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
             <span>Showing {Math.min((page - 1) * PAGE_SIZE + 1, total)}–{Math.min(page * PAGE_SIZE, total)} of {total}</span>
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Prev</Button>

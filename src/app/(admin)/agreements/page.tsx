@@ -64,7 +64,7 @@ export default function AgreementsPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Loan Application"
         sub={`${rows.length} agreements · ${rows.filter(r => r.status === 'fully_signed').length} fully signed`}

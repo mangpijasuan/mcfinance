@@ -48,7 +48,7 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
@@ -57,7 +57,7 @@ export default function DashboardPage() {
   }
 
   if (!data) return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[...Array(8)].map((_, i) => <div key={i} className="h-28 bg-gray-200 rounded-xl animate-pulse" />)}
       </div>
@@ -67,7 +67,7 @@ export default function DashboardPage() {
   const { stats, recentContribs, monthlyBreakdown, activeLoansDetail } = data
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="mb-7">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500 mt-0.5">Millionaires Club — overview</p>

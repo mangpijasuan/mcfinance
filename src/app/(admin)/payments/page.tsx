@@ -59,7 +59,7 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Pending Payments"
         sub="Member-initiated Zelle claims awaiting confirmation, plus card payment history."

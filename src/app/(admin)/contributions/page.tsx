@@ -124,7 +124,7 @@ export default function ContributionsPage() {
   const reportTotalAmount = reportRows.reduce((sum, r) => sum + (r.amount ?? 0), 0)
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="print:hidden">
         <PageHeader
           title="Contributions"

@@ -46,19 +46,23 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const isSuperAdmin = session?.user?.adminRole === 'super_admin'
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-8 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="sm" onClick={() => router.push('/members')}><ArrowLeft size={15} /> Back</Button>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-gray-900">{member.legalName}</h1>
-          <p className="text-sm text-gray-500">{member.id} {member.nickname && `· "${member.nickname}"`}</p>
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-4 min-w-0">
+          <Button variant="ghost" size="sm" onClick={() => router.push('/members')}><ArrowLeft size={15} /> Back</Button>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 truncate">{member.legalName}</h1>
+            <p className="text-sm text-gray-500">{member.id} {member.nickname && `· "${member.nickname}"`}</p>
+          </div>
         </div>
-        {isSuperAdmin && (
-          <Button variant="secondary" size="sm" onClick={() => setShowPromoteAdmin(true)}><Shield size={14} /> {member.linkedAdmin ? 'Linked admin' : 'Promote to admin'}</Button>
-        )}
-        <Button variant="secondary" size="sm" onClick={() => setShowPortal(true)}><KeyRound size={14} /> Portal access</Button>
-        <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}><Edit2 size={14} /> Edit</Button>
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto sm:shrink-0">
+          {isSuperAdmin && (
+            <Button variant="secondary" size="sm" onClick={() => setShowPromoteAdmin(true)}><Shield size={14} /> {member.linkedAdmin ? 'Linked admin' : 'Promote to admin'}</Button>
+          )}
+          <Button variant="secondary" size="sm" onClick={() => setShowPortal(true)}><KeyRound size={14} /> Portal access</Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}><Edit2 size={14} /> Edit</Button>
+        </div>
       </div>
 
       {/* Info cards */}

@@ -49,7 +49,7 @@ export default function WithdrawalsPage() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Withdrawals"
         sub={`${total} records · ${fmt$(totalAmt)} total withdrawn`}
