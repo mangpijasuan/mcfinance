@@ -85,7 +85,7 @@ Today there are **zero tests**; CI checks types and builds. The financial core m
 
 ### Standards
 
-- Coverage: 100% branch coverage on `lib/money`, `modules/ledger` and `modules/lending/engine`; 70% or more overall.
+- Coverage: 100% branch coverage on `lib/money`, `modules/accounting/ledger` and `modules/loans/amortization`; 70% or more overall.
 - Test data: synthetic fixtures in git. **No real member data in tests or CI** (S-7).
 - CI pipeline: install → `prisma migrate deploy` (Postgres service) → typecheck → lint (with import boundaries) → unit + integration → build → Playwright (PRs) → `npm audit --audit-level=high` → secret scanning.
 - A failing invariant check in production (nightly job) pages the Treasurer and engineering.

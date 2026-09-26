@@ -129,7 +129,7 @@ Changes from today:
 
 ## 3. Loan calculation engine
 
-A pure TypeScript module, `src/modules/lending/engine`, with no database access. It takes inputs and returns a schedule. The same inputs always produce the same output.
+A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loans/amortization`), with no database access. It takes inputs and returns a schedule. The same inputs always produce the same output.
 
 **Inputs:** principal (cents), term (installments), frequency (monthly), first due date, due-day rule (10th of the following month, per policy), interest rate (basis points, default 0), grace days, fee schedule, rounding rule.
 

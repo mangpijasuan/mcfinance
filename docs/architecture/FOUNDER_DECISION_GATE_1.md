@@ -15,7 +15,7 @@ Each recommendation links to its full rationale.
 
 | # | Decision | Recommendation | Approve | Amend | Reject |
 |---|---|---|:-:|:-:|:-:|
-| A1 | Keep and evolve the existing app as a modular monolith; no rewrite, no separate backend, no monorepo yet | Approve ([D-01](10-data-api-repository.md#d-01)) | ☐ | ☐ | ☐ |
+| A1 | Keep and evolve the existing app as a modular monolith, organised for the `mcfinance/` monorepo target and split in stages as each trigger is met; no rewrite | Approve ([D-01](10-data-api-repository.md#d-01)) | ☐ | ☐ | ☐ |
 | A2 | Adopt a double-entry ledger as the financial system of record; stored balance fields are retired after migration | Approve ([D-04](04-contributions-loans-ledger.md#d-04)) | ☐ | ☐ | ☐ |
 | A3 | Posted financial entries are immutable; corrections by reversal; no hard deletion of members, loans, payments or agreements | Approve ([D-05](04-contributions-loans-ledger.md#d-05)) | ☐ | ☐ | ☐ |
 | A4 | Maker/checker approvals per the table in D-06. **Name the officers** (at least three people) | Approve; names: ______________ ([D-06](04-contributions-loans-ledger.md#d-06)) | ☐ | ☐ | ☐ |
@@ -30,6 +30,8 @@ Each recommendation links to its full rationale.
 | A13 | Engage an accountant to approve the chart of accounts and the member-capital classification (liability vs. equity) | Approve ([04 §4](04-contributions-loans-ledger.md#4-financial-ledger)) | ☐ | ☐ | ☐ |
 | A14 | Provide engineering a confidential production snapshot and bank statements for the remaining audit (A-1 to A-3) | Approve ([02 §3](02-existing-system-audit.md#3-remaining-audit-work-requires-access-outside-this-repository)) | ☐ | ☐ | ☐ |
 | A15 | Remove real member data from the repository's seed files going forward (encrypted import instead); decide whether to purge it from git history | Approve going forward; purge history: yes ☐ / no ☐ | ☐ | ☐ | ☐ |
+
+| A16 | Adopt the product map: `mcfinance.us` (public), `app.` (members), `admin.` (staff, access-gated) with isolated sessions; public-site copy and "mcfinance" branding reviewed by counsel before launch. **Confirm the club controls the `mcfinance.us` domain** | Approve ([D-17](13-product-map.md#d-17)) | ☐ | ☐ | ☐ |
 
 **Blocking facts to supply with Part A:** the answers to open questions Q-1, Q-2, Q-4, Q-6, Q-7, Q-10, Q-12 and Q-23 ([open questions](12-open-questions.md)).
 

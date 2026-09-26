@@ -37,6 +37,7 @@ Start with the [executive assessment](01-executive-assessment.md) (one page), th
 | 24 | Development roadmap | [11-migration-roadmap-testing.md](11-migration-roadmap-testing.md#2-development-roadmap) |
 | 25 | Testing strategy | [11-migration-roadmap-testing.md](11-migration-roadmap-testing.md#3-testing-strategy) |
 | 26 | Open questions | [12-open-questions.md](12-open-questions.md) |
+| — | Product map: surfaces (www / app / admin), pillars, navigation | [13-product-map.md](13-product-map.md) |
 | — | Founder Decision Gate #1 | [FOUNDER_DECISION_GATE_1.md](FOUNDER_DECISION_GATE_1.md) |
 
 ## Decision log
@@ -45,7 +46,7 @@ Each decision is written out in full, in the §49 format, in the linked document
 
 | ID | Decision (proposed) | Reversibility | Legal | Founder | Where |
 |---|---|---|---|---|---|
-| D-01 | Evolve the existing Next.js app as a modular monolith; no rewrite, no microservices yet | easy | no | yes | [10](10-data-api-repository.md#d-01) |
+| D-01 | Modular monolith now, with modules named for the target `mcfinance/` monorepo; split into apps / services / `web3/` in stages as each trigger is met | easy | no | yes | [10](10-data-api-repository.md#d-01) |
 | D-02 | PostgreSQL in every environment; retire SQLite and the duplicate schema file | easy | no | no | [10](10-data-api-repository.md#d-02) |
 | D-03 | Store money as integer cents; all arithmetic through one Money module | moderate | no | no | [04](04-contributions-loans-ledger.md#d-03) |
 | D-04 | Double-entry general ledger becomes the financial system of record | difficult | yes | yes | [04](04-contributions-loans-ledger.md#d-04) |
@@ -61,6 +62,7 @@ Each decision is written out in full, in the §49 format, in the linked document
 | D-14 | Treasury under Safe multisigs, 3-of-5 hardware-wallet signers, one Safe per purpose | moderate | yes | yes | [08](08-treasury.md#d-14) |
 | D-15 | UMI remains research only; any future UMI is funded solely by identified external revenue | easy | yes | yes | [07](07-umi.md#d-15) |
 | D-16 | Engage counsel for a legal scoping review before tokenomics or UMI work proceeds | easy | yes | yes | [09](09-compliance-matrix.md#d-16) |
+| D-17 | Three surfaces on separate hosts (`mcfinance.us`, `app.`, `admin.`) with isolated sessions; member app grouped into Membership / Finance / Web3 (gated) | easy | yes | yes | [13](13-product-map.md#d-17) |
 
 ## Reproducing the numbers
 

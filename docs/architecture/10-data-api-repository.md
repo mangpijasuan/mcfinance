@@ -143,45 +143,99 @@ At the club's volume (hundreds of entries a year, not millions), balances can be
 ## 3. Repository architecture
 
 <a id="d-01"></a>
-### D-01 — Modular monolith, not a monorepo (yet)
+### D-01 — Modular monolith now; the `mcfinance/` monorepo is the target, reached in stages
 
-**DECISION:** Keep the single Next.js application and organise it into domain modules. Do not split into `apps/*`, `services/*` or a separate NestJS/Fastify backend now. Add a `contracts/` Foundry workspace only when contract work is approved (Gate #2).
-**WHY:** One small team, one deployable, and about 200 members. The §44 monorepo solves problems (many teams, independent deploys, shared SDKs) the club does not have, and would multiply CI, deployment and security surface.
-**ALTERNATIVES:** Monorepo with `apps/member-web`, `apps/admin-web` and `apps/api` (§44); a separate backend service (§36).
-**BENEFITS:** Incremental modernisation of working code; one build; one security perimeter.
-**RISKS:** Module boundaries can erode. The mitigation is an import-boundary lint rule and each module exposing only `index.ts`.
-**REVERSIBILITY:** easy. Modules can later become packages without changing their code.
+**DECISION:** Keep the single Next.js application and organise it into domain modules **named exactly like the packages of the target `mcfinance/` monorepo** (below), so each module can later move into `packages/` without code changes. Split out apps, services and `web3/` only when the trigger for each is met ([staged path](#staged-path-to-the-target-monorepo)). No separate NestJS/Fastify backend now.
+**WHY:** One small team and about 200 members. Built all at once, the target is about 16 deployables (4 apps, 11 services, contracts), each with its own CI, deployment, secrets, monitoring and copy of member data. Staging captures the target's organisation now and pays the operational cost only when a split buys something.
+**ALTERNATIVES:** Build the full `mcfinance/` monorepo now (§44); keep a monolith with no target shape.
+**BENEFITS:** Incremental modernisation of working code; one security perimeter until a split is justified; a destination everyone agrees on.
+**RISKS:** Module boundaries can erode before the split. The mitigation is an import-boundary lint rule and each module exposing only `index.ts`.
+**REVERSIBILITY:** easy. Modules become packages by moving folders.
 **REQUIRES LEGAL REVIEW:** no
 **REQUIRES FOUNDER APPROVAL:** yes
 
-### Target structure
+### Current structure (Stages 1–3)
 
 ```
 mc-management/
 ├── src/
-│   ├── app/                    # Next.js routes: UI pages + thin /api/v1 handlers
-│   ├── modules/
-│   │   ├── identity/           # users, sessions, MFA, RBAC, DAL (requirePermission)
-│   │   ├── membership/         # members, status machine, documents
-│   │   ├── contributions/      # plans, obligations, arrears
-│   │   ├── payments/           # payments, allocations, Stripe/Zelle adapters
-│   │   ├── lending/            # applications, engine/ (pure), schedules, delinquency job
-│   │   ├── ledger/             # accounts, posting service, invariants, periods, reconciliation
+│   ├── app/                    # Next.js routes: UI (portal + admin route groups) + thin /api/v1 handlers
+│   ├── modules/                # names match the target packages/
+│   │   ├── auth/               # users, credentials, sessions, MFA, DAL (requirePermission)
+│   │   ├── permissions/        # roles, permissions, RBAC matrix
 │   │   ├── approvals/          # maker/checker requests
-│   │   ├── audit/
-│   │   ├── reporting/          # read-only queries over ledger + domain
+│   │   ├── audit/              # append-only audit log
+│   │   ├── membership/         # members, status machine, eligibility
+│   │   ├── contributions/      # plans, obligations, arrears, receipts
+│   │   ├── payments/           # payments, allocations, Stripe/Zelle adapters
+│   │   ├── loans/              # applications, amortization/ (pure engine), repayments, delinquency job
+│   │   ├── accounting/         # ledger/ (posting, invariants), accounts, periods, reconciliation
+│   │   ├── treasury/           # liquidity policy, cash position
+│   │   ├── compliance/
+│   │   ├── documents/
 │   │   ├── notifications/
-│   │   └── rewards/            # Phase 10 (MC Points)
+│   │   ├── reporting/          # read-only queries over ledger + domain
+│   │   └── rewards/            # Stage 4 (MC Points)
 │   ├── lib/                    # money, validation, db client, http helpers
-│   └── components/
-├── prisma/                     # single schema + migrations/
+│   └── components/             # becomes packages/ui
+├── prisma/                     # single schema + migrations/ (becomes packages/database)
 ├── tests/                      # integration + e2e (unit tests sit next to modules)
 ├── scripts/                    # ops scripts, models/
-├── contracts/                  # Foundry workspace — Phase 12 only
 ├── docs/                       # architecture/ (this), and the §42 documents over time
 └── infrastructure/             # compose files, Caddy, backup + restore scripts
 ```
 
-**Module rules:** a module owns its tables; other modules call its exported functions; only `ledger` writes journal entries; `lending/engine` and `ledger/invariants` are pure functions with no I/O.
+**Module rules:** a module owns its tables; other modules call its exported functions; only `accounting` writes journal entries; `loans/amortization` and `accounting/ledger/invariants` are pure functions with no I/O.
 
-**When to become a monorepo:** a second independently deployed artefact appears, such as a separate indexer service, a mobile app sharing an SDK, or published contract ABIs consumed by third parties.
+### Target structure (`mcfinance/`)
+
+The founder's proposed layout, adopted as the destination with five adjustments:
+
+1. **One home for each concern.** `packages/` holds all business logic. `apps/` only receive requests and render. `services/` only run background work and call `packages/`. So loans live in `packages/loans` (not also in `apps/api/loans` and `services/loan-engine`), and the same applies to compliance, reporting, notifications and treasury.
+2. **Missing packages added:** `approvals` (maker/checker), `audit`, and `identity` split from `auth`.
+3. **Contracts trimmed to what the gate decisions need:** `MCTNToken.sol` and `MCTNRewardsMinter.sol`. The treasury is a **Safe** multisig, not custom code (D-14). Vesting, if ever needed, is OpenZeppelin's `VestingWallet` (D-13). `MemberBenefits.sol` is dropped: benefits stay off-chain (D-09, D-15).
+4. **Services start as scheduled jobs** inside the app. Premature ones (`benefit-engine`, `fraud-monitoring`, `analytics`) are not created until volume or a real requirement exists.
+5. **No MCTN pages** in `apps/web`, `apps/member-portal` or `apps/admin` until Gate #2 ([product map](13-product-map.md)).
+
+```
+mcfinance/
+├── apps/
+│   ├── web/                    # mcfinance.us — static public site (no member data)
+│   ├── member-portal/          # app.mcfinance.us
+│   ├── admin/                  # admin.mcfinance.us — access-gated, own session
+│   └── api/                    # api.mcfinance.us — only when a second client exists (e.g. mobile)
+├── packages/
+│   ├── database/               # schema, migrations, seeds (synthetic only), repositories
+│   ├── accounting/             # ledger, accounts, journal-entries, reconciliation, reporting
+│   ├── membership/             # members, eligibility, status  (levels: not until needed)
+│   ├── contributions/          # schedules, transactions, receipts, statements
+│   ├── loans/                  # applications, underwriting, approvals, disbursement,
+│   │                           # amortization, repayments, delinquency, statements
+│   ├── payments/  treasury/  identity/  auth/  permissions/  approvals/  audit/
+│   ├── compliance/  notifications/  reporting/  documents/  rewards/
+│   └── ui/  config/
+├── web3/                       # created at Gate #2
+│   ├── contracts/              # MCTNToken.sol, MCTNRewardsMinter.sol
+│   ├── scripts/                # deploy/, verify/, administration/ (via Safe)
+│   ├── test/                   # unit/, integration/, fuzz/, invariant/
+│   └── deployments/            # local/, testnet/, mainnet/
+├── services/                   # each created only when its trigger is met
+│   ├── blockchain-indexer/     # after Gate #2
+│   ├── payment-worker/  reconciliation-worker/  notifications/  reporting/
+├── infrastructure/             # docker, cloud, database, networking, monitoring,
+│                               # secrets, backups, disaster-recovery
+├── docs/  tests/  scripts/  .github/
+└── README.md  SECURITY.md
+```
+
+### Staged path to the target monorepo
+
+| Step | Creates | Trigger (do it when…) | Why then |
+|---|---|---|---|
+| 1 | `src/modules/*` with target names (above) | Stage 2 starts | Organisation now; zero operational cost |
+| 2 | `apps/web` (static public site) | the public site is wanted and its copy is cleared by counsel | Independent, low-risk, keeps the public away from the app |
+| 3 | Monorepo tooling (npm/pnpm workspaces + Turborepo or Nx); the existing app moves to `apps/member-portal`; modules move to `packages/*` | step 2 creates a second deployable | Workspaces pay off once there are two apps |
+| 4 | `apps/admin` split from the member portal | RBAC and MFA are stable (Stage 2 exit) | Real security boundary: separate deployment behind an access gateway |
+| 5 | `services/*` (one at a time) | a job outgrows the app process (runtime, schedule, or failure isolation) | Until then, scheduled jobs inside the app are simpler and safer |
+| 6 | `web3/` with the two contracts; later `services/blockchain-indexer` | Gate #2 approves an on-chain MCTN | Nothing on-chain exists before then |
+| 7 | `apps/api` as its own service | a second client (e.g. a mobile app) needs the API | Until then, Next.js route handlers serve the web apps directly |
