@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, contributionReminderEmail, loanOverdueEmail, adminSummaryEmail } from '@/lib/email'
 import { requireAdmin } from '@/lib/apiAuth'
+import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function GET() {
   const auth = await requireAdmin()
@@ -27,7 +28,13 @@ export async function POST(req: NextRequest) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const { type } = await req.json()
+  const body = await req.json().catch(() => ({}))
+  const type = body?.type
+  // Emails cannot be un-sent, so the entry is written after the send.
+  const audit = (metadata: Record<string, unknown>) =>
+    recordAudit(prisma, auditContext(req, auth.session), {
+      action: 'notifications.send', entityType: 'notification', entityId: String(type), metadata,
+    })
 
   if (type === 'contribution_reminders') {
     const members = await prisma.member.findMany({
@@ -46,6 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     await prisma.emailLog.createMany({ data: logs })
+    await audit({ sent, failed, total: members.length })
     return NextResponse.json({ sent, failed, total: members.length })
   }
 
@@ -67,6 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     await prisma.emailLog.createMany({ data: logs })
+    await audit({ sent, failed, total: loans.length })
     return NextResponse.json({ sent, failed, total: loans.length })
   }
 
@@ -94,6 +103,7 @@ export async function POST(req: NextRequest) {
 
     const result = await sendEmail(adminEmail, subject, html)
     await prisma.emailLog.create({ data: { type: 'admin_summary', recipient: adminEmail, subject, status: result.ok ? 'sent' : 'failed' } })
+    await audit({ sent: result.ok ? 1 : 0, failed: result.ok ? 0 : 1, total: 1 })
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 })
     return NextResponse.json({ sent: 1, failed: 0, total: 1 })

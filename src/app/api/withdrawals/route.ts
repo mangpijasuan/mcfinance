@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { nextPublicId } from '@/lib/publicIds'
+import { auditContext, recordAudit } from '@/modules/audit'
 import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
 
 export async function GET(req: NextRequest) {
@@ -88,6 +89,10 @@ export async function POST(req: NextRequest) {
         data: { status: 'Inactive', eligible: 'NO - Inactive' },
       })
     }
+    await recordAudit(tx, auditContext(req, auth.session), {
+      action: isFullExit ? 'withdrawal.full_exit' : 'withdrawal.create',
+      entityType: 'withdrawal', entityId: created.withdrawalId, after: created,
+    })
     return created
   })
 

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { adminRoleLabel, isSuperAdminRole, normalizeAdminRole } from '@/lib/adminRoles'
 import { requireSuperAdmin } from '@/lib/apiAuth'
+import { auditContext, recordAudit } from '@/modules/audit'
 
 function safeAdmin(admin: { id: string; email: string; name: string; role: string; createdAt: Date; linkedMemberId?: string | null }) {
   return {
@@ -21,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (auth.error) return auth.error
 
   const { id } = await params
-  const body = await req.json()
+  const body = await req.json().catch(() => ({}))
   const existing = await prisma.admin.findUnique({ where: { id } })
   if (!existing) return NextResponse.json({ error: 'Admin not found.' }, { status: 404 })
 
@@ -58,16 +59,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
-  const updated = await prisma.admin.update({
-    where: { id },
-    data,
-    select: { id: true, email: true, name: true, role: true, linkedMemberId: true, createdAt: true },
+  const updated = await prisma.$transaction(async (tx) => {
+    const after = await tx.admin.update({
+      where: { id },
+      data,
+      select: { id: true, email: true, name: true, role: true, linkedMemberId: true, createdAt: true },
+    })
+    await recordAudit(tx, auditContext(req, auth.session), {
+      action: 'admin.update', entityType: 'admin', entityId: id, before: existing, after,
+      metadata: { passwordChanged: Boolean(data.password) },
+    })
+    return after
   })
 
   return NextResponse.json(safeAdmin(updated))
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireSuperAdmin()
   if (auth.error) return auth.error
 
@@ -87,6 +95,11 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  await prisma.admin.delete({ where: { id } })
+  await prisma.$transaction(async (tx) => {
+    await tx.admin.delete({ where: { id } })
+    await recordAudit(tx, auditContext(req, auth.session), {
+      action: 'admin.delete', entityType: 'admin', entityId: id, before: existing,
+    })
+  })
   return NextResponse.json({ ok: true })
 }

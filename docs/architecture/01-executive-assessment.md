@@ -25,7 +25,7 @@ The club is a small, long-running savings-and-lending circle. Members pay a flat
 1. **There is no ledger.** Balances such as `contributions2026`, `overallContributions`, `totalPaid` and `balanceRemaining` are editable fields that application code overwrites. They agree with the transaction rows today only because every code path remembers to update them; nothing enforces it.
 2. **Money is stored as floating point.** Every amount column is a `Float`. The loan code already over-schedules repayments: a $10,000 loan over 24 months is scheduled as 24 × $416.67 = $10,000.08. Loan L05 in the live data is exactly this case.
 3. **Money movements are missing.** Loan disbursements, application fees, late fees, Stripe processing fees and cash handed to collectors are never recorded. The system cannot answer "how much cash does the club hold?"
-4. **History can be erased.** Cancelling or deleting a loan agreement deletes the loan and its repayment records. Deleting a member is a hard delete. There is no audit log.
+4. **History can be erased.** Cancelling or deleting a loan agreement deletes the loan and its repayment records. Deleting a member is a hard delete. There is no audit log. *(Fixed in Stage 2: records are kept on cancel, hard deletes removed, append-only audit log added.)*
 5. **One person can do anything.** Every admin can record, edit and confirm any financial event alone. A demoted admin keeps their role for up to 30 days, because roles live inside the session token.
 6. **There are two sources of truth for loans.** Live `Loan` rows and `HistoricalLoan` rows are linked to members by matching names. Two pairs of members share identical legal names, and 12 of the 66 historical borrower names match no member.
 

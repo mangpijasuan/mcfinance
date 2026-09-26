@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { adminRoleLabel, normalizeAdminRole } from '@/lib/adminRoles'
 import { requireSuperAdmin } from '@/lib/apiAuth'
+import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireSuperAdmin()
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }, { status: 409 })
   }
 
-  const body = await req.json()
+  const body = await req.json().catch(() => ({}))
   const password = String(body.password || '')
   const role = normalizeAdminRole(body.role)
 
@@ -47,28 +48,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
   }
 
-  const existingEmail = await prisma.admin.findUnique({ where: { email: member.email } })
+  const adminEmail = member.email.trim().toLowerCase()
+  const existingEmail = await prisma.admin.findFirst({ where: { email: { equals: adminEmail, mode: 'insensitive' } } })
   if (existingEmail) {
     return NextResponse.json({ error: 'That email already belongs to another admin account.' }, { status: 409 })
   }
 
   const hashed = await bcrypt.hash(password, 10)
-  const admin = await prisma.admin.create({
-    data: {
-      email: member.email,
-      name: member.legalName,
-      password: hashed,
-      role,
-      linkedMemberId: member.id,
-    },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      linkedMemberId: true,
-      createdAt: true,
-    },
+  const admin = await prisma.$transaction(async (tx) => {
+    const created = await tx.admin.create({
+      data: {
+        email: adminEmail,
+        name: member.legalName,
+        password: hashed,
+        role,
+        linkedMemberId: member.id,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        linkedMemberId: true,
+        createdAt: true,
+      },
+    })
+    await recordAudit(tx, auditContext(req, auth.session), {
+      action: 'admin.create', entityType: 'admin', entityId: created.id, after: created,
+      metadata: { promotedFromMember: member.id },
+    })
+    return created
   })
 
   return NextResponse.json({

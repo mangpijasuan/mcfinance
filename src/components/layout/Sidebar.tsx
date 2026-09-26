@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { signOut } from 'next-auth/react'
-import { LayoutDashboard, Users, Receipt, Landmark, CreditCard, History, ArrowDownLeft, Bell, FileText, LogOut, Menu, X, Shield, Wallet } from 'lucide-react'
+import { LayoutDashboard, Users, Receipt, Landmark, CreditCard, History, ArrowDownLeft, Bell, FileText, LogOut, Menu, X, Shield, Wallet, ScrollText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const nav = [
@@ -28,7 +28,7 @@ export default function Sidebar({ adminRole, adminRoleLabel }: { adminRole?: str
   const close = () => setOpen(false)
 
   const items = adminRole === 'super_admin'
-    ? [...nav.slice(0, nav.length - 1), { href: '/settings/admins', label: 'Admin Access', icon: Shield }, nav[nav.length - 1]]
+    ? [...nav.slice(0, nav.length - 1), { href: '/settings/admins', label: 'Admin Access', icon: Shield }, { href: '/settings/audit', label: 'Audit Log', icon: ScrollText }, nav[nav.length - 1]]
     : nav
 
   const NavContent = (compact = false, withDesktopToggle = false) => (

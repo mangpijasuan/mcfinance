@@ -92,18 +92,21 @@ docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
 docker compose -f docker-compose.hetzner.yml exec -e ADMIN_SEED_PASSWORD='a long passphrase' app npx prisma db seed
 ```
 
-**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first (`scripts/backup-postgres.sh`), then check that the live schema matches the baseline:
+**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first (`scripts/backup-postgres.sh`), then compare the live schema with the current one:
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec app \
   sh -c 'npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script'
 ```
 
-- If it prints only an empty migration, mark the baseline as applied:
+The output should contain **only** the `AuditLog` table and its three indexes (added by the second migration, `20260926010000_audit_log`). Do not apply those by hand: `migrate deploy` creates them together with the append-only trigger.
+
+- If anything else appears (for example `CREATE TABLE "PortalPayment"`, when the server predates online payments), apply just those statements with `npx prisma db execute --stdin < extra.sql`, then re-run the check.
+- Then mark the baseline as applied and apply the remaining migrations:
   ```bash
   docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate resolve --applied 20260926000000_init
+  docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
   ```
-- If it prints SQL (for example `CREATE TABLE "PortalPayment"`, when the server predates online payments), review it, apply it with `npx prisma db execute --stdin < diff.sql`, re-run the check until it is empty, then run the `migrate resolve` command above.
 
 **Every deploy after that:**
 
@@ -114,6 +117,8 @@ docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
 ```
 
 Never run `prisma db push` or `prisma migrate reset` against production.
+
+The `AuditLog` table is append-only: a database trigger rejects `UPDATE`, `DELETE` and `TRUNCATE`. It is included in the nightly `pg_dump` backups; keep it when restoring.
 
 **Admin password reset** (no default passwords exist):
 

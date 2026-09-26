@@ -3,13 +3,16 @@ import { prisma } from '@/lib/prisma'
 import { requireMember, sessionMemberId } from '@/lib/apiAuth'
 import { nextPublicId } from '@/lib/publicIds'
 import { getStripe } from '@/lib/stripe'
+import { badRequest, readJsonObject } from '@/lib/http'
+import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function POST(req: NextRequest) {
   const auth = await requireMember()
   if (auth.error) return auth.error
   const memberId = sessionMemberId(auth.session)!
 
-  const body = await req.json()
+  const body = await readJsonObject(req)
+  if (!body) return badRequest('Invalid request body.')
   const type = body.type === 'loan_payment' ? 'loan_payment' : body.type === 'contribution' ? 'contribution' : null
   const method = body.method === 'zelle' ? 'zelle' : body.method === 'stripe' ? 'stripe' : null
   const amount = parseFloat(body.amount)
@@ -36,8 +39,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const portalPayment = await prisma.portalPayment.create({
-    data: {
+  const ctx = auditContext(req, auth.session)
+  const portalPayment = await prisma.$transaction(async (tx) => {
+    const created = await tx.portalPayment.create({
+      data: {
       publicId: nextPublicId('PP'),
       memberId,
       type,
@@ -46,7 +51,12 @@ export async function POST(req: NextRequest) {
       method,
       status: 'pending',
       zelleReference: method === 'zelle' ? (body.zelleReference ? String(body.zelleReference).slice(0, 500) : null) : null,
-    },
+      },
+    })
+    await recordAudit(tx, ctx, {
+      action: `payment.${method}.initiate`, entityType: 'portal_payment', entityId: created.publicId, after: created,
+    })
+    return created
   })
 
   if (method === 'zelle') {

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { badRequest, readJsonObject, requiredString } from '@/lib/http'
 import { recordLoanPayment } from '@/lib/paymentActions'
+import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin()
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (!body) return badRequest('Invalid request body.')
   const loanId = requiredString(body.loanId)
   if (!loanId) return badRequest('A loan must be selected.')
-  const loan = await prisma.loan.findUnique({ where: { loanId }, select: { loanId: true } })
+  const loan = await prisma.loan.findUnique({ where: { loanId }, select: { loanId: true, totalPaid: true, balanceRemaining: true, status: true } })
   if (!loan) return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
 
   const amount = parseFloat(body.amount)
@@ -74,15 +75,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid payment date' }, { status: 400 })
   }
 
-  const payment = await prisma.$transaction((tx) => recordLoanPayment(tx, {
-    loanId,
-    amount,
-    paymentDate,
-    paymentMethod: body.paymentMethod || null,
-    receivedBy: body.receivedBy || null,
-    comments: body.comments || null,
-    source: 'Admin',
-  }))
+  const payment = await prisma.$transaction(async (tx) => {
+    const created = await recordLoanPayment(tx, {
+      loanId,
+      amount,
+      paymentDate,
+      paymentMethod: body.paymentMethod || null,
+      receivedBy: body.receivedBy || null,
+      comments: body.comments || null,
+      source: 'Admin',
+    })
+    const loanAfter = await tx.loan.findUnique({ where: { loanId }, select: { loanId: true, totalPaid: true, balanceRemaining: true, status: true } })
+    await recordAudit(tx, auditContext(req, auth.session), {
+      action: 'loan_payment.create', entityType: 'loan_payment', entityId: created.paymentId, after: created,
+      metadata: { loanBefore: loan, loanAfter },
+    })
+    return created
+  })
 
   return NextResponse.json(payment, { status: 201 })
 }

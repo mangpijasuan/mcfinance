@@ -48,19 +48,14 @@ export default function AgreementsPage() {
   useEffect(() => { load() }, [load])
 
   async function cancelAgreement(agreementId: string) {
-    if (!confirm(`Cancel application ${agreementId}?`)) return
+    if (!confirm(`Cancel application ${agreementId}? The loan and agreement are kept, marked cancelled.`)) return
     const res = await fetch(`/api/agreements/${agreementId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'cancel' }),
     })
     if (res.ok) load()
-  }
-
-  async function deleteAgreement(agreementId: string) {
-    if (!confirm(`Delete application ${agreementId}? This cannot be undone.`)) return
-    const res = await fetch(`/api/agreements/${agreementId}`, { method: 'DELETE' })
-    if (res.ok) load()
+    else alert((await res.json().catch(() => ({}))).error || 'Could not cancel this agreement.')
   }
 
   return (
@@ -110,9 +105,6 @@ export default function AgreementsPage() {
                         Cancel
                       </Button>
                     )}
-                    <Button size="sm" variant="secondary" onClick={() => deleteAgreement(a.agreementId)}>
-                      Delete
-                    </Button>
                   </div>
                 </td>
               </tr>

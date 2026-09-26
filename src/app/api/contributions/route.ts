@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { recordContribution } from '@/lib/paymentActions'
+import { badRequest, readJsonObject, requiredString } from '@/lib/http'
+import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin()
@@ -35,7 +37,10 @@ export async function POST(req: NextRequest) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const body = await req.json()
+  const body = await readJsonObject(req)
+  if (!body) return badRequest('Invalid request body.')
+  const memberId = requiredString(body.memberId)
+  if (!memberId) return badRequest('A member must be selected.')
   const paymentDate = new Date(body.paymentDate)
   if (Number.isNaN(paymentDate.getTime())) {
     return NextResponse.json({ error: 'Invalid payment date' }, { status: 400 })
@@ -45,18 +50,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Amount must be greater than 0.' }, { status: 400 })
   }
 
-  const member = await prisma.member.findUnique({ where: { id: body.memberId }, select: { id: true } })
+  const member = await prisma.member.findUnique({ where: { id: memberId }, select: { id: true } })
   if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
 
-  const contribution = await prisma.$transaction((tx) => recordContribution(tx, {
-    memberId: body.memberId,
-    amount,
-    paymentDate,
-    paymentMethod: body.paymentMethod || null,
-    receivedBy: body.receivedBy || null,
-    comments: body.comments || null,
-    source: 'Admin',
-  }))
+  const contribution = await prisma.$transaction(async (tx) => {
+    const created = await recordContribution(tx, {
+      memberId,
+      amount,
+      paymentDate,
+      paymentMethod: body.paymentMethod || null,
+      receivedBy: body.receivedBy || null,
+      comments: body.comments || null,
+      source: 'Admin',
+    })
+    await recordAudit(tx, auditContext(req, auth.session), {
+      action: 'contribution.create', entityType: 'contribution', entityId: created.transactionId, after: created,
+    })
+    return created
+  })
 
   return NextResponse.json(contribution, { status: 201 })
 }

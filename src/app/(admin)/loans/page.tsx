@@ -63,6 +63,7 @@ export default function LoansPage() {
           <option value="">All statuses</option>
           <option value="Active">Active</option>
           <option value="Paid Off">Paid off</option>
+          <option value="Cancelled">Cancelled</option>
         </Select>
       </FilterBar>
 

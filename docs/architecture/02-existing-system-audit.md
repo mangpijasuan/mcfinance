@@ -28,7 +28,7 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 |---|---|:-:|---|
 | F-1 | No ledger. Balances are stored fields that route handlers overwrite (`contributions2026`, `overallContributions`, `currentLoanBalance`, `totalPaid`, `balanceRemaining`, `eligible`, `thisMonth`). They agree with the rows today; nothing enforces it. | H | **Replace** with a double-entry ledger (D-04) |
 | F-2 | Every money column is `Float`. The monthly payment is `Math.round(amount / term * 100) / 100`, so $10,000 / 24 is scheduled as 24 × $416.67 = $10,000.08. Loan L05 is this case. | H | **Replace** with integer cents (D-03) |
-| F-3 | Cancelling or deleting a loan agreement hard-deletes the loan and all of its repayments (`loanPayment.deleteMany`). | H | **Replace** with void and reversal (D-05) |
+| F-3 | Cancelling or deleting a loan agreement hard-deletes the loan and all of its repayments (`loanPayment.deleteMany`). | H | **Fixed (Stage 2):** cancel keeps both records (loan marked `Cancelled`) and is refused once a repayment exists; hard delete removed. Full void-and-reversal comes with the ledger (D-05) |
 | F-4 | Loan disbursements are never recorded as money leaving the club. | H | **Missing** |
 | F-5 | Application fees are computed and printed on the agreement ("collect this separately") but never recorded. The $5 late fee in the policy is never applied. Stripe processing fees are not recorded; payments are booked gross. | M | **Missing** |
 | F-6 | `overdue` is never set by any code. It is only read, so delinquency reflects the seed data or manual edits. | H | **Replace** with computed delinquency |
@@ -47,7 +47,7 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 | S-1 | The role lives inside a 30-day JWT (NextAuth default). Demoting or deleting an admin does not take effect until the token expires. | H | **Refactor**: database-backed session checks (D-07) |
 | S-2 | Two roles only. Every admin can record, edit and confirm any financial event alone. | H | **Replace** with RBAC plus maker/checker (D-06, D-07) |
 | S-3 | No MFA for staff. | H | **Missing** |
-| S-4 | No audit log of who changed what. | H | **Missing** |
+| S-4 | No audit log of who changed what. | H | **Fixed (Stage 2):** append-only `AuditLog` (database trigger blocks UPDATE, DELETE, TRUNCATE) written in the same transaction by every write route, sign-ins and the Stripe webhook; super-admin viewer at `/settings/audit` |
 | S-5 | Login rate limiting is in-memory: it resets on restart and is per process. | M | **Refactor** to database- or Redis-backed |
 | S-6 | Backups sit on the same VM as the database, are unencrypted, and have never had a restore tested. | H | **Refactor** |
 | S-7 | Real member names and financial history are committed to git in `prisma/seed-data.json` and `historical-loans.json`. The repository is private. | M | **Refactor**: move to an encrypted import, anonymise dev fixtures |
@@ -58,12 +58,23 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 
 | # | Finding | Sev | Verdict |
 |---|---|:-:|---|
-| E-1 | Zero automated tests. CI checks types and build only. | H | **Missing** |
-| E-2 | Two Prisma schema files maintained by hand. | M | **Replace** with Postgres everywhere (D-02) |
-| E-3 | Prisma `db push` instead of migrations: there is no migration history for production. | H | **Replace** with `prisma migrate` |
+| E-1 | Zero automated tests. CI checks types and build only. | H | **Fixed (Stage 2):** Vitest against PostgreSQL in CI; authorisation matrix, ownership, payment and audit tests |
+| E-2 | Two Prisma schema files maintained by hand. | M | **Fixed (Stage 2):** one schema, PostgreSQL everywhere (D-02) |
+| E-3 | Prisma `db push` instead of migrations: there is no migration history for production. | H | **Fixed (Stage 2):** `prisma migrate` with a baseline; production baselines once ([deploy guide](../deploy-hetzner-postgres.md#7-initialize-the-database)) |
 | E-4 | Business logic lives inside route handlers. The shared `paymentActions.ts` is the first extraction. | M | **Refactor** into modules (D-01) |
 | E-5 | New member IDs are random (`MC-3F9A…`) while existing ones are sequential (`MC-10001`). | L | **Refactor** |
 | E-6 | No input schema validation library; validation is hand-written per route. | M | **Refactor** (zod) |
+
+### Found and fixed by the Stage 2 tests
+
+| # | Finding | Sev | Status |
+|---|---|:-:|---|
+| T-1 | Confirming a Zelle claim twice at the same moment recorded the contribution twice (5 simultaneous confirms → 5 contributions). | H | Fixed: the claim is taken with a conditional update inside the transaction |
+| T-2 | Overlapping Stripe webhook retries recorded the same card payment more than once (3 deliveries → 3 contributions). | H | Fixed: same pattern; only paid sessions are recorded |
+| T-3 | The session never carried the admin's id, so "you cannot delete or demote your own account" never triggered. | M | Fixed |
+| T-4 | Nine write routes crashed (500) on missing or malformed input instead of returning 400/404; loan creation and full-exit withdrawals were not single transactions. | M | Fixed |
+| T-5 | Searches were case-sensitive in production (PostgreSQL), unlike SQLite in development. | L | Fixed |
+| T-6 | A signed agreement could be re-signed, overwriting the earlier signature, and a cancelled agreement could still be signed. | M | Fixed |
 
 ### What should remain
 

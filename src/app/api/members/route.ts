@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { sanitizeMember } from '@/lib/serializers'
 import { nextMemberId } from '@/lib/publicIds'
+import { auditContext, recordAudit } from '@/modules/audit'
 import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
 
 export async function GET(req: NextRequest) {
@@ -46,8 +47,9 @@ export async function POST(req: NextRequest) {
   if (!joinDate) return badRequest('A valid join date is required.')
   const id = nextMemberId()
 
-  const member = await prisma.member.create({
-    data: {
+  const member = await prisma.$transaction(async (tx) => {
+    const created = await tx.member.create({
+      data: {
       id,
       legalName,
       nickname: body.nickname || null,
@@ -57,7 +59,12 @@ export async function POST(req: NextRequest) {
       email: body.email || null,
       beneficiary: body.beneficiary || null,
       notes: body.notes || null,
-    },
+      },
+    })
+    await recordAudit(tx, auditContext(req, auth.session), {
+      action: 'member.create', entityType: 'member', entityId: created.id, after: created,
+    })
+    return created
   })
   return NextResponse.json(sanitizeMember(member), { status: 201 })
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { sanitizeMember } from '@/lib/serializers'
+import { auditContext, recordAudit } from '@/modules/audit'
 import { badRequest, notFound, parseDate, readJsonObject } from '@/lib/http'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -65,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await readJsonObject(req)
   if (!body) return badRequest('Invalid request body.')
-  const existing = await prisma.member.findUnique({ where: { id }, select: { id: true } })
+  const existing = await prisma.member.findUnique({ where: { id } })
   if (!existing) return notFound()
 
   const data: Record<string, unknown> = {}
@@ -85,7 +86,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.lastContributionDate && !data.lastContributionDate) return badRequest('Invalid last contribution date.')
   }
 
-  const member = await prisma.member.update({ where: { id }, data })
+  const member = await prisma.$transaction(async (tx) => {
+    const updated = await tx.member.update({ where: { id }, data })
+    await recordAudit(tx, auditContext(req, auth.session), {
+      action: 'member.update', entityType: 'member', entityId: id, before: existing, after: updated,
+    })
+    return updated
+  })
   return NextResponse.json(sanitizeMember(member))
 }
 

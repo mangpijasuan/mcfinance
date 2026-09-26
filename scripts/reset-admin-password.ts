@@ -26,12 +26,23 @@ async function main() {
   try {
     const hashed = await bcrypt.hash(password, 10)
     const existing = await prisma.admin.findUnique({ where: { email } })
+    // Recorded in the audit log like any other change (system actor).
+    const audit = (action: string, entityId: string) => ({
+      actorType: 'system', actorLabel: 'cli:reset-admin-password',
+      action, entityType: 'admin', entityId, metadata: { email, passwordChanged: true },
+    })
     if (existing) {
-      await prisma.admin.update({ where: { email }, data: { password: hashed } })
+      await prisma.$transaction([
+        prisma.admin.update({ where: { email }, data: { password: hashed } }),
+        prisma.auditLog.create({ data: audit('admin.password.reset', existing.id) }),
+      ])
       console.log(`Password updated for ${email}.`)
     } else {
-      await prisma.admin.create({
-        data: { email, name: 'Club Admin', password: hashed, role: 'super_admin' },
+      await prisma.$transaction(async (tx) => {
+        const created = await tx.admin.create({
+          data: { email, name: 'Club Admin', password: hashed, role: 'super_admin' },
+        })
+        await tx.auditLog.create({ data: audit('admin.create', created.id) })
       })
       console.log(`Created super admin ${email}.`)
     }

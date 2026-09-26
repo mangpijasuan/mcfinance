@@ -22,8 +22,9 @@ type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 const MATRIX: Record<string, Partial<Record<Method, Policy>>> = {
   'admins': { GET: 'super_admin', POST: 'super_admin' },
   'admins/[id]': { PATCH: 'super_admin', DELETE: 'super_admin' },
+  'audit': { GET: 'super_admin' },
   'agreements': { GET: 'signed_in' },
-  'agreements/[id]': { GET: 'signed_in', PATCH: 'signed_in', DELETE: 'admin' },
+  'agreements/[id]': { GET: 'signed_in', PATCH: 'signed_in' }, // no DELETE (Gate #1 A3)
   'contributions': { GET: 'admin', POST: 'admin' },
   'dashboard': { GET: 'admin' },
   'health': { GET: 'public' },

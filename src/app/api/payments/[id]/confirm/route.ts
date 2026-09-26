@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/apiAuth'
 import { recordContribution, recordLoanPayment } from '@/lib/paymentActions'
+import { auditContext, recordAudit } from '@/modules/audit'
 
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
@@ -20,6 +21,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const reviewedBy = String((auth.session.user as any)?.email || (auth.session.user as any)?.name || 'Admin')
   const comments = payment.zelleReference ? `Zelle: ${payment.zelleReference}` : 'Zelle payment'
 
+  const ctx = auditContext(req, auth.session)
   const updated = await prisma.$transaction(async (tx) => {
     // Claim the claim: only one confirmation can move it out of "pending".
     // A concurrent confirm blocks on the row lock, then matches nothing.
@@ -39,10 +41,15 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         comments,
         source: 'Zelle',
       })
-      return tx.portalPayment.update({
+      const after = await tx.portalPayment.update({
         where: { id: payment.id },
         data: { contributionId: record.id },
       })
+      await recordAudit(tx, ctx, {
+        action: 'payment.zelle.confirm', entityType: 'portal_payment', entityId: payment.publicId,
+        before: payment, after, metadata: { contributionId: record.transactionId },
+      })
+      return after
     }
 
     if (!payment.loanId) throw new Error('Missing loanId on loan_payment PortalPayment')
@@ -55,10 +62,15 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       comments,
       source: 'Zelle',
     })
-    return tx.portalPayment.update({
+    const after = await tx.portalPayment.update({
       where: { id: payment.id },
       data: { loanPaymentId: record.id },
     })
+    await recordAudit(tx, ctx, {
+      action: 'payment.zelle.confirm', entityType: 'portal_payment', entityId: payment.publicId,
+      before: payment, after, metadata: { loanPaymentId: record.paymentId },
+    })
+    return after
   })
 
   if (!updated) {
