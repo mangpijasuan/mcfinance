@@ -7,7 +7,7 @@ FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate --schema prisma/schema.postgres.prisma
+RUN npx prisma generate
 RUN npm run build
 
 FROM node:20-bookworm-slim AS runner
@@ -23,6 +23,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/next.config.js ./next.config.js
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts ./scripts
 
 RUN chown -R nextjs:nodejs /app
 USER nextjs

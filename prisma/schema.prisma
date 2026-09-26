@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -139,9 +139,6 @@ model HistoricalLoan {
   status           String   @default("Paid Off")
   createdAt        DateTime @default(now())
 }
-
-// Note: run `npx prisma db push` after adding these fields to Member above
-// Portal fields are added via migration script - see add-portal-fields.js
 
 model Withdrawal {
   id            String   @id @default(cuid())

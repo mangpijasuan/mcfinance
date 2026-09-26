@@ -1,6 +1,6 @@
 # Hetzner + PostgreSQL Deployment
 
-This repo currently uses SQLite for local setup. For Hetzner production, use PostgreSQL as the source of truth and keep Google Sheets only for import/export workflows.
+PostgreSQL is the database in every environment. Schema changes ship as Prisma migrations in `prisma/migrations/`. Keep Google Sheets only for import/export workflows.
 
 ## Recommended architecture
 
@@ -83,18 +83,45 @@ export DOMAIN=admin.your-domain.example
 docker compose -f docker-compose.hetzner.yml up -d --build
 ```
 
-The production image is built from `prisma/schema.postgres.prisma` (see the `Dockerfile`), so no manual schema edit is needed — `prisma/schema.prisma` (SQLite) stays untouched for local dev.
-
 ## 7. Initialize the database
 
-Use the `:postgres` npm scripts so the correct schema file is targeted:
+**New installation** (empty database):
 
 ```bash
-docker compose -f docker-compose.hetzner.yml exec app npm run db:push:postgres
-docker compose -f docker-compose.hetzner.yml exec app npm run db:seed:postgres
+docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
+docker compose -f docker-compose.hetzner.yml exec -e ADMIN_SEED_PASSWORD='a long passphrase' app npx prisma db seed
 ```
 
-Do not run the plain `db:push` / `db:seed` scripts against the production container — those default to `prisma/schema.prisma` (SQLite) and will fail against the Postgres `DATABASE_URL`.
+**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first (`scripts/backup-postgres.sh`), then check that the live schema matches the baseline:
+
+```bash
+docker compose -f docker-compose.hetzner.yml exec app \
+  sh -c 'npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script'
+```
+
+- If it prints only an empty migration, mark the baseline as applied:
+  ```bash
+  docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate resolve --applied 20260926000000_init
+  ```
+- If it prints SQL (for example `CREATE TABLE "PortalPayment"`, when the server predates online payments), review it, apply it with `npx prisma db execute --stdin < diff.sql`, re-run the check until it is empty, then run the `migrate resolve` command above.
+
+**Every deploy after that:**
+
+```bash
+./scripts/backup-postgres.sh
+docker compose -f docker-compose.hetzner.yml up -d --build
+docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
+```
+
+Never run `prisma db push` or `prisma migrate reset` against production.
+
+**Admin password reset** (no default passwords exist):
+
+```bash
+docker compose -f docker-compose.hetzner.yml exec \
+  -e ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com -e NEW_ADMIN_PASSWORD='a long passphrase' \
+  app npm run admin:reset-password
+```
 
 ## 8. Verify
 

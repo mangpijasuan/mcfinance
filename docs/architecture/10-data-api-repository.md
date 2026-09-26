@@ -13,6 +13,7 @@
 **REVERSIBILITY:** easy
 **REQUIRES LEGAL REVIEW:** no
 **REQUIRES FOUNDER APPROVAL:** no
+**STATUS:** Implemented (Stage 2, 2026-09-26). Baseline migration `20260926000000_init`; CI applies migrations to a clean Postgres and fails if `schema.prisma` and the migrations disagree. Existing production databases are baselined once with `prisma migrate resolve` ([deploy guide](../deploy-hetzner-postgres.md#7-initialize-the-database)).
 
 ### Principles
 

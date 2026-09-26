@@ -2,8 +2,13 @@ const { PrismaClient } = require('@prisma/client')
 
 const BASE_URL = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:3000'
 const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL || 'admin@millionairesclub.com'
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || 'admin123'
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || process.env.ADMIN_SEED_PASSWORD
 const MEMBER_PASSWORD = process.env.SMOKE_MEMBER_PASSWORD || 'SmokeTest123!'
+
+if (!ADMIN_PASSWORD) {
+  console.error('Set SMOKE_ADMIN_PASSWORD (or ADMIN_SEED_PASSWORD) to the admin password.')
+  process.exit(1)
+}
 
 const prisma = new PrismaClient()
 

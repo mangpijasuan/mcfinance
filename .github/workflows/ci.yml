@@ -9,8 +9,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: mc_admin_test
+          POSTGRES_USER: mc_admin
+          POSTGRES_PASSWORD: mc_admin_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mc_admin -d mc_admin_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      DATABASE_URL: file:./dev.db
+      DATABASE_URL: postgresql://mc_admin:mc_admin_ci@127.0.0.1:5432/mc_admin_test?schema=public
     steps:
       - uses: actions/checkout@v4
 
@@ -21,11 +35,14 @@ jobs:
 
       - run: npm ci
 
-      - name: Prisma generate (SQLite, dev schema)
+      - name: Prisma generate
         run: npx prisma generate
 
-      - name: Prisma generate (Postgres, prod schema)
-        run: npx prisma generate --schema prisma/schema.postgres.prisma
+      - name: Apply migrations to a clean database
+        run: npx prisma migrate deploy
+
+      - name: Schema and migrations agree
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
       - name: Type check
         run: npx tsc --noEmit

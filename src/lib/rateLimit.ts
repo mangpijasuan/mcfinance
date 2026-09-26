@@ -1,5 +1,5 @@
 // Simple in-memory sliding-window limiter for login attempts.
-// Single-process only — fine for this app's SQLite/small-deployment scale,
+// Single-process only — fine for this app's single-container deployment,
 // but resets on restart and doesn't share state across multiple instances.
 
 const WINDOW_MS = 15 * 60 * 1000

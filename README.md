@@ -1,61 +1,60 @@
 # Millionaires Club — Admin Panel
 
-## ⚡ Quick Setup (3 steps, no database install needed)
+## ⚡ Quick Setup
 
 ### Prerequisites
-You only need **Node.js** installed. Download it from [nodejs.org](https://nodejs.org) if you don't have it.
+- **Node.js 20+** ([nodejs.org](https://nodejs.org))
+- **Docker** ([docker.com](https://docs.docker.com/get-docker/)) — runs the local PostgreSQL database
 
 ---
 
 ### Mac / Linux
 
-Open Terminal, go into the project folder, then run:
-
 ```bash
-cd mc-admin
+cd mc-management
 sh setup.sh
-```
-
-That's it. When it finishes:
-```bash
 npm run dev
 ```
-Open **http://localhost:3000** in your browser.
-
----
 
 ### Windows
 
-1. Open the `mc-admin` folder
-2. Double-click **`setup.bat`**
-3. Wait for it to finish (about 1–2 minutes)
-4. Then in Command Prompt:
-```
-npm run dev
-```
-Open **http://localhost:3000** in your browser.
+1. Start Docker Desktop
+2. Double-click **`setup.bat`** and wait for it to finish
+3. In Command Prompt: `npm run dev`
+
+Open **http://localhost:3000**. Sign in as `admin@millionairesclub.com` with the password you chose during setup.
 
 ---
 
-### Login
-| Field | Value |
-|---|---|
-| Email | `admin@millionairesclub.com` |
-| Password | `value of ADMIN_SEED_PASSWORD` |
-
-> ⚠️ Set `ADMIN_SEED_PASSWORD` before setup, then change the password after your first login.
-
----
-
-## What setup.sh / setup.bat does
-1. Copies `.env.example` → `.env.local` (your config file, no edits needed)
-2. Runs `npm install` (downloads packages)
-3. Creates a local SQLite database file (`prisma/dev.db`) — no server needed
-4. Seeds all your club data: 211 members, 705 yearly totals, 350 contributions, 6 loans
-
-Before first setup, add an `ADMIN_SEED_PASSWORD` value to `.env.local` so the seeded admin account does not use the local-only fallback password.
+## What setup does
+1. Copies `.env.example` → `.env.local` (and `.env`, which the Prisma CLI reads) and generates a `NEXTAUTH_SECRET`
+2. Runs `npm install`
+3. Starts PostgreSQL 16 in Docker (`docker-compose.postgres-local.yml`, port 5433) and applies the migrations in `prisma/migrations/`
+4. Seeds the club data and the admin account (asks for the admin password; seeding refuses to run without one)
 
 If you import or edit seed data later, run `npm run contributions:normalize` and `npm run loans:audit` to confirm the database still matches the source data.
+
+---
+
+## Database
+
+PostgreSQL is used in every environment (development, CI, production). The schema lives in `prisma/schema.prisma`; every change to it ships as a migration in `prisma/migrations/`.
+
+```bash
+npm run db:up       # start local PostgreSQL (Docker)
+npm run db:migrate  # after editing schema.prisma: create + apply a new migration
+npm run db:deploy   # apply pending migrations (what CI and production run)
+npm run db:seed     # load seed data (needs ADMIN_SEED_PASSWORD)
+npm run db:reset    # drop the local database, re-apply all migrations, re-seed
+npm run db:studio   # browse the database
+```
+
+Never use `prisma db push` — it changes the database without recording a migration.
+
+**Forgot the admin password?**
+```bash
+ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com NEW_ADMIN_PASSWORD='a long passphrase' npm run admin:reset-password
+```
 
 ---
 
@@ -113,14 +112,6 @@ activity and clicks **Confirm** (which records the payment) or **Reject**. `NEXT
 
 ---
 
-## Ready to go online?
-When you want to deploy publicly, swap SQLite for a free PostgreSQL database:
-1. Create a free project at [supabase.com](https://supabase.com)
-2. Copy the `DATABASE_URL` from Supabase → paste into `.env.local`
-3. Change `provider = "sqlite"` to `provider = "postgresql"` in `prisma/schema.prisma`
-4. Run `npm run db:push && npm run db:seed`
-5. Deploy to [vercel.com](https://vercel.com) (free)
-
 ## Architecture assessment
 
 The platform modernisation plan (financial ledger, security, MCTN / rewards research, UMI feasibility) lives in [docs/architecture/](docs/architecture/README.md). Start with the executive assessment and **Founder Decision Gate #1**. The numbers in it are reproducible with `node scripts/models/tokenomics.mjs` and `node scripts/models/umi.mjs`.
@@ -131,10 +122,3 @@ For a production-oriented Hetzner setup with Docker, PostgreSQL, and Caddy, use:
 - [docs/deploy-hetzner-postgres.md](docs/deploy-hetzner-postgres.md)
 - `docker-compose.hetzner.yml`
 - `.env.production.example`
-
-## Local PostgreSQL verification
-If you want to test the PostgreSQL cutover locally before deploying, use:
-
-- [docs/local-postgres-cutover.md](docs/local-postgres-cutover.md)
-- `docker-compose.postgres-local.yml`
-- `.env.postgres.local.example`
