@@ -17,6 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "admin:reset-password": "tsx scripts/reset-admin-password.ts",

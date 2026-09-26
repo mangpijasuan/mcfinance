@@ -47,6 +47,7 @@ npm run db:deploy   # apply pending migrations (what CI and production run)
 npm run db:seed     # load seed data (needs ADMIN_SEED_PASSWORD)
 npm run db:reset    # drop the local database, re-apply all migrations, re-seed
 npm run db:studio   # browse the database
+npm run db:migrate-sqlite # one-time import from prisma/dev.db into PostgreSQL
 ```
 
 Never use `prisma db push` — it changes the database without recording a migration.
