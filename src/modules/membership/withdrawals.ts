@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { nextPublicId } from '@/lib/publicIds'
 import { OperationError } from '@/lib/operationError'
 import { type AuditContext, recordAudit } from '@/modules/audit'
+import { onMemberStatusChange } from '@/modules/contributions'
 import type { Actors } from '@/modules/approvals/actors'
 
 export type WithdrawalInput = {
@@ -45,6 +46,7 @@ export async function recordWithdrawal(tx: Prisma.TransactionClient, input: With
   })
   if (isFullExit) {
     await tx.member.update({ where: { id: input.memberId }, data: { status: 'Inactive', eligible: 'NO - Inactive' } })
+    await onMemberStatusChange(tx, input.memberId, member.status, 'Inactive')
   }
   await recordAudit(tx, ctx, {
     action: isFullExit ? 'withdrawal.full_exit' : 'withdrawal.create',

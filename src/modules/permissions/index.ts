@@ -16,6 +16,9 @@ export const PERMISSIONS = {
   'members.portal_access': 'Turn member portal access on or off and set portal passwords',
   'contributions.read': 'View contributions',
   'contributions.record': 'Record contributions',
+  'contributions.reverse': 'Propose reversing a mistaken contribution (needs a checker)',
+  'contributions.approve_reversal': 'Approve a contribution reversal proposed by someone else',
+  'dues.manage_plans': 'Change a member’s monthly dues amount from a future month',
   'loans.read': 'View loans and loan history',
   'loans.create': 'Create loan applications (with their agreements)',
   'loans.update': 'Edit loan notes and flags',
@@ -83,7 +86,7 @@ export const ROLES = {
     description: 'Records contributions, repayments and withdrawals; edits member contact details.',
     permissions: [
       ...READ_EVERYTHING, 'members.update', 'contributions.record', 'loan_payments.record',
-      'withdrawals.record', 'notifications.send', 'ledger.propose',
+      'withdrawals.record', 'notifications.send', 'ledger.propose', 'contributions.reverse',
     ],
   },
   treasurer: {
@@ -94,6 +97,7 @@ export const ROLES = {
       'payments.review', 'agreements.sign_lender', 'loans.update', 'loans.cancel', 'audit.read',
       'ledger.manage_accounts', 'ledger.propose', 'ledger.approve', 'loans.approve', 'withdrawals.approve',
       'loans.disburse', 'loan_fees.waive', 'loan_fees.approve_waiver', 'loans.write_off',
+      'contributions.reverse', 'contributions.approve_reversal', 'dues.manage_plans',
     ],
   },
   compliance: {

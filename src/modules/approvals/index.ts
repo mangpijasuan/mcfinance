@@ -19,6 +19,7 @@ import { createLoan, type LoanInput } from '@/modules/loans/create'
 import {
   type DisburseInput, type WaiveInput, type WriteOffInput, disburseLoan, waiveLateFee, writeOffLoan,
 } from '@/modules/loans/lifecycle'
+import { type ReverseInput, reverseContribution } from '@/modules/contributions'
 import { APPROVAL_POLICIES, type ApprovalAction, needsApproval } from './policy'
 import type { Actors, StaffRef } from './actors'
 
@@ -32,6 +33,7 @@ export type ApprovalPayload = {
   'loan.disburse': DisburseInput
   'loan.fee.waive': WaiveInput
   'loan.write_off': WriteOffInput
+  'contribution.reverse': ReverseInput
 }
 
 /** Run an operation, now (no approval needed) or when its request is approved. */
@@ -63,6 +65,10 @@ export async function executeOperation<A extends ApprovalAction>(
     case 'loan.write_off': {
       const result = await writeOffLoan(tx, payload as WriteOffInput, actors, ctx)
       return { resultRef: result.loanId, result }
+    }
+    case 'contribution.reverse': {
+      const result = await reverseContribution(tx, payload as ReverseInput, actors, ctx)
+      return { resultRef: result.transactionId, result }
     }
     case 'journal.manual': {
       const p = payload as ApprovalPayload['journal.manual']

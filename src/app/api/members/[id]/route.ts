@@ -4,6 +4,7 @@ import { can, requirePermission } from '@/modules/auth'
 import { roleLabel } from '@/modules/permissions'
 import { sanitizeMember } from '@/lib/serializers'
 import { auditContext, recordAudit } from '@/modules/audit'
+import { onMemberStatusChange } from '@/modules/contributions'
 import { badRequest, notFound, parseDate, readJsonObject } from '@/lib/http'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -86,13 +87,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!joinDate) return badRequest('Invalid join date.')
     data.joinDate = joinDate
   }
-  if (body.lastContributionDate !== undefined) {
-    data.lastContributionDate = body.lastContributionDate ? parseDate(body.lastContributionDate) : null
-    if (body.lastContributionDate && !data.lastContributionDate) return badRequest('Invalid last contribution date.')
+  // lastContributionDate and thisMonth follow from recorded contributions
+  // (src/modules/contributions); they are not edited by hand.
+  if (data.status !== undefined && data.status !== existing.status && !['Active', 'Inactive'].includes(data.status as string)) {
+    return badRequest('Status must be Active or Inactive.')
   }
 
   const member = await prisma.$transaction(async (tx) => {
     const updated = await tx.member.update({ where: { id }, data })
+    // No dues accrue while inactive; reactivating does not bill the months away.
+    await onMemberStatusChange(tx, id, existing.status, updated.status)
     await recordAudit(tx, auditContext(req, auth.principal), {
       action: 'member.update', entityType: 'member', entityId: id, before: existing, after: updated,
     })

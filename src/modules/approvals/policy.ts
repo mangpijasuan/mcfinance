@@ -5,7 +5,7 @@ import type { Permission } from '@/modules/permissions'
 
 export type ApprovalAction =
   | 'payment.zelle.confirm' | 'withdrawal.record' | 'loan.create' | 'journal.manual'
-  | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off'
+  | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off' | 'contribution.reverse'
 
 type Policy = {
   label: string
@@ -85,6 +85,16 @@ export const APPROVAL_POLICIES: Record<ApprovalAction, Policy> = {
     checkerPermission: 'loans.approve_write_off',
     thresholdCents: null,
     approvalsRequired: 2,
+    alwaysEnforced: true,
+  },
+  // Correcting a recorded contribution is an adjustment (D-06: Finance →
+  // Treasurer). It never existed before, so it always needs a checker.
+  'contribution.reverse': {
+    label: 'Reverse a contribution',
+    makerPermission: 'contributions.reverse',
+    checkerPermission: 'contributions.approve_reversal',
+    thresholdCents: null,
+    approvalsRequired: 1,
     alwaysEnforced: true,
   },
 }

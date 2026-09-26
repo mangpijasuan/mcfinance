@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { fmt$ } from '@/lib/utils'
+import Link from 'next/link'
+import { fmt$, fmtDate } from '@/lib/utils'
 
 export default function PortalHistory() {
   const [data, setData] = useState<any>(null)
@@ -23,7 +24,7 @@ export default function PortalHistory() {
   const historicalCosigner = data.historicalLoansAsCosigner || []
 
   // Build 2026 total from live contributions
-  const total2026 = contributions2026.reduce((s: number, c: any) => s + c.amount, 0)
+  const total2026 = contributions2026.filter((c: any) => !c.reversedAt).reduce((s: number, c: any) => s + c.amount, 0)
 
   // All years to show (from yearlyTotals + 2026)
   const allYears = [
@@ -104,15 +105,17 @@ export default function PortalHistory() {
           <div className="divide-y divide-gray-100">
             {contributions2026.map((c: any) => (
               <div key={c.id} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{c.monthYear}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {c.reversedAt ? 'Reversed' : c.category === 'voluntary' ? 'Voluntary contribution' : (c.receiptCovers || c.monthYear)}
+                  </p>
                   <p className="text-xs text-gray-400">
-                    {new Date(c.paymentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {fmtDate(c.paymentDate)}
                     {c.paymentMethod ? ` · ${c.paymentMethod}` : ''}
-                    {c.receivedBy ? ` · ${c.receivedBy}` : ''}
+                    {c.receiptNumber && <> · <Link className="text-indigo-600 underline" href={`/portal/receipts/${c.transactionId}`}>Receipt {c.receiptNumber}</Link></>}
                   </p>
                 </div>
-                <span className="font-semibold text-green-700">{fmt$(c.amount)}</span>
+                <span className={`font-semibold ${c.reversedAt ? 'text-gray-400 line-through' : 'text-green-700'}`}>{fmt$(c.amount)}</span>
               </div>
             ))}
           </div>

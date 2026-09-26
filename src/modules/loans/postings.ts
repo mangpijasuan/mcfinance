@@ -2,24 +2,20 @@
 // "Example postings"). Every business event has one entry with a fixed
 // idempotency key, so posting is safe to repeat.
 //
-// Postings wait until the accounts they use are approved (the chart of
-// accounts is "proposed" until the accountant signs it off, Gate #1 A13).
-// Until then the loan records the event and postPendingLoanEntries()
-// posts the backlog on a later run; nothing is lost and nothing is posted
-// twice.
+// Postings wait until the accounts they use are approved (see
+// accounting/autoPost); postPendingLoanEntries() posts the backlog on a
+// later run, so nothing is lost and nothing is posted twice.
 import type { Prisma } from '@prisma/client'
 import { type Cents, add, fromBigInt, fromLegacyDollars, subtract } from '@/lib/money'
 import { isoDateOf } from '@/lib/dates'
-import { type EntryInput, type LineInput, postEntry } from '@/modules/accounting/ledger'
+import type { EntryInput, LineInput } from '@/modules/accounting/ledger'
+import { CASH_ACCOUNTS, postWhenChartApproved, receiptAccount } from '@/modules/accounting/autoPost'
 import { type LoanWithHistory, isEngineLoan, loadLoan, loanState } from './state'
 
 type Tx = Prisma.TransactionClient
 
 export const LOAN_ACCOUNTS = {
-  bank: '1000',
-  stripeClearing: '1010',
-  transferClearing: '1020',
-  collectorCash: '1030',
+  ...CASH_ACCOUNTS,
   principal: '1100',
   fees: '1110',
   unapplied: '2100',
@@ -28,18 +24,7 @@ export const LOAN_ACCOUNTS = {
   loanLosses: '5100',
 } as const
 
-/**
- * Where money received arrives, by payment method. A proposal for the
- * accountant (A13): card payments wait in Stripe clearing, transfers in
- * transfer clearing, cash with the collector until deposited.
- */
-export function receiptAccount(method: string | null | undefined): string {
-  const m = (method ?? '').toLowerCase()
-  if (m.includes('stripe') || m.includes('card') || m === 'online') return LOAN_ACCOUNTS.stripeClearing
-  if (m.includes('zelle') || m.includes('venmo') || m.includes('transfer')) return LOAN_ACCOUNTS.transferClearing
-  if (m === 'cash') return LOAN_ACCOUNTS.collectorCash
-  return LOAN_ACCOUNTS.bank
-}
+export { receiptAccount }
 
 const dr = (account: string, amount: Cents, sub: Partial<LineInput> = {}): LineInput[] => [{ account, debit: amount, ...sub }]
 const cr = (account: string, amount: Cents, sub: Partial<LineInput> = {}): LineInput[] => (amount > 0 ? [{ account, credit: amount, ...sub }] : [])
@@ -117,15 +102,6 @@ function writeOffEntry(loan: LoanWithHistory, principal: Cents, fees: Cents): En
       ...cr(LOAN_ACCOUNTS.fees, fees, { memberId: loan.borrowerId }),
     ],
   }
-}
-
-/** Post the entry if every account it uses is approved; otherwise leave it for later. */
-async function postWhenChartApproved(tx: Tx, input: EntryInput): Promise<string | null> {
-  const codes = Array.from(new Set(input.lines.map((l) => l.account)))
-  const waiting = await tx.ledgerAccount.count({ where: { code: { in: codes }, status: 'proposed' } })
-  if (waiting > 0) return null
-  const { entry } = await postEntry(tx, input)
-  return entry.entryNumber
 }
 
 /**

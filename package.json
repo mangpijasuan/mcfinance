@@ -21,6 +21,7 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "admin:reset-password": "tsx scripts/reset-admin-password.ts",
+    "dues:service": "tsx scripts/service-dues.ts",
     "contributions:normalize": "node scripts/normalize-contributions.js",
     "loans:audit": "node scripts/audit-loans.js",
     "loans:service": "tsx scripts/service-loans.ts",

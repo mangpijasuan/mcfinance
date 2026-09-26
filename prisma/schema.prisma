@@ -104,12 +104,17 @@ model Member {
   // Portal sessions issued before this moment are rejected (set when the
   // portal password changes or access is switched off).
   portalSessionsValidAfter DateTime?
+  // Last month for which dues obligations were considered (created, or
+  // skipped while inactive). Maintained by src/modules/contributions.
+  duesThrough              String?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
   contributions   Contribution[]
-  loansAsBorrower Loan[]          @relation("Borrower")
-  loansAsCosigner Loan[]          @relation("Cosigner")
+  duesPlans       DuesPlan[]
+  duesObligations DuesObligation[]
+  loansAsBorrower Loan[]           @relation("Borrower")
+  loansAsCosigner Loan[]           @relation("Cosigner")
   loanPayments    LoanPayment[]
   yearlyTotals    YearlyTotal[]
   withdrawals     Withdrawal[]
@@ -139,7 +144,55 @@ model Contribution {
   comments       String?
   source         String?
   entryTimestamp DateTime @default(now())
-  member         Member   @relation(fields: [memberId], references: [id])
+
+  // Stage 3 (docs/architecture/04 §1). The payment date is when the money
+  // arrived; which months it pays is derived from the member's dues
+  // obligations (oldest unpaid first). Money fields never change after
+  // recording (database trigger); a mistake is corrected by a reversal.
+  amountCents    BigInt
+  category       String    @default("dues") // dues | voluntary (not applied to dues)
+  receiptNumber  String?   @unique // RC-YYYY-NNNNNN; rows recorded before receipts existed have none
+  receiptCovers  String? // what the receipt said this payment covered when issued
+  journalEntry   String? // once posted to the ledger
+  reversedAt     DateTime?
+  reversedBy     String? // staff id (maker of the reversal)
+  reversalReason String?
+  reversalEntry  String?
+
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@index([memberId, paymentDate])
+}
+
+/// What a member is expected to pay each month, from a period onwards.
+/// A change adds a row (history is kept); it applies from its start month.
+model DuesPlan {
+  id          String   @id @default(cuid())
+  memberId    String
+  amountCents BigInt
+  startPeriod String // YYYY-MM
+  note        String?
+  createdBy   String? // staff id; null for the initial plan
+  createdAt   DateTime @default(now())
+
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@unique([memberId, startPeriod])
+}
+
+/// One month's dues for one member, created while the member is active.
+/// Payments cover obligations oldest first (src/modules/contributions/dues.ts).
+model DuesObligation {
+  id          String   @id @default(cuid())
+  memberId    String
+  period      String // YYYY-MM
+  amountCents BigInt
+  createdAt   DateTime @default(now())
+
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@unique([memberId, period])
+  @@index([period])
 }
 
 model Loan {

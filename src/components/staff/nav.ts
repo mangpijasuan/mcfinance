@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, Receipt, Landmark, CreditCard, History, ArrowDownLeft, Bell, FileText,
-  Shield, Wallet, ScrollText, KeyRound, BookOpen, CheckSquare, type LucideIcon,
+  Shield, Wallet, ScrollText, KeyRound, BookOpen, CheckSquare, CalendarCheck, type LucideIcon,
 } from 'lucide-react'
 import type { Permission } from '@/modules/permissions'
 
@@ -12,6 +12,7 @@ export const STAFF_NAV: StaffNavItem[] = [
   { href: '/dashboard',       label: 'Dashboard',        icon: LayoutDashboard, permission: 'dashboard.view' },
   { href: '/members',         label: 'Members',          icon: Users,           permission: 'members.read' },
   { href: '/contributions',   label: 'Contributions',    icon: Receipt,         permission: 'contributions.read' },
+  { href: '/dues',            label: 'Dues',             icon: CalendarCheck,   permission: 'contributions.read' },
   { href: '/loans',           label: 'Loans',            icon: Landmark,        permission: 'loans.read' },
   { href: '/agreements',      label: 'Loan Agreement',   icon: FileText,        permission: 'agreements.read' },
   { href: '/loan-payments',   label: 'Loan Payments',    icon: CreditCard,      permission: 'loan_payments.read' },

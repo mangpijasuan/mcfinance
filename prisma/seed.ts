@@ -86,7 +86,7 @@ async function main() {
     await prisma.contribution.upsert({
       where: { transactionId: c.transactionId },
       update: {},
-      create: { ...c, paymentDate: new Date(c.paymentDate) },
+      create: { ...c, paymentDate: new Date(c.paymentDate), amountCents: BigInt(Math.round(c.amount * 100)) },
     })
   }
   console.log(`✓ ${data.contributions.length} contributions`)

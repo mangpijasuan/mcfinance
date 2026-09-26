@@ -172,6 +172,20 @@ Some actions need a second person (D-06): the person who proposes them can never
 
 The first four are **switched off** until the officers are named (Gate #1 A4) and work with one person, as before. Switch them on with `MAKER_CHECKER_ENFORCED=true`. Manual journal entries, fee waivers and write-offs always need a second person. When approved, the action runs at that moment; if it no longer passes its rules (for example the borrower is no longer eligible), nothing changes and the request stays pending.
 
+## Contributions and dues
+
+Every member owes **monthly dues** ($20 unless changed), billed month by month from January 2026, or from the month they joined if later.
+
+- **Payments cover the oldest unpaid month first.** Anything extra is held as credit and covers the next months as they come, so a prepayment is recorded on the day it was paid, not future-dated (F-10). A payment can instead be recorded as **voluntary**, which does not count towards dues.
+- **Receipts.** Every payment gets a numbered receipt (`RC-2026-000123`) that says which months it covered. Staff open it from Contributions; members see theirs in the portal. Receipts can be printed.
+- **Paid this month** is recalculated on every payment and by the daily job, so it resets when a new month starts. No dues are billed while a member is inactive, and reactivating does not bill the months away.
+- **`/dues`** lists members in arrears (1, 2–3, or 4+ months behind) and how much of each month's dues has been collected. Each member's page shows their months and the months they have paid through.
+- **Corrections** are made by **reversing** a contribution, never by editing or deleting it (the database refuses both). Finance proposes the reversal and the Treasurer approves it (D-06). The reversed payment stays on record, marked, and stops counting.
+- **Changing a member's monthly amount** (Treasurer) applies from a month not yet billed. A $0 amount means no more dues are billed.
+- **Ledger.** Contributions with a receipt post `Dr cash / Cr 2000 Member capital` once the chart of accounts is approved. Rows recorded before receipts existed come in with the opening balances (M4).
+
+Run `npm run dues:service` daily (see the deploy guide). Run it once right after deploying.
+
 ## Loans
 
 A loan made from now on follows its lifecycle (docs/architecture/04 §2), shown as a progress bar on the loan's page:

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/modules/auth'
-import { recordContribution } from '@/lib/paymentActions'
-import { badRequest, readJsonObject, requiredString } from '@/lib/http'
+import { recordContribution } from '@/modules/contributions'
+import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
+import { cents, parseDollars, toLegacyDollars } from '@/lib/money'
+import { operationErrorResponse } from '@/lib/operationError'
 import { auditContext, recordAudit } from '@/modules/audit'
 
 export async function GET(req: NextRequest) {
@@ -29,7 +31,8 @@ export async function GET(req: NextRequest) {
     prisma.contribution.findMany({ where, orderBy: { paymentDate: 'desc' }, skip: (page - 1) * limit, take: limit }),
     prisma.contribution.count({ where }),
   ])
-  const totalAmount = await prisma.contribution.aggregate({ where, _sum: { amount: true } })
+  // Reversed contributions stay listed (marked) but do not count.
+  const totalAmount = await prisma.contribution.aggregate({ where: { ...where, reversedAt: null }, _sum: { amount: true } })
   return NextResponse.json({ contributions, total, totalAmount: totalAmount._sum.amount ?? 0, page, pages: Math.ceil(total / limit) })
 }
 
@@ -41,33 +44,39 @@ export async function POST(req: NextRequest) {
   if (!body) return badRequest('Invalid request body.')
   const memberId = requiredString(body.memberId)
   if (!memberId) return badRequest('A member must be selected.')
-  const paymentDate = new Date(body.paymentDate)
-  if (Number.isNaN(paymentDate.getTime())) {
-    return NextResponse.json({ error: 'Invalid payment date' }, { status: 400 })
+  const paymentDate = parseDate(body.paymentDate)
+  if (!paymentDate) return badRequest('Invalid payment date')
+  let amountCents: number
+  try {
+    amountCents = parseDollars(typeof body.amount === 'number' ? body.amount : String(body.amount ?? ''))
+  } catch {
+    return badRequest('Amount must be a dollar amount with at most two decimals.')
   }
-  const amount = parseFloat(body.amount)
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return NextResponse.json({ error: 'Amount must be greater than 0.' }, { status: 400 })
+  if (amountCents <= 0) return badRequest('Amount must be greater than 0.')
+  const category = body.category === undefined || body.category === 'dues' ? 'dues' : body.category === 'voluntary' ? 'voluntary' : null
+  if (!category) return badRequest('Category must be dues or voluntary.')
+
+  try {
+    const contribution = await prisma.$transaction(async (tx) => {
+      const created = await recordContribution(tx, {
+        memberId,
+        amount: toLegacyDollars(cents(amountCents)),
+        paymentDate,
+        paymentMethod: body.paymentMethod || null,
+        receivedBy: body.receivedBy || null,
+        comments: body.comments || null,
+        source: 'Admin',
+        category,
+      })
+      await recordAudit(tx, auditContext(req, auth.principal), {
+        action: 'contribution.create', entityType: 'contribution', entityId: created.transactionId, after: created,
+      })
+      return created
+    })
+    return NextResponse.json(contribution, { status: 201 })
+  } catch (err) {
+    const res = operationErrorResponse(err)
+    if (res) return res
+    throw err
   }
-
-  const member = await prisma.member.findUnique({ where: { id: memberId }, select: { id: true } })
-  if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
-
-  const contribution = await prisma.$transaction(async (tx) => {
-    const created = await recordContribution(tx, {
-      memberId,
-      amount,
-      paymentDate,
-      paymentMethod: body.paymentMethod || null,
-      receivedBy: body.receivedBy || null,
-      comments: body.comments || null,
-      source: 'Admin',
-    })
-    await recordAudit(tx, auditContext(req, auth.principal), {
-      action: 'contribution.create', entityType: 'contribution', entityId: created.transactionId, after: created,
-    })
-    return created
-  })
-
-  return NextResponse.json(contribution, { status: 201 })
 }

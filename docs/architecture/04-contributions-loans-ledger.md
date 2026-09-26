@@ -22,6 +22,17 @@ flowchart LR
 
 ## 1. Contribution management
 
+*Built in Stage 3* (`src/modules/contributions`, `/dues`):
+- Plans (`DuesPlan`) and monthly obligations (`DuesObligation`, while active).
+- Payments cover the **oldest unpaid month first**, the same rule as loans (A6). Extra is credit, and allocations are derived, never stored.
+- Numbered receipts that record what each payment covered.
+- Reversal instead of edits or deletes, with a checker; the database enforces it.
+- The daily `dues:service` job.
+- Arrears aging and collection by month.
+- Postings to `2000 Member capital` once the chart is approved.
+
+Not yet: special assessments, collector cash deposits and bank reconciliation (F-11), emailed receipts.
+
 ### Model
 
 | Concept | Meaning | Today |

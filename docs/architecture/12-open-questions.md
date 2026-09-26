@@ -24,7 +24,7 @@ Grouped by who can answer them. Items marked ★ block the start of the financia
 | Q-11 | Who absorbs Stripe processing fees: the member (surcharge) or the club? | Ledger posting and member-facing price. Surcharging has its own rules |
 | Q-12 ★ | Who are the officers for maker/checker? At least three distinct active people are needed (Finance, Treasurer, Board) | D-06 cannot work with fewer |
 | Q-13 | Is an accountant engaged, or can one be? | Chart of accounts sign-off; member-capital classification |
-| Q-14 | Why are some contributions $30 or $50 instead of $20: double months, catch-up, voluntary extra? | Contribution-plan and obligation design |
+| Q-14 | Why are some contributions $30 or $50 instead of $20: double months, catch-up, voluntary extra? *(Stage 3 default: extra covers the next months as credit; staff can record a payment as voluntary instead.)* | Contribution-plan and obligation design |
 
 ## Product and members — Founder / Board
 

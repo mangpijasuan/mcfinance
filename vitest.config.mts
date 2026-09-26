@@ -19,7 +19,8 @@ export default defineConfig({
       provider: 'v8',
       include: [
         'src/lib/money/**', 'src/lib/dates.ts', 'src/modules/loans/amortization/**', 'src/modules/accounting/ledger/**',
-        'src/modules/loans/state.ts', 'src/modules/loans/postings.ts',
+        'src/modules/loans/state.ts', 'src/modules/loans/postings.ts', 'src/modules/accounting/autoPost.ts',
+        'src/modules/contributions/dues.ts', 'src/modules/contributions/index.ts',
       ],
       exclude: ['**/*.test.ts'],
       thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
