@@ -151,7 +151,11 @@ export default function AuditLogView() {
 
       {/* Mobile: one card per entry */}
       <div className="md:hidden space-y-3">
-        {entries.length === 0 && !loading && <Card><EmptyState message="No audit entries match." /></Card>}
+        {entries.length === 0 && !loading && (
+          <Card className="px-4 py-12 text-center text-sm text-gray-400">
+            No audit entries match.
+          </Card>
+        )}
         {entries.map((e) => (
           <Card key={e.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
