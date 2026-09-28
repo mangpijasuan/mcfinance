@@ -56,6 +56,12 @@ export default function MembersPage() {
     setSearch((current) => (current === query ? current : query))
   }, [searchParams])
 
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    setShowAdd(true)
+    router.replace('/members', { scroll: false })
+  }, [router, searchParams])
+
   useEffect(() => { setPage(1) }, [search, status, risk, paid])
   useEffect(() => { fetchMembers() }, [fetchMembers])
 
