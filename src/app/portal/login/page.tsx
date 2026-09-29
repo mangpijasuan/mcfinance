@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { APP_NAME } from '@/lib/brand'
 
 export default function PortalLoginPage() {
   const router = useRouter()
@@ -27,8 +28,8 @@ export default function PortalLoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/mc-logo.png" alt="Millionaires Club" className="inline-block w-14 h-14 mb-4 object-contain" />
-          <h1 className="text-2xl font-bold text-white">Millionaires Club</h1>
+          <img src="/mc-logo.png" alt={APP_NAME} className="inline-block w-28 h-16 mb-4 object-contain" />
+          <h1 className="text-2xl font-bold text-white">{APP_NAME}</h1>
           <p className="text-white/50 text-sm mt-1">Member Portal</p>
         </div>
 

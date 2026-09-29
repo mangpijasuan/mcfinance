@@ -468,7 +468,7 @@ model RateLimitAttempt {
 
 // ── General ledger (D-04) ─────────────────────────────────────────────
 // Double-entry books in integer cents (D-03). The database enforces the
-// invariants (migration 20260926040000_ledger): every entry balances,
+// invariants (migration 20260927010000_ledger): every entry balances,
 // posted entries and lines can never be changed or deleted, lines only
 // post to APPROVED accounts, and nothing posts into a closed period.
 // Proposals awaiting approval live elsewhere (approvals); every row here
@@ -550,7 +550,7 @@ model LedgerPeriod {
 // A proposed operation waiting for a second, different, authorised person.
 // On approval the operation runs in the same transaction; on rejection or
 // cancellation nothing happens. At most one pending request per action and
-// entity (partial unique index in migration 20260926050000_approvals).
+// entity (partial unique index in migration 20260927020000_approvals).
 model ApprovalRequest {
   id                String    @id @default(cuid())
   publicId          String    @unique // APR-XXXXXXXXXX

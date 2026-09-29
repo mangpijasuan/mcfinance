@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { Card, Table, EmptyState, Button, Modal, Input, Select, PageHeader,
@@ -26,6 +27,8 @@ function currentMonthYear() {
 
 export default function ContributionsPage() {
   const { can } = useStaff()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [rows, setRows]       = useState<any[]>([])
   const [total, setTotal]     = useState(0)
   const [totalAmt, setTotalAmt] = useState(0)
@@ -68,6 +71,12 @@ export default function ContributionsPage() {
 
   useEffect(() => { setPage(1) }, [search, month, method])
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    setShowAdd(true)
+    router.replace('/contributions', { scroll: false })
+  }, [router, searchParams])
 
   useEffect(() => {
     if (month) setReportMonth(month)

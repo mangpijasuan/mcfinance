@@ -5,12 +5,12 @@ set -euo pipefail
 # Uses Docker for Postgres when available, otherwise a local PostgreSQL 16.
 # Loads SYNTHETIC demo data only; real member data never lives in the repo.
 
-DB_USER=mc_admin
-DB_PASS=mc_admin_dev
+DB_USER=mcfinance
+DB_PASS=mcfinance_dev
 
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   docker compose -f docker-compose.postgres-local.yml up -d --wait
-  DB_PORT=5433
+  DB_PORT=5434
 else
   if ! command -v psql >/dev/null 2>&1; then
     sudo apt-get update -qq && sudo apt-get install -y -qq postgresql >/dev/null
@@ -19,12 +19,12 @@ else
   DB_PORT=5432
   sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1 \
     || sudo -u postgres psql -qc "CREATE ROLE $DB_USER LOGIN CREATEDB PASSWORD '$DB_PASS'"
-  for db in mc_admin mc_admin_test; do
+  for db in mcfinance mcfinance_test; do
     sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 \
       || sudo -u postgres createdb -O "$DB_USER" "$db"
   done
 fi
-DATABASE_URL="postgresql://$DB_USER:$DB_PASS@127.0.0.1:$DB_PORT/mc_admin?schema=public"
+DATABASE_URL="postgresql://$DB_USER:$DB_PASS@127.0.0.1:$DB_PORT/mcfinance?schema=public"
 
 # 1. Local env files with fresh random secrets (never committed).
 if [ ! -f .env.local ]; then
@@ -46,4 +46,4 @@ set -a; . ./.env.local; set +a
 npx prisma db seed
 
 echo "MC Admin setup complete. Sign in as admin@millionairesclub.com; two-factor setup follows."
-echo "Tests: TEST_DATABASE_URL=postgresql://$DB_USER:$DB_PASS@127.0.0.1:$DB_PORT/mc_admin_test?schema=public npm test"
+echo "Tests: TEST_DATABASE_URL=postgresql://$DB_USER:$DB_PASS@127.0.0.1:$DB_PORT/mcfinance_test?schema=public npm test"

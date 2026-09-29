@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import { connection } from 'next/server'
 import './globals.css'
 import { Providers } from './providers'
+import { APP_DESCRIPTION, APP_NAME } from '@/lib/brand'
 
 export const metadata: Metadata = {
-  title: 'Millionaires Club — Admin',
-  description: 'Club management system',
+  title: `${APP_NAME} - Administration`,
+  description: APP_DESCRIPTION,
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

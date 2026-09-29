@@ -6,8 +6,8 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "rm -rf .next && next dev",
-    "build": "next build",
+    "dev": "rm -rf .next-dev && next dev",
+    "build": "next build --webpack",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,6 +18,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:migrate-sqlite": "node scripts/data/migrate-sqlite-to-postgres.mjs",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "admin:reset-password": "tsx scripts/ops/reset-admin-password.ts",

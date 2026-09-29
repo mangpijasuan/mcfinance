@@ -94,7 +94,7 @@ docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
 docker compose -f docker-compose.hetzner.yml exec -e ADMIN_SEED_PASSWORD='a long passphrase' app npx prisma db seed
 ```
 
-**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mc_admin mc_admin > pre-migration.dump`, kept off the server — then compare the live schema with the current one:
+**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-migration.dump`, kept off the server — then compare the live schema with the current one:
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec app \
@@ -128,7 +128,7 @@ The `AuditLog` table is append-only: a database trigger rejects `UPDATE`, `DELET
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec \
-  -e ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com -e NEW_ADMIN_PASSWORD='a long passphrase' \
+  -e ADMIN_EMAIL_TO_RESET=admin@mcfinance.local -e NEW_ADMIN_PASSWORD='a long passphrase' \
   app npm run admin:reset-password
 ```
 
@@ -176,4 +176,3 @@ Do not use Google Sheets as the primary database for:
 - loan payments
 - agreements
 - balance calculations
-

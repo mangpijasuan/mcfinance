@@ -1,4 +1,4 @@
-# Millionaires Club — Admin Panel
+# MC Finance
 
 ## ⚡ Quick Setup
 
@@ -22,7 +22,7 @@ npm run dev
 2. Double-click **`setup.bat`** and wait for it to finish
 3. In Command Prompt: `npm run dev`
 
-Open **http://localhost:3000**. Sign in as `admin@millionairesclub.com` with the password you chose during setup. The first sign-in asks you to set up two-factor authentication with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).
+Open **http://localhost:3000**. Sign in as `admin@mcfinance.local` with the password you chose during setup. The first sign-in asks you to set up two-factor authentication with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).
 
 ---
 
@@ -48,7 +48,7 @@ setup.sh / setup.bat                          one-step local setup
 ## What setup does
 1. Copies `.env.example` → `.env.local` (and `.env`, which the Prisma CLI reads) and generates a `NEXTAUTH_SECRET`
 2. Runs `npm install`
-3. Starts PostgreSQL 16 in Docker (`docker-compose.postgres-local.yml`, port 5433) and applies the migrations in `prisma/migrations/`
+3. Starts PostgreSQL 16 in Docker (`docker-compose.postgres-local.yml`, port 5434) and applies the migrations in `prisma/migrations/`
 4. Seeds **synthetic demo data** (64 invented members with contributions and loans) and the admin account (asks for the admin password; seeding refuses to run without one)
 
 ### Real club data
@@ -82,6 +82,7 @@ npm run db:deploy   # apply pending migrations (what CI and production run)
 npm run db:seed     # load seed data (needs ADMIN_SEED_PASSWORD)
 npm run db:reset    # drop the local database, re-apply all migrations, re-seed
 npm run db:studio   # browse the database
+npm run db:migrate-sqlite # one-time import from prisma/dev.db into PostgreSQL
 ```
 
 Never use `prisma db push` — it changes the database without recording a migration.
@@ -93,7 +94,7 @@ npm test          # run once
 npm run test:watch
 ```
 
-Tests run against a separate PostgreSQL database that is **wiped on every run**: `mc_admin_test` on the Docker database by default, or `TEST_DATABASE_URL`. The name must end in `_test`, otherwise the run refuses to start. Fixtures are synthetic; never put real member data in tests.
+Tests run against a separate PostgreSQL database that is **wiped on every run**: `mcfinance_test` on the Docker database by default, or `TEST_DATABASE_URL`. The name must end in `_test`, otherwise the run refuses to start. Fixtures are synthetic; never put real member data in tests.
 
 - `tests/authorization-matrix.test.ts` — every API route × method × caller (anonymous, member, admin, super admin). Adding a route without adding it to the matrix fails the build.
 - `tests/ownership.test.ts` — members only reach their own agreements, loans and payments.
@@ -109,7 +110,7 @@ Accounts that existed before roles were introduced have the transitional **Club 
 
 **Locked out** (forgot the password, or lost both the phone and the recovery codes)? From the server shell:
 ```bash
-ADMIN_EMAIL_TO_RESET=admin@millionairesclub.com NEW_ADMIN_PASSWORD='a long passphrase' RESET_MFA=1 npm run admin:reset-password
+ADMIN_EMAIL_TO_RESET=admin@mcfinance.local NEW_ADMIN_PASSWORD='a long passphrase' RESET_MFA=1 npm run admin:reset-password
 ```
 Leave out `RESET_MFA=1` to keep the existing authenticator. For anyone else, a staff administrator can reset their password or two-factor authentication under Staff & Roles.
 

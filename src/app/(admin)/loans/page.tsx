@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, ExternalLink, AlertTriangle, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react'
 import { Card, Table, EmptyState, LoanStatusBadge, Badge, Button, Modal, Input, Select,
          PageHeader, FilterBar, SearchInput } from '@/components/ui'
@@ -11,6 +11,7 @@ import { useStaff } from '@/components/staff/StaffContext'
 export default function LoansPage() {
   const { can } = useStaff()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loans, setLoans]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -48,6 +49,12 @@ export default function LoansPage() {
   }, [search, status])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    setShowNew(true)
+    router.replace('/loans', { scroll: false })
+  }, [router, searchParams])
 
   const totalOutstanding = loans.filter(l => l.status === 'Active').reduce((s, l) => s + l.balanceRemaining, 0)
 

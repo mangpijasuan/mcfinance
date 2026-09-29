@@ -80,7 +80,7 @@ The script refuses to run if a **private** key is put in the recipients file.
 Needs Docker, `age`, `rclone` (with a **read-only** key to the bucket) and PostgreSQL 16 client tools.
 
 ```bash
-npm run db:up                          # local scratch Postgres (Docker, port 5433)
+npm run db:up                          # local scratch Postgres (Docker, port 5434)
 export AGE_IDENTITY_FILE=~/secure/mc-backup-identity.txt
 export BACKUP_REMOTE=mcbackup-read:mc-club-backups/postgres
 ./scripts/ops/restore-postgres.sh verify
@@ -97,7 +97,7 @@ The last line reads **PASS** or **FAIL**. A FAIL, or a newest backup more than 3
    ```bash
    export AGE_IDENTITY_FILE=~/secure/mc-backup-identity.txt BACKUP_REMOTE=mcbackup-read:mc-club-backups/postgres
    rclone lsf mcbackup-read:mc-club-backups/postgres | sort | tail -3   # pick the newest good one
-   ./scripts/ops/restore-postgres.sh restore mc_admin-YYYYMMDDTHHMMSSZ.dump.age 'postgresql://mc_admin:…@localhost:15432/mc_admin'
+   ./scripts/ops/restore-postgres.sh restore mcfinance-YYYYMMDDTHHMMSSZ.dump.age 'postgresql://mcfinance:…@localhost:15432/mcfinance'
    ```
 
    The restore is a single transaction: it either loads completely or changes nothing. It prints row counts and checks the audit log.

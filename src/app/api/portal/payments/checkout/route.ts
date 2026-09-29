@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       line_items: [{
         price_data: {
           currency: 'usd',
-          product_data: { name: `Millionaires Club — ${description}` },
+          product_data: { name: `Millionaires Club - ${description}` },
           unit_amount: Math.round(amount * 100),
         },
         quantity: 1,

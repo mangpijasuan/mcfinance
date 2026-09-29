@@ -173,7 +173,7 @@ CREATE TABLE "LoanAgreement" (
     "borrowerState" TEXT,
     "cosignerName" TEXT,
     "cosignerId" TEXT,
-    "lenderName" TEXT NOT NULL DEFAULT 'Millionaires Club',
+    "lenderName" TEXT NOT NULL DEFAULT 'MC Finance',
     "applicationFee" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "loanAmount" DOUBLE PRECISION NOT NULL,
     "monthlyPayment" DOUBLE PRECISION NOT NULL,
@@ -278,4 +278,3 @@ ALTER TABLE "LoanAgreement" ADD CONSTRAINT "LoanAgreement_loanId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "PortalPayment" ADD CONSTRAINT "PortalPayment_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-

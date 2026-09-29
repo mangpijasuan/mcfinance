@@ -18,7 +18,7 @@
 #   BACKUP_REMOTE         rclone location of the backups (for "newest" and bare names)
 #   BACKUP_LOCAL_DIR      used for "newest" when BACKUP_REMOTE is unset (default: backups)
 #   RESTORE_ADMIN_URL     verify: a server where this user may CREATE DATABASE
-#                         (default: the local Docker database, port 5433)
+#                         (default: the local Docker database, port 5434)
 #   BACKUP_MAX_AGE_HOURS  verify: fail if the newest backup is older (default: 30)
 #   VERIFY_HEALTHCHECK_URL optional; pinged on PASS, <url>/fail on FAIL
 set -euo pipefail
@@ -62,9 +62,9 @@ trap cleanup EXIT
 
 newest_backup() {
   if [ -n "${BACKUP_REMOTE:-}" ]; then
-    rclone lsf --files-only --include 'mc_admin-*.dump.age' "$BACKUP_REMOTE" | sort | tail -1
+    rclone lsf --files-only --include 'mcfinance-*.dump.age' "$BACKUP_REMOTE" | sort | tail -1
   else
-    ls -1 "${BACKUP_LOCAL_DIR:-backups}" 2>/dev/null | grep -E '^mc_admin-.*\.dump\.age$' | sort | tail -1
+    ls -1 "${BACKUP_LOCAL_DIR:-backups}" 2>/dev/null | grep -E '^mcfinance-.*\.dump\.age$' | sort | tail -1
   fi
 }
 
@@ -137,12 +137,12 @@ check_restored() { # check_restored <database url>
 
 case "$mode" in
   verify)
-    ADMIN_URL="${RESTORE_ADMIN_URL:-postgresql://mc_admin:mc_admin_dev@127.0.0.1:5433/postgres}"
+    ADMIN_URL="${RESTORE_ADMIN_URL:-postgresql://mcfinance:mcfinance_dev@127.0.0.1:5434/postgres}"
     ref="${2:-$(newest_backup)}"
     [ -n "$ref" ] || die "no backups found"
     log "verifying $ref"
     # Freshness, from the UTC timestamp in the file name.
-    stamp=$(basename "$ref" | sed -E 's/^mc_admin-([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z.*/\1 \2:\3:\4/')
+    stamp=$(basename "$ref" | sed -E 's/^mcfinance-([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z.*/\1 \2:\3:\4/')
     if [ -z "${2:-}" ] && taken=$(date -u -d "$stamp" +%s 2>/dev/null); then
       hours=$(( ($(date -u +%s) - taken) / 3600 ))
       log "newest backup is $hours hour(s) old"

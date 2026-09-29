@@ -1,15 +1,17 @@
+name: mcfinance
+
 services:
   postgres:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_DB: mc_admin
-      POSTGRES_USER: mc_admin
+      POSTGRES_DB: mcfinance
+      POSTGRES_USER: mcfinance
       POSTGRES_PASSWORD: change-me
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mc_admin -d mc_admin"]
+      test: ["CMD-SHELL", "pg_isready -U mcfinance -d mcfinance"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,4 +51,3 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
-

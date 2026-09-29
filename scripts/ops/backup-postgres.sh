@@ -27,8 +27,8 @@ cd "$(dirname "$0")/../.."
 [ -f .env.backup ] && set -a && . ./.env.backup && set +a
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.hetzner.yml}"
-DB_USER="${DB_USER:-mc_admin}"
-DB_NAME="${DB_NAME:-mc_admin}"
+DB_USER="${DB_USER:-mcfinance}"
+DB_NAME="${DB_NAME:-mcfinance}"
 LOCAL_DIR="${BACKUP_LOCAL_DIR:-backups}"
 RETENTION_DAYS="${BACKUP_LOCAL_RETENTION_DAYS:-7}"
 
@@ -61,7 +61,7 @@ mkdir -p "$LOCAL_DIR"
 chmod 700 "$LOCAL_DIR"
 umask 077
 
-name="mc_admin-$(date -u +%Y%m%dT%H%M%SZ).dump.age"
+name="mcfinance-$(date -u +%Y%m%dT%H%M%SZ).dump.age"
 tmp_file="$LOCAL_DIR/.$name.partial"
 
 log "dumping and encrypting"
@@ -89,6 +89,6 @@ if [ "${BACKUP_LOCAL_ONLY:-0}" != "1" ]; then
   log "off-site copy verified ($remote_size bytes)"
 fi
 
-find "$LOCAL_DIR" -maxdepth 1 \( -name 'mc_admin-*.dump.age' -o -name 'mc_admin-*.dump.age.sha256' \) -mtime "+$RETENTION_DAYS" -delete
+find "$LOCAL_DIR" -maxdepth 1 \( -name 'mcfinance-*.dump.age' -o -name 'mcfinance-*.dump.age.sha256' \) -mtime "+$RETENTION_DAYS" -delete
 ping_health ""
 log "backup complete: $name"

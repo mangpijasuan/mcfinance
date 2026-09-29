@@ -1,6 +1,6 @@
 // Posting service for the general ledger (D-04, D-05). The only way money
 // enters the books. The database enforces the invariants as well (see
-// migration 20260926040000_ledger); this module checks them first so
+// migration 20260927010000_ledger); this module checks them first so
 // callers get clear errors, and adds idempotency and reversal.
 //
 // Posting takes a transaction client: an entry must commit together with
