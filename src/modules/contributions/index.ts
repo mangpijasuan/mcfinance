@@ -8,14 +8,15 @@
 // starts unpaid for everyone who has not prepaid.
 import type { Prisma } from '@prisma/client'
 import { type Cents, formatUSD, fromBigInt, fromLegacyDollars, subtract, sum, toBigInt, toLegacyDollars } from '@/lib/money'
-import { type IsoDate, clubDateOf, isoDateOf, todayIso } from '@/lib/dates'
+import { type IsoDate, clubDateOf, dateOnly, isoDateOf, todayIso } from '@/lib/dates'
 import { nextPublicId } from '@/lib/publicIds'
 import { prisma } from '@/lib/prisma'
 import { OperationError } from '@/lib/operationError'
 import { type AuditContext, recordAudit } from '@/modules/audit'
 import type { Actors } from '@/modules/approvals/actors'
-import { postWhenChartApproved, receiptAccount } from '@/modules/accounting/autoPost'
+import { ledgerOpening, postWhenChartApproved, receiptAccount } from '@/modules/accounting/autoPost'
 import { reverseEntry } from '@/modules/accounting/ledger'
+import { postLegacyActivity } from '@/modules/accounting/legacyActivity'
 import {
   type Period, type PlanRow, addPeriods, coveredThrough, duesStatus, laterPeriod, periodLabel, periodOf, periodRangeLabel, periodsBetween, planAmountFor,
 } from './dues'
@@ -274,13 +275,23 @@ export async function reverseContribution(tx: Tx, input: ReverseInput, actors: A
 // ── Ledger ─────────────────────────────────────────────────────────────
 
 /**
- * Post contributions (with receipts) not yet in the ledger, and the
- * reversals of reversed ones. Rows recorded before receipts existed are
- * brought in with the opening balances (M4), not here.
+ * Post contributions not yet in the ledger, and the reversals of reversed
+ * ones: receipted rows once the chart is approved, and rows recorded
+ * before receipts existed once opening balances are posted (M4).
  */
 export async function postPendingContributionEntries(tx: Tx, memberId: string): Promise<string[]> {
+  // Rows recorded before receipts existed post once opening balances exist
+  // (M4), from the cutover on; earlier ones are inside the opening balances.
+  const opened = await ledgerOpening(tx)
   const pending = await tx.contribution.findMany({
-    where: { memberId, receiptNumber: { not: null }, OR: [{ journalEntry: null }, { reversedAt: { not: null }, reversalEntry: null }] },
+    where: {
+      memberId,
+      amountCents: { gt: 0 },
+      AND: [
+        { OR: [{ receiptNumber: { not: null } }, ...(opened ? [{ paymentDate: { gte: dateOnly(opened.cutover) } }] : [])] },
+        { OR: [{ journalEntry: null }, { reversedAt: { not: null }, reversalEntry: null }] },
+      ],
+    },
     orderBy: [{ entryTimestamp: 'asc' }, { id: 'asc' }],
   })
   const posted: string[] = []
@@ -290,7 +301,7 @@ export async function postPendingContributionEntries(tx: Tx, memberId: string): 
       journalEntry = await postWhenChartApproved(tx, {
         effectiveDate: isoDateOf(c.paymentDate),
         type: 'contribution',
-        description: `${c.category === 'voluntary' ? 'Voluntary contribution' : 'Dues'} from ${c.memberName} (${c.receiptNumber})`,
+        description: `${c.category === 'voluntary' ? 'Voluntary contribution' : 'Dues'} from ${c.memberName} (${c.receiptNumber ?? c.transactionId})`,
         reference: c.receiptNumber,
         source: { type: 'contribution', id: c.transactionId },
         idempotencyKey: `contribution:${c.transactionId}`,
@@ -361,6 +372,8 @@ export type DuesReport = {
  * Create this month's obligations, refresh every member's dues status and
  * post anything waiting for the ledger. Safe to run more than once a day.
  */
+const message = (err: unknown) => (err instanceof Error ? err.message : String(err))
+
 export async function serviceDues(asOf: IsoDate = todayIso()): Promise<DuesReport> {
   const report: DuesReport = { asOf, membersChecked: 0, obligationsCreated: 0, changed: [], inArrears: [], journalEntries: [], errors: [] }
   const members = await prisma.member.findMany({ select: { id: true, legalName: true }, orderBy: { id: 'asc' } })
@@ -378,8 +391,15 @@ export async function serviceDues(asOf: IsoDate = todayIso()): Promise<DuesRepor
         }
       })
     } catch (err) {
-      report.errors.push({ memberId: m.id, error: err instanceof Error ? err.message : String(err) })
+      report.errors.push({ memberId: m.id, error: message(err) })
     }
+  }
+  // After opening balances (M4): withdrawals and loans made before the
+  // loan engine post here until they post on their own (M5).
+  try {
+    report.journalEntries.push(...await prisma.$transaction((tx) => postLegacyActivity(tx), { timeout: 120_000 }))
+  } catch (err) {
+    report.errors.push({ memberId: 'ledger', error: message(err) })
   }
   return report
 }

@@ -5,7 +5,7 @@ import type { Permission } from '@/modules/permissions'
 
 export type ApprovalAction =
   | 'payment.zelle.confirm' | 'withdrawal.record' | 'loan.create' | 'journal.manual'
-  | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off' | 'contribution.reverse'
+  | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off' | 'contribution.reverse' | 'ledger.opening_balances'
 
 type Policy = {
   label: string
@@ -89,6 +89,16 @@ export const APPROVAL_POLICIES: Record<ApprovalAction, Policy> = {
   },
   // Correcting a recorded contribution is an adjustment (D-06: Finance →
   // Treasurer). It never existed before, so it always needs a checker.
+  // Opening balances (M4) start the club's books: the Treasurer proposes,
+  // a second person holding ledger approval checks the report and approves.
+  'ledger.opening_balances': {
+    label: 'Post the opening balances',
+    makerPermission: 'ledger.manage_accounts',
+    checkerPermission: 'ledger.approve',
+    thresholdCents: null,
+    approvalsRequired: 1,
+    alwaysEnforced: true,
+  },
   'contribution.reverse': {
     label: 'Reverse a contribution',
     makerPermission: 'contributions.reverse',

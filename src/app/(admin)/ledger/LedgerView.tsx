@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { Card, Table, EmptyState, Badge, Button, PageHeader, Input, Modal, Textarea } from '@/components/ui'
+import { Card, Table, Badge, Button, PageHeader, Input, Modal, Textarea } from '@/components/ui'
 import { formatUSD, type Cents } from '@/lib/money'
 
 type Account = {
@@ -74,6 +74,7 @@ export default function LedgerView({ canApprove }: { canApprove: boolean }) {
       <PageHeader
         title="Ledger"
         sub="The club’s double-entry books in exact cents. Posted entries are final; corrections are reversing entries."
+        action={<a href="/ledger/opening" className="text-sm text-indigo-700 underline">Opening balances (M4) →</a>}
       />
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {message && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{message}</p>}
@@ -146,7 +147,7 @@ export default function LedgerView({ canApprove }: { canApprove: boolean }) {
           <h2 className="font-semibold text-gray-900">Journal</h2>
         </div>
         {entries.length === 0 ? (
-          <EmptyState message="No entries yet. Postings begin once the chart of accounts is approved and opening balances are loaded (migration step M4)." />
+          <p className="py-16 text-center text-gray-400 text-sm">No entries yet. Postings begin once the chart of accounts is approved and opening balances are loaded (migration step M4).</p>
         ) : (
           <ul className="divide-y divide-gray-100">
             {entries.map((e) => (

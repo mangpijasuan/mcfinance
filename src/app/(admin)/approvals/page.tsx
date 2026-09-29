@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { Card, EmptyState, Badge, Button, PageHeader, Select } from '@/components/ui'
+import { Card, Badge, Button, PageHeader, Select } from '@/components/ui'
 import { formatUSD, type Cents } from '@/lib/money'
 
 type Request = {
@@ -72,7 +72,7 @@ export default function ApprovalsPage() {
       </div>
 
       <div className="space-y-3">
-        {requests.length === 0 && <Card><EmptyState message={view === 'pending' ? 'Nothing is waiting for approval.' : 'No decisions yet.'} /></Card>}
+        {requests.length === 0 && <Card><p className="py-16 text-center text-gray-400 text-sm">{view === 'pending' ? 'Nothing is waiting for approval.' : 'No decisions yet.'}</p></Card>}
         {requests.map((r) => (
           <Card key={r.id} className="p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

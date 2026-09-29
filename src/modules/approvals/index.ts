@@ -20,6 +20,7 @@ import {
   type DisburseInput, type WaiveInput, type WriteOffInput, disburseLoan, waiveLateFee, writeOffLoan,
 } from '@/modules/loans/lifecycle'
 import { type ReverseInput, reverseContribution } from '@/modules/contributions'
+import { type OpeningPayload, postOpeningBalances } from '@/modules/accounting/opening'
 import { APPROVAL_POLICIES, type ApprovalAction, needsApproval } from './policy'
 import type { Actors, StaffRef } from './actors'
 
@@ -34,6 +35,7 @@ export type ApprovalPayload = {
   'loan.fee.waive': WaiveInput
   'loan.write_off': WriteOffInput
   'contribution.reverse': ReverseInput
+  'ledger.opening_balances': OpeningPayload
 }
 
 /** Run an operation, now (no approval needed) or when its request is approved. */
@@ -65,6 +67,10 @@ export async function executeOperation<A extends ApprovalAction>(
     case 'loan.write_off': {
       const result = await writeOffLoan(tx, payload as WriteOffInput, actors, ctx)
       return { resultRef: result.loanId, result }
+    }
+    case 'ledger.opening_balances': {
+      const result = await postOpeningBalances(tx, payload as OpeningPayload, actors, ctx)
+      return { resultRef: result.entries[0] ?? 'opening-balances', result }
     }
     case 'contribution.reverse': {
       const result = await reverseContribution(tx, payload as ReverseInput, actors, ctx)
@@ -215,7 +221,7 @@ export async function decideApproval(requestId: string, principal: StaffPrincipa
       metadata: { action: request.action, maker: request.requestedBy, approvals, required: request.approvalsRequired, resultRef },
     })
     return (await viewRequests(tx, [updated], principal))[0]
-  })
+  }, { timeout: 120_000, maxWait: 10_000 }) // opening balances (M4) post many entries at once
 }
 
 /** The maker withdraws their own pending request. */

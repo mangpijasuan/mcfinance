@@ -40,5 +40,7 @@ export function dateOnly(date: IsoDate): Date {
 }
 
 export function isIsoDate(value: unknown): value is IsoDate {
-  return typeof value === 'string' && ISO_DATE.test(value) && dateOnly(value).toISOString().slice(0, 10) === value
+  if (typeof value !== 'string' || !ISO_DATE.test(value)) return false
+  const date = dateOnly(value)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }

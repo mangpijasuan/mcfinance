@@ -174,7 +174,19 @@ activity and clicks **Confirm** (which records the payment) or **Reject**. `NEXT
 
 `/ledger` (for Finance, Treasurer, Compliance, Auditor, Board) shows the club's double-entry books: chart of accounts, trial balance as of any date, integrity checks and the journal. Amounts are exact integer cents.
 
-The ledger is **empty on purpose** until two things happen: the club's accountant confirms the proposed chart of accounts (the Treasurer records this on the Ledger page; it cannot be undone), and opening balances are loaded from a production snapshot (migration step M4). Posted entries can never be edited or deleted — the database refuses — so mistakes are corrected with reversing entries.
+The ledger is **empty on purpose** until two things happen: the club's accountant confirms the proposed chart of accounts (the Treasurer records this on the Ledger page; it cannot be undone), and the opening balances are posted (migration step M4).
+
+**Opening balances (M4)** — *Ledger → Opening balances*:
+- The report shows the starting point at the cutover (1 January 2026): member capital from the archive totals, the bank balance from the statement, and loans still open.
+- It also shows what has been recorded since the cutover, the items to review, and every difference with the old records.
+- The key figure is **opening equity** (account 9000): cash plus loans owed to the club, minus what the club owes its members. It must be explained to the board.
+- The Treasurer enters the bank balance, confirms the loan balances and sends it for approval. A second person approves, and everything posts at once. Older loans whose repayments match their schedule move onto the loan engine.
+
+Rehearse on a copy of the production data first. This posts everything inside a transaction, checks the result and rolls it back:
+
+```bash
+npm run ledger:opening -- --bank-balance=12345.67 --rehearse   # add --loans=confirmed.json for confirmed loan balances
+``` Posted entries can never be edited or deleted — the database refuses — so mistakes are corrected with reversing entries.
 
 ## Approvals (maker / checker)
 

@@ -40,3 +40,21 @@ export async function postWhenChartApproved(tx: Tx, input: EntryInput): Promise<
   const { entry } = await postEntry(tx, input)
   return entry.entryNumber
 }
+
+// ── Opening balances (M4) ──────────────────────────────────────────────
+
+export const OPENING_KEYS = {
+  capital: 'm4:opening:capital',
+  bank: 'm4:opening:bank',
+  loans: 'm4:opening:loans',
+} as const
+
+/** Whether opening balances have been posted, and from which cutover (first day of ledger activity). */
+export async function ledgerOpening(db: Pick<Tx, 'journalEntry'>): Promise<{ cutover: string; entryNumber: string } | null> {
+  const entry = await db.journalEntry.findFirst({
+    where: { idempotencyKey: { in: Object.values(OPENING_KEYS) } },
+    orderBy: [{ postedAt: 'asc' }, { entryNumber: 'asc' }],
+    select: { sourceId: true, entryNumber: true },
+  })
+  return entry ? { cutover: entry.sourceId!, entryNumber: entry.entryNumber } : null
+}
