@@ -27,7 +27,7 @@ prisma/dev.db-journal
 # Logs
 *.log
 
-# Backups produced by scripts/backup-postgres.sh
+# Backups produced by scripts/ops/backup-postgres.sh
 backups/
 
 # OS / editor
@@ -37,3 +37,9 @@ backups/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Backup configuration and any key material never belong in git
+.env.backup
+*.age
+age-identity*.txt
+coverage

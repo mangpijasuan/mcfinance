@@ -44,6 +44,9 @@ export default function PaymentsPage() {
     const res = await fetch(`/api/payments/${id}/confirm`, { method: 'POST' })
     const data = await readJsonSafe<any>(res)
     if (!res.ok) alert(data?.error || 'Failed to confirm payment.')
+    else if (res.status === 202 && data?.approvalRequest) {
+      alert(`Over the single sign-off limit: sent for a second approval (${data.approvalRequest.publicId}).`)
+    }
     setBusyId(null)
     load()
   }
@@ -103,7 +106,9 @@ export default function PaymentsPage() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  {p.status === 'pending' && p.method === 'zelle' && can('payments.review') ? (
+                  {p.status === 'pending' && p.awaitingApproval ? (
+                    <span className="text-xs text-amber-700">Awaiting second approval ({p.awaitingApproval})</span>
+                  ) : p.status === 'pending' && p.method === 'zelle' && can('payments.review') ? (
                     <div className="flex gap-2">
                       <Button size="sm" disabled={busyId === p.id} onClick={() => confirm(p.id)}>Confirm</Button>
                       <Button size="sm" variant="danger" disabled={busyId === p.id} onClick={() => reject(p.id)}>Reject</Button>

@@ -24,17 +24,17 @@ export async function GET() {
     prisma.loan.count({ where: { status: 'Active' } }),
     prisma.loan.count({ where: { overdue: true } }),
     prisma.loan.aggregate({ where: { status: 'Active' }, _sum: { balanceRemaining: true } }),
-    prisma.contribution.aggregate({ _sum: { amount: true } }),
+    prisma.contribution.aggregate({ where: { reversedAt: null }, _sum: { amount: true } }),
     prisma.member.aggregate({ _sum: { overallContributions: true } }),
     prisma.member.count({ where: { eligible: 'YES' } }),
     prisma.withdrawal.aggregate({ _sum: { amount: true } }),
     prisma.withdrawal.count(),
     prisma.contribution.findMany({
-      orderBy: { paymentDate: 'desc' }, take: 6,
+      where: { reversedAt: null }, orderBy: { paymentDate: 'desc' }, take: 6,
       select: { transactionId: true, memberName: true, amount: true, paymentDate: true, monthYear: true, paymentMethod: true },
     }),
     prisma.contribution.findMany({
-      where: { paymentDate: { gte: yearStart, lt: yearEnd } },
+      where: { paymentDate: { gte: yearStart, lt: yearEnd }, reversedAt: null },
       select: { paymentDate: true, amount: true },
     }),
     prisma.loan.findMany({

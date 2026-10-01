@@ -22,7 +22,11 @@ describe('audit coverage', () => {
     .map((file) => ({ route: path.relative(API_DIR, path.dirname(file)).split(path.sep).join('/'), source: fs.readFileSync(file, 'utf8') }))
     .filter(({ route, source }) => !READ_ONLY.has(route) && /export async function (POST|PATCH|PUT|DELETE)\b/.test(source))
 
+  // Either directly, or through a module function that records its own
+  // entry (each is covered by its own tests).
+  const AUDITED = /\b(recordAudit|submitOrExecute|decideApproval|cancelApproval|changeDuesPlan)\(/
+
   it.each(writers)('/api/$route records an audit entry', ({ source }) => {
-    expect(source).toMatch(/recordAudit\(/)
+    expect(source).toMatch(AUDITED)
   })
 })

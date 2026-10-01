@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { badRequest, readJsonObject } from '@/lib/http'
 import { requireStaff } from '@/modules/auth'
 import { revokeStaffSessions } from '@/modules/auth/sessions'
-import { isRateLimited, recordFailedAttempt, clearAttempts } from '@/lib/rateLimit'
+import { LIMITS, clearAttempts, isRateLimited, recordFailedAttempt } from '@/lib/rateLimit'
 import { auditContext, recordAudit } from '@/modules/audit'
 import { STAFF_PASSWORD_MIN_LENGTH } from '@/modules/staff'
 
@@ -21,15 +21,15 @@ export async function POST(req: NextRequest) {
   }
 
   const limitKey = `password-change:${auth.principal.id}`
-  if (isRateLimited(limitKey)) {
+  if (await isRateLimited(limitKey, LIMITS.account)) {
     return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 })
   }
   const admin = await prisma.admin.findUniqueOrThrow({ where: { id: auth.principal.id } })
   if (!(await bcrypt.compare(current, admin.password))) {
-    recordFailedAttempt(limitKey)
+    await recordFailedAttempt(limitKey)
     return badRequest('Your current password is not correct.')
   }
-  clearAttempts(limitKey)
+  await clearAttempts(limitKey)
 
   const hashed = await bcrypt.hash(next, 10)
   const revoked = await prisma.$transaction(async (tx) => {

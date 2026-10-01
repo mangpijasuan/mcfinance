@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
 import './globals.css'
 import { Providers } from './providers'
 import { APP_DESCRIPTION, APP_NAME } from '@/lib/brand'
@@ -8,7 +9,10 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Render every page per request so each gets the CSP nonce set in
+  // src/proxy.ts (static pages would carry no nonce and be blocked).
+  await connection()
   return (
     <html lang="en">
       <body

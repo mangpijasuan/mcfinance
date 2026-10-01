@@ -22,6 +22,17 @@ flowchart LR
 
 ## 1. Contribution management
 
+*Built in Stage 3* (`src/modules/contributions`, `/dues`):
+- Plans (`DuesPlan`) and monthly obligations (`DuesObligation`, while active).
+- Payments cover the **oldest unpaid month first**, the same rule as loans (A6). Extra is credit, and allocations are derived, never stored.
+- Numbered receipts that record what each payment covered.
+- Reversal instead of edits or deletes, with a checker; the database enforces it.
+- The daily `dues:service` job.
+- Arrears aging and collection by month.
+- Postings to `2000 Member capital` once the chart is approved.
+
+Not yet: special assessments, collector cash deposits and bank reconciliation (F-11), emailed receipts.
+
 ### Model
 
 | Concept | Meaning | Today |
@@ -92,6 +103,8 @@ stateDiagram-v2
     Cancelled --> [*]
 ```
 
+*Built in Stage 3:* Draft/Submitted/UnderReview are the pending `loan.create` approval request; `Loan.lifecycle` then holds `approved → agreement_signed → disbursed → paid_off | charged_off`, or `cancelled` before disbursement. `Current`/`Delinquent` is `Loan.delinquency`, set only by the servicing job and by payments. A database trigger refuses any other move. `Restructured` is not built yet.
+
 Changes from today:
 
 - **Cancellation is only possible before disbursement**, and it is a status change, not a deletion. After disbursement the only exits are payoff, restructure or charge-off, each with ledger entries (F-3).
@@ -126,6 +139,7 @@ Changes from today:
 **REVERSIBILITY:** easy
 **REQUIRES LEGAL REVIEW:** yes (fees, any future interest, disclosure obligations)
 **REQUIRES FOUNDER APPROVAL:** yes (late-fee enforcement, allocation order)
+**STATUS:** Built and in use (Stage 3). Every new loan stores its schedule (`LoanInstallment`, immutable) and runs the lifecycle below in `src/modules/loans`: payout with the fee netted, repayments split by the engine, a daily servicing job (`npm run loans:service`) for delinquency and late fees (charging switched off, A7), fee waivers and write-offs with checkers, and ledger postings once the chart is approved. Not yet: restructuring, recoveries after a write-off, and moving older loans onto the engine (with M4).
 
 ## 3. Loan calculation engine
 
@@ -166,6 +180,7 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 **REVERSIBILITY:** moderate
 **REQUIRES LEGAL REVIEW:** no
 **REQUIRES FOUNDER APPROVAL:** no
+**STATUS:** `src/lib/money` built and used by the ledger and the loan engine (100% test coverage, enforced in CI). The legacy tables keep their `Float` columns until they are retired (migration step M7); new money paths use cents only.
 
 ## 4. Financial ledger
 
@@ -180,6 +195,7 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 **REVERSIBILITY:** difficult (once live, the ledger is the books)
 **REQUIRES LEGAL REVIEW:** yes (accounting classification of member capital, below)
 **REQUIRES FOUNDER APPROVAL:** yes
+**STATUS:** Ledger built and empty (migration step M3; `src/modules/accounting/ledger`, admin screen `/ledger`). The database enforces invariants 1–3 and 6 below, the approved-accounts rule and closed periods; `checkInvariants` covers all seven for a nightly job. The chart below is loaded as **proposed**, and no entry can be posted until the Treasurer records the accountant's confirmation (Gate #1 A13).
 
 ### Chart of accounts (proposed; accountant to confirm)
 
@@ -232,6 +248,10 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 | Collector deposits $400 | 1000 Bank $400 | 1030 Cash — collector X $400 |
 | Loan of $5,000 disbursed, $70 application fee netted (A8) | 1100 Loans receivable (member, loan) $5,000 | 1000 Bank $4,930 · 4000 Application fee income $70 |
 | Repayment $211.25 (Zelle) | 1020 Zelle clearing → then 1000 Bank | 1100 Loans receivable (member, loan) |
+| Late fee charged (when enabled) | 1110 Fees receivable (member) $5 | 4010 Late fee income $5 |
+| Repayment that also pays that fee | the receiving account (1010 card, 1020 Zelle/transfer, 1030 cash, 1000 other) | 1110 Fees receivable $5 · 1100 Loans receivable (rest) · 2100 Unapplied (any overpayment) |
+| Late fee waived (checker approved) | 4010 Late fee income | 1110 Fees receivable (member) |
+| Loan written off (two Board approvals) | 5100 Loan losses (principal + fees unpaid) | 1100 Loans receivable · 1110 Fees receivable |
 | Member withdrawal $500 | 2000 Member capital (member) $500 | 1000 Bank $500 |
 | Correction of a mis-keyed $20 | a **reversal** of the original entry, then a new correct entry | — |
 | Opening balance (migration) | 9000 Opening balance equity | 2000 Member capital (member), per member |
@@ -284,6 +304,7 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 **REVERSIBILITY:** easy (thresholds are configuration)
 **REQUIRES LEGAL REVIEW:** no
 **REQUIRES FOUNDER APPROVAL:** yes (who the officers are; thresholds)
+**STATUS:** Mechanism built (Stage 3, `src/modules/approvals`, admin screen `/approvals`). Built for Zelle confirmations over $100, withdrawals, loans and manual journal entries; loan disbursement, cash deposits, fee waivers and write-offs are added with the loan-lifecycle slice. The maker can never decide their own request (application check and database trigger); two checkers acting at once run an operation only once; an operation that no longer passes its rules (e.g. loan policy) leaves the request pending and changes nothing. **Manual journal entries always need a checker.** For the existing actions, enforcement is switched off (`MAKER_CHECKER_ENFORCED`) until the officers are named (Gate #1 A4), so they keep working with one person as today.
 
 ### Periods and reporting
 

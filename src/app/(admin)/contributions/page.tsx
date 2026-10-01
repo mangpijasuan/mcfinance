@@ -2,8 +2,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
+import Link from 'next/link'
 import { Card, Table, EmptyState, Button, Modal, Input, Select, PageHeader,
-         FilterBar, SearchInput } from '@/components/ui'
+         FilterBar, SearchInput, Badge, Textarea } from '@/components/ui'
 import { fmt$, fmtDate, monthYearOptions } from '@/lib/utils'
 import { useStaff } from '@/components/staff/StaffContext'
 
@@ -38,6 +39,8 @@ export default function ContributionsPage() {
   const [method, setMethod]   = useState('')
   const [page, setPage]       = useState(1)
   const [showAdd, setShowAdd] = useState(false)
+  const [notice, setNotice]   = useState('')
+  const [reversing, setReversing] = useState<any>(null)
 
   const [reportMonth, setReportMonth] = useState(currentMonthYear())
   const [reportMembers, setReportMembers] = useState<any[]>([])
@@ -112,7 +115,7 @@ export default function ContributionsPage() {
 
   const contribByMember = new Map<string, any>()
   for (const c of reportContribs) {
-    if (!contribByMember.has(c.memberId)) contribByMember.set(c.memberId, c)
+    if (!c.reversedAt && !contribByMember.has(c.memberId)) contribByMember.set(c.memberId, c)
   }
 
   const reportRows = [...reportMembers]
@@ -163,22 +166,38 @@ export default function ContributionsPage() {
         {loadError && (
           <p className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{loadError}</p>
         )}
+        {notice && <p className="mb-4 text-sm text-emerald-800 bg-emerald-50 px-3 py-2 rounded-lg">{notice}</p>}
 
         <Card>
-          <Table loading={loading} headers={['Transaction ID','Member ID','Member name','Date','Month','Amount','Method','Received by','Comments']}>
+          <Table loading={loading} headers={['Receipt','Member','Paid on','Amount','Covers','Method','Received by','Comments','']}>
             {rows.length === 0 && !loading
               ? <EmptyState message="No contributions found." />
               : rows.map(c => (
-                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-indigo-600">{c.transactionId}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{c.memberId}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{c.memberName}</td>
+                <tr key={c.id} className={`hover:bg-gray-50 transition-colors ${c.reversedAt ? 'opacity-60' : ''}`}>
+                  <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
+                    {c.receiptNumber
+                      ? <Link className="text-indigo-600 underline" href={`/contributions/${c.transactionId}/receipt`}>{c.receiptNumber}</Link>
+                      : <span className="text-gray-400" title="Recorded before receipts were issued">{c.transactionId}</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-gray-900">{c.memberName}</p>
+                    <p className="font-mono text-xs text-gray-500">{c.memberId}</p>
+                  </td>
                   <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(c.paymentDate)}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{c.monthYear}</td>
-                  <td className="px-4 py-3 font-semibold text-green-700">{fmt$(c.amount)}</td>
+                  <td className={`px-4 py-3 font-semibold ${c.reversedAt ? 'text-gray-500 line-through' : 'text-green-700'}`}>{fmt$(c.amount)}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">
+                    {c.reversedAt
+                      ? <Badge variant="red">Reversed</Badge>
+                      : c.category === 'voluntary' ? <Badge variant="purple">Voluntary</Badge> : (c.receiptCovers || '—')}
+                  </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{c.paymentMethod || '—'}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{c.receivedBy || '—'}</td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">{c.comments || '—'}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">{c.reversedAt ? `Reversed: ${c.reversalReason}` : (c.comments || '—')}</td>
+                  <td className="px-4 py-3 text-right">
+                    {!c.reversedAt && can('contributions.reverse') && (
+                      <Button size="sm" variant="ghost" onClick={() => setReversing(c)}>Reverse</Button>
+                    )}
+                  </td>
                 </tr>
               ))
             }
@@ -235,14 +254,53 @@ export default function ContributionsPage() {
         </Table>
       </Card>
 
-      <RecordContributionModal open={showAdd} onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); load() }} />
+      <RecordContributionModal open={showAdd} onClose={() => setShowAdd(false)} onSaved={(created: any) => {
+        setShowAdd(false)
+        setNotice(`Receipt ${created.receiptNumber} issued: ${created.receiptCovers}.`)
+        load()
+      }} />
+      <ReverseModal contribution={reversing} onClose={() => setReversing(null)} onDone={(message: string) => { setReversing(null); setNotice(message); load() }} />
     </div>
+  )
+}
+
+function ReverseModal({ contribution: c, onClose, onDone }: any) {
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+  useEffect(() => { setReason(''); setError('') }, [c])
+  if (!c) return null
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const res = await fetch(`/api/contributions/${c.transactionId}/reverse`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+    })
+    const data = await readJsonSafe<any>(res)
+    if (!res.ok) { setError(data?.error || 'Could not reverse.'); return }
+    onDone(res.status === 202
+      ? `Reversal sent for approval (${data.approvalRequest.publicId}). A second person approves it on the Approvals page.`
+      : 'Contribution reversed.')
+  }
+  return (
+    <Modal open onClose={onClose} title={`Reverse ${c.receiptNumber ?? c.transactionId}`}>
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm text-gray-600">
+          {fmt$(c.amount)} from {c.memberName}, paid {fmtDate(c.paymentDate)}. The record stays, marked reversed; it stops counting
+          towards dues and totals. A second person (Treasurer) must approve.
+        </p>
+        <Textarea label="Reason" required value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. recorded for the wrong member" />
+        {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="danger">Send for approval</Button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
 function RecordContributionModal({ open, onClose, onSaved }: any) {
   const today = new Date().toISOString().split('T')[0]
-  const [form, setForm] = useState({ memberId: '', paymentDate: today, amount: '20', paymentMethod: 'Cash', receivedBy: '', comments: '' })
+  const [form, setForm] = useState({ memberId: '', paymentDate: today, amount: '20', paymentMethod: 'Cash', receivedBy: '', comments: '', category: 'dues' })
   const [memberSearch, setMemberSearch] = useState('')
   const [members, setMembers]   = useState<any[]>([])
   const [selectedMember, setSelectedMember] = useState<any>(null)
@@ -297,7 +355,7 @@ function RecordContributionModal({ open, onClose, onSaved }: any) {
       setError('')
       const res = await fetch('/api/contributions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
       if (res.ok) {
-        onSaved()
+        onSaved(await readJsonSafe<any>(res))
         return
       }
       const d = await readJsonSafe<any>(res)
@@ -336,7 +394,10 @@ function RecordContributionModal({ open, onClose, onSaved }: any) {
 
         <div className="grid grid-cols-2 gap-4">
           <Input label="Payment date *" type="date" value={form.paymentDate} onChange={set('paymentDate')} required />
-          <Input label="Month-Year" value={derivedMonthYear} readOnly />
+          <Select label="Applies to" value={form.category} onChange={set('category')}>
+            <option value="dues">Monthly dues</option>
+            <option value="voluntary">Voluntary (not dues)</option>
+          </Select>
           <Input label="Amount ($) *" type="number" min="1" step="0.01" value={form.amount} onChange={set('amount')} required />
           <Select label="Payment method" value={form.paymentMethod} onChange={e => {
             const nextMethod = e.target.value
@@ -352,6 +413,12 @@ function RecordContributionModal({ open, onClose, onSaved }: any) {
           <Input label="Comments" value={form.comments} onChange={set('comments')} />
         </div>
 
+        <p className="text-xs text-gray-500">
+          {form.category === 'dues'
+            ? 'Dues pay the oldest unpaid month first; anything extra is held as credit for the next months. The receipt shows which months it covered.'
+            : 'A voluntary contribution adds to the member’s capital but does not count towards monthly dues.'}
+          {' '}Paid in {derivedMonthYear}.
+        </p>
         {form.paymentMethod === 'Auto-pay' && (
           <p className="text-xs text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg">
             Auto-pay contributions are recorded on the 15th of the selected month.

@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { Card, PageHeader, Button, Input, Badge, Modal, EmptyState } from '@/components/ui'
+import { Card, PageHeader, Button, Input, Badge, Modal } from '@/components/ui'
 import { useStaff } from '@/components/staff/StaffContext'
 
 type RoleDef = { key: string; label: string; description: string; permissions: string[]; privileged: boolean; transitional: boolean }
@@ -136,7 +136,7 @@ export default function StaffPage() {
 
       <div className="space-y-3">
         {loading && rows.length === 0 && <Card className="p-5 text-sm text-gray-500">Loading…</Card>}
-        {!loading && rows.length === 0 && <Card><EmptyState message="No staff accounts." /></Card>}
+        {!loading && rows.length === 0 && <Card><p className="py-16 text-center text-gray-400 text-sm">No staff accounts.</p></Card>}
         {rows.map((row) => (
           <Card key={row.id} className={`p-4 ${row.disabled ? 'opacity-60' : ''}`}>
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

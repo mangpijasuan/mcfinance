@@ -218,7 +218,14 @@ function AgreementModal({ agreement: initial, onClose, onSaved }: any) {
             {a.applicationFee > 0 && (
               <p className="mt-2">
                 <span className="font-bold">D. Application Fee:</span>{' '}
-                <span className="font-bold">${a.applicationFee.toFixed(2)}</span> (non-refundable, per loan policy).
+                <span className="font-bold">${a.applicationFee.toFixed(2)}</span> (non-refundable, per loan policy)
+                {a.amountPaidOut != null && (
+                  <>
+                    , deducted from the loan when it is paid out. Amount financed:{' '}
+                    <span className="font-bold">${a.loanAmount.toFixed(2)}</span>. Amount paid to the borrower:{' '}
+                    <span className="font-bold">${a.amountPaidOut.toFixed(2)}</span>. The borrower repays the amount financed
+                  </>
+                )}.
               </p>
             )}
           </div>

@@ -16,6 +16,9 @@ export const PERMISSIONS = {
   'members.portal_access': 'Turn member portal access on or off and set portal passwords',
   'contributions.read': 'View contributions',
   'contributions.record': 'Record contributions',
+  'contributions.reverse': 'Propose reversing a mistaken contribution (needs a checker)',
+  'contributions.approve_reversal': 'Approve a contribution reversal proposed by someone else',
+  'dues.manage_plans': 'Change a member’s monthly dues amount from a future month',
   'loans.read': 'View loans and loan history',
   'loans.create': 'Create loan applications (with their agreements)',
   'loans.update': 'Edit loan notes and flags',
@@ -31,6 +34,19 @@ export const PERMISSIONS = {
   'payments.review': 'Confirm or reject Zelle claims',
   'notifications.read': 'View notification previews and history',
   'notifications.send': 'Send reminder and summary emails',
+  'ledger.read': 'View the chart of accounts, journal and trial balance',
+  'ledger.manage_accounts': 'Record the accountant’s approval of the chart of accounts',
+  'ledger.propose': 'Propose manual journal entries (they need a checker)',
+  'ledger.approve': 'Approve manual journal entries proposed by someone else',
+  'loans.approve': 'Approve loans proposed by someone else (when maker/checker is on)',
+  'withdrawals.approve': 'Approve withdrawals recorded by someone else (when maker/checker is on)',
+  'loans.disburse': 'Record that a loan was paid out to the borrower',
+  'loans.approve_disbursement': 'Approve a loan payout recorded by someone else (when maker/checker is on)',
+  'loan_fees.waive': 'Propose waiving a late fee (needs a checker)',
+  'loan_fees.approve_waiver': 'Approve a late-fee waiver proposed by someone else',
+  'loans.write_off': 'Propose writing off a delinquent loan (needs two Board approvals)',
+  'loans.approve_write_off': 'Approve a loan write-off proposed by someone else',
+  'approvals.view': 'See the approval queue',
   'audit.read': 'Read the audit log',
   'staff.read': 'View staff accounts and their roles',
   'staff.manage': 'Create staff accounts, assign roles, reset passwords and MFA',
@@ -42,7 +58,8 @@ export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[]
 
 const READ_EVERYTHING: Permission[] = [
   'dashboard.view', 'members.read', 'contributions.read', 'loans.read', 'loan_payments.read',
-  'agreements.read', 'withdrawals.read', 'payments.read', 'notifications.read',
+  'agreements.read', 'withdrawals.read', 'payments.read', 'notifications.read', 'ledger.read',
+  'approvals.view',
 ]
 
 type RoleDefinition = {
@@ -61,7 +78,7 @@ export const ROLES = {
     description: 'Takes and reviews loan applications.',
     permissions: [
       'dashboard.view', 'members.read', 'contributions.read', 'loans.read', 'loans.create',
-      'loan_payments.read', 'agreements.read', 'agreements.update',
+      'loan_payments.read', 'agreements.read', 'agreements.update', 'approvals.view', 'loan_fees.waive',
     ],
   },
   finance: {
@@ -69,7 +86,7 @@ export const ROLES = {
     description: 'Records contributions, repayments and withdrawals; edits member contact details.',
     permissions: [
       ...READ_EVERYTHING, 'members.update', 'contributions.record', 'loan_payments.record',
-      'withdrawals.record', 'notifications.send',
+      'withdrawals.record', 'notifications.send', 'ledger.propose', 'contributions.reverse',
     ],
   },
   treasurer: {
@@ -78,6 +95,9 @@ export const ROLES = {
     permissions: [
       ...READ_EVERYTHING, 'contributions.record', 'loan_payments.record', 'withdrawals.record',
       'payments.review', 'agreements.sign_lender', 'loans.update', 'loans.cancel', 'audit.read',
+      'ledger.manage_accounts', 'ledger.propose', 'ledger.approve', 'loans.approve', 'withdrawals.approve',
+      'loans.disburse', 'loan_fees.waive', 'loan_fees.approve_waiver', 'loans.write_off',
+      'contributions.reverse', 'contributions.approve_reversal', 'dues.manage_plans',
     ],
   },
   compliance: {
@@ -93,7 +113,10 @@ export const ROLES = {
   board: {
     label: 'Board',
     description: 'Oversight and approvals: confirms payments, signs agreements, reads the audit log.',
-    permissions: [...READ_EVERYTHING, 'payments.review', 'agreements.sign_lender', 'audit.read', 'staff.read'],
+    permissions: [
+      ...READ_EVERYTHING, 'payments.review', 'agreements.sign_lender', 'audit.read', 'staff.read', 'loans.approve', 'ledger.approve',
+      'loans.approve_disbursement', 'loans.approve_write_off',
+    ],
   },
   administrator: {
     label: 'Administrator',
@@ -109,7 +132,7 @@ export const ROLES = {
   club_officer: {
     label: 'Club Officer (transitional)',
     description: 'The access every admin had before roles existed. Replace with specific roles once officers are named.',
-    permissions: ALL_PERMISSIONS.filter((p) => !['audit.read', 'staff.read', 'staff.manage'].includes(p)),
+    permissions: ALL_PERMISSIONS.filter((p) => !['audit.read', 'staff.read', 'staff.manage', 'ledger.manage_accounts'].includes(p)),
     transitional: true,
   },
 } satisfies Record<string, RoleDefinition>

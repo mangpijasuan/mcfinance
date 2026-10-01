@@ -149,11 +149,12 @@ function RecordWithdrawalModal({ open, onClose, onSaved }: any) {
       setSaving(true)
       setError('')
       const res = await fetch('/api/withdrawals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const d = await readJsonSafe<any>(res)
       if (res.ok) {
+        if (res.status === 202 && d?.approvalRequest) window.alert(`Sent for approval (${d.approvalRequest.publicId}). Someone else must approve it under Approvals before it takes effect.`)
         onSaved()
         return
       }
-      const d = await readJsonSafe<any>(res)
       setError(d?.error || 'Failed to save.')
     } catch {
       setError('Request failed. Please try again.')

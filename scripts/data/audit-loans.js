@@ -26,7 +26,13 @@ function normalizeHistoricalLoan(record) {
 }
 
 async function main() {
-  const historicalPath = path.join(__dirname, '..', 'prisma', 'historical-loans.json')
+  // The source file holds real member data and lives outside the repository
+  // (Gate #1 A15): pass its path, e.g. a decrypted copy on a tmpfs.
+  const historicalPath = process.env.HISTORICAL_LOANS_FILE
+  if (!historicalPath) {
+    console.error('Set HISTORICAL_LOANS_FILE to the historical loans JSON (kept outside the repository).')
+    process.exit(2)
+  }
   const sourceHistoricalLoans = JSON.parse(fs.readFileSync(historicalPath, 'utf8')).map(normalizeHistoricalLoan)
   const dbHistoricalLoans = (await prisma.historicalLoan.findMany()).map(normalizeHistoricalLoan)
 

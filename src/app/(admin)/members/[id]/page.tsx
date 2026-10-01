@@ -6,6 +6,7 @@ import { Card, Table, Badge, StatusBadge, EligibleBadge, RiskBadge, LoanStatusBa
          Button, Modal, Input, Select, Spinner } from '@/components/ui'
 import { fmt$, fmtDate, fmtDateInput } from '@/lib/utils'
 import { useStaff } from '@/components/staff/StaffContext'
+import DuesPanel from '@/components/contributions/DuesPanel'
 
 export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -81,6 +82,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         </>}
       </div>
 
+      {can('contributions.read') && <DuesPanel memberId={member.id} canChangePlan={can('dues.manage_plans')} />}
+
       {/* Payment history by year */}
       {years.length > 0 && (
         <Card className="mb-6 p-5">
@@ -101,15 +104,17 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         <div className="px-5 py-4 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-gray-700">Contribution records (2026)</h2>
         </div>
-        <Table headers={['Transaction ID', 'Date', 'Month', 'Amount', 'Method', 'Received by', 'Comments']}>
+        <Table headers={['Receipt', 'Paid on', 'Applied to', 'Amount', 'Method', 'Received by', 'Comments']}>
           {member.contributions.length === 0
             ? <tr><td colSpan={7} className="py-10 text-center text-sm text-gray-400">No contributions.</td></tr>
             : member.contributions.map((c: any) => (
               <tr key={c.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2.5 font-mono text-xs text-indigo-600">{c.transactionId}</td>
-                <td className="px-4 py-2.5 text-gray-600 text-xs">{fmtDate(c.paymentDate)}</td>
-                <td className="px-4 py-2.5 text-gray-600 text-xs">{c.monthYear}</td>
-                <td className="px-4 py-2.5 font-semibold text-green-700">{fmt$(c.amount)}</td>
+                <td className="px-4 py-2.5 font-mono text-xs whitespace-nowrap">
+                  {c.receiptNumber ? <a className="text-indigo-600 underline" href={`/contributions/${c.transactionId}/receipt`}>{c.receiptNumber}</a> : <span className="text-gray-400">{c.transactionId}</span>}
+                </td>
+                <td className="px-4 py-2.5 text-gray-600 text-xs whitespace-nowrap">{fmtDate(c.paymentDate)}</td>
+                <td className="px-4 py-2.5 text-gray-600 text-xs">{c.reversedAt ? <Badge variant="red">Reversed</Badge> : c.category === 'voluntary' ? 'Voluntary' : (c.receiptCovers || '—')}</td>
+                <td className={`px-4 py-2.5 font-semibold ${c.reversedAt ? 'text-gray-400 line-through' : 'text-green-700'}`}>{fmt$(c.amount)}</td>
                 <td className="px-4 py-2.5 text-gray-500 text-xs">{c.paymentMethod || '—'}</td>
                 <td className="px-4 py-2.5 text-gray-500 text-xs">{c.receivedBy || '—'}</td>
                 <td className="px-4 py-2.5 text-gray-400 text-xs">{c.comments || '—'}</td>

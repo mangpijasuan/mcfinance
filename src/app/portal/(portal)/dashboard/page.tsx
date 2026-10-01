@@ -1,6 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { fmt$, fmtDate } from '@/lib/utils'
+import { formatUSD } from '@/lib/money'
+import { DuesMonths, DuesSummary, type DuesData } from '@/components/contributions/DuesPanel'
 
 function InfoCard({ label, value, sub, color = 'white' }: { label: string; value: string | number; sub?: string; color?: string }) {
   const colors: Record<string, string> = {
@@ -37,9 +40,11 @@ function StatusPill({ paid }: { paid: string }) {
 
 export default function PortalDashboard() {
   const [member, setMember] = useState<any>(null)
+  const [dues, setDues] = useState<DuesData | null>(null)
 
   useEffect(() => {
     fetch('/api/portal/me').then(r => r.json()).then(setMember)
+    fetch('/api/portal/dues').then(r => (r.ok ? r.json() : null)).then(setDues).catch(() => setDues(null))
   }, [])
 
   if (!member) return (
@@ -72,6 +77,19 @@ export default function PortalDashboard() {
         <InfoCard label="Lifetime contributions" value={fmt$(member.archiveLifetime + member.contributions2026)} color="teal" />
         <InfoCard label="Max loan amount"  value={fmt$(member.maxLoanAmount)}        color="white" />
       </div>
+
+      {/* Monthly dues */}
+      {dues && dues.obligations.length > 0 && (
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-gray-700">Monthly dues{dues.monthlyCents !== null ? ` · ${formatUSD(dues.monthlyCents)} a month` : ''}</h2>
+            <Link href="/portal/history" className="text-xs text-indigo-600 underline">Receipts</Link>
+          </div>
+          <DuesSummary d={dues} />
+          <DuesMonths d={{ ...dues, obligations: dues.obligations.slice(0, 6) }} />
+          <p className="text-xs text-gray-400">Each payment counts towards your oldest unpaid month first; anything extra covers the months ahead.</p>
+        </div>
+      )}
 
       {/* Status + recent contributions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -143,11 +161,16 @@ export default function PortalDashboard() {
           <div className="divide-y divide-gray-100">
             {member.contributions?.map((c: any) => (
               <div key={c.id} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{c.monthYear}</p>
-                  <p className="text-xs text-gray-400">{fmtDate(c.paymentDate)} · {c.paymentMethod || '—'}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {c.reversedAt ? 'Reversed' : c.category === 'voluntary' ? 'Voluntary contribution' : (c.receiptCovers || c.monthYear)}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Paid {fmtDate(c.paymentDate)} · {c.paymentMethod || '—'}
+                    {c.receiptNumber && <> · <Link className="text-indigo-600 underline" href={`/portal/receipts/${c.transactionId}`}>Receipt</Link></>}
+                  </p>
                 </div>
-                <span className="font-semibold text-green-700">{fmt$(c.amount)}</span>
+                <span className={`font-semibold ${c.reversedAt ? 'text-gray-400 line-through' : 'text-green-700'}`}>{fmt$(c.amount)}</span>
               </div>
             ))}
           </div>

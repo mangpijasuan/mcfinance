@@ -51,7 +51,7 @@ if [ -z "$ADMIN_SEED_PASSWORD" ]; then
   export ADMIN_SEED_PASSWORD
 fi
 echo ""
-echo "Loading club data..."
+echo "Loading synthetic demo data (no real members)..."
 npx prisma db seed
 
 echo ""

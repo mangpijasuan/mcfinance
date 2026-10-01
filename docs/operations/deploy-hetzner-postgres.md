@@ -94,7 +94,7 @@ docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
 docker compose -f docker-compose.hetzner.yml exec -e ADMIN_SEED_PASSWORD='a long passphrase' app npx prisma db seed
 ```
 
-**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first (`scripts/backup-postgres.sh`), then compare the live schema with the current one:
+**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-migration.dump`, kept off the server — then compare the live schema with the current one:
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec app \
@@ -115,7 +115,7 @@ The output should contain **only** the `AuditLog` table and its three indexes (a
 **Every deploy after that:**
 
 ```bash
-./scripts/backup-postgres.sh
+./scripts/ops/backup-postgres.sh
 docker compose -f docker-compose.hetzner.yml up -d --build
 docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
 ```
@@ -141,17 +141,26 @@ Check:
 - `https://admin.your-domain.example/login`
 - `https://admin.your-domain.example/api/health`
 
-## 9. Set up nightly backups
+## 9. Set up encrypted off-site backups
 
-Run `scripts/backup-postgres.sh` on a schedule (writes a timestamped, gzipped `pg_dump` to `backups/` and prunes anything older than 14 days):
+Follow [backup-and-restore.md](backup-and-restore.md): create the club's backup key on an officer's computer (never on the server), create a versioned, write-only object-storage bucket, add `.env.backup`, then schedule `scripts/ops/backup-postgres.sh` nightly. An officer runs `scripts/ops/restore-postgres.sh verify` weekly to prove the newest backup restores.
+
+Also take a Hetzner server snapshot before any upgrade.
+
+## 10. Schedule the daily jobs
+
+- `dues:service` bills each active member's dues for the new month (so everyone who has not prepaid starts the month unpaid), refreshes "paid this month" and arrears, and posts contributions waiting for the ledger.
+- `loans:service` marks loans delinquent from their schedules, charges late fees once they are switched on (Gate #1 A7), and posts anything waiting for the ledger.
+
+Both are safe to run more than once a day. Run `dues:service` once by hand right after deploying, so every member's dues are billed from January 2026 (`DUES_TRACKING_START`).
 
 ```bash
 crontab -e
-# add:
-0 3 * * * cd /path/to/mcfinance && ./scripts/backup-postgres.sh >> /var/log/mcfinance-backup.log 2>&1
+# 20 6 * * * cd /path/to/mcfinance && docker compose -f docker-compose.hetzner.yml exec -T app npm run dues:service >> /var/log/mc-dues.log 2>&1
+# 30 6 * * * cd /path/to/mcfinance && docker compose -f docker-compose.hetzner.yml exec -T app npm run loans:service >> /var/log/mc-loans.log 2>&1
 ```
 
-Also take a Hetzner server snapshot before any upgrade.
+A non-zero exit means a member or loan could not be processed; the log names it.
 
 ## Google Sheets recommendation
 

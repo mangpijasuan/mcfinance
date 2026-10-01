@@ -2,7 +2,7 @@ import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
-import { isRateLimited, recordFailedAttempt, clearAttempts } from './rateLimit'
+import { LIMITS, clearAttempts, clientIp, ipKey, isRateLimited, recordFailedAttempt } from './rateLimit'
 import { sendEmail } from './email'
 import { anonymousAuditContext, auditContext, recordAudit } from '@/modules/audit'
 import { createStaffSession, hashSessionToken } from '@/modules/auth/sessions'
@@ -52,6 +52,22 @@ async function notifyBreakGlass(email: string, ip: string | null) {
     .catch((err) => console.error('break-glass notification failed', err))
 }
 
+// A sign-in was refused because an account or an IP address hit its
+// failure limit — a likely guessing attack. Alert once per hour per target
+// (throttled through the same attempts table).
+async function alertLockout(kind: 'admin' | 'member', attempted: string, ip: string | null) {
+  const to = process.env.SECURITY_ALERT_EMAIL
+  if (!to) return
+  const target = `${kind}:${attempted.toLowerCase()}|${ip ?? '-'}`
+  const hourly = { max: 1, windowMs: 60 * 60 * 1000 }
+  if (await isRateLimited(`alert:${target}`, hourly)) return
+  await recordFailedAttempt(`alert:${target}`)
+  const clean = (v: string) => v.replace(/[<>&"]/g, '')
+  await sendEmail(to, 'Repeated failed sign-ins',
+    `<p>Sign-in attempts for ${kind === 'admin' ? 'staff account' : 'member'} <b>${clean(attempted)}</b>${ip ? ` from ${clean(ip)}` : ''} were blocked after too many failures at ${new Date().toISOString()}.</p><p>Details are in the audit log (auth.login.blocked).</p>`)
+    .catch((err) => console.error('lockout alert failed', err))
+}
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: MEMBER_SESSION_MAX_AGE_S },
   jwt: { maxAge: MEMBER_SESSION_MAX_AGE_S },
@@ -70,7 +86,12 @@ export const authOptions: NextAuthOptions = {
         if (!creds?.email || !creds?.password) return null
         const email = creds.email.trim().toLowerCase()
         const rateLimitKey = `admin:${email}`
-        if (isRateLimited(rateLimitKey)) { await auditSignIn(req, 'auth.login.blocked', 'admin', email); return null }
+        const ip = clientIp(headerSource(req).headers.get)
+        if ((await isRateLimited(rateLimitKey)) || (ip && (await isRateLimited(ipKey(ip)!, LIMITS.ip)))) {
+          await auditSignIn(req, 'auth.login.blocked', 'admin', email)
+          await alertLockout('admin', email, ip)
+          return null
+        }
 
         const admin = await prisma.admin.findFirst({
           where: { email: { equals: email, mode: 'insensitive' } },
@@ -78,7 +99,7 @@ export const authOptions: NextAuthOptions = {
         })
         const passwordOk = admin ? await bcrypt.compare(creds.password, admin.password) : false
         if (!admin || !passwordOk || admin.disabledAt) {
-          recordFailedAttempt(rateLimitKey)
+          await recordFailedAttempt(rateLimitKey, ipKey(ip))
           await auditSignIn(req, 'auth.login.failure', 'admin', email, undefined, admin?.disabledAt ? { reason: 'disabled' } : undefined)
           return null
         }
@@ -89,22 +110,21 @@ export const authOptions: NextAuthOptions = {
           const code = creds.code?.trim()
           if (!code) throw new Error(SIGN_IN_ERRORS.mfaRequired)
           const mfaKey = `mfa:${admin.id}`
-          if (isRateLimited(mfaKey)) {
+          if (await isRateLimited(mfaKey, LIMITS.mfa)) {
             await auditSignIn(req, 'auth.mfa.blocked', 'admin', email, actor)
             throw new Error(SIGN_IN_ERRORS.mfaInvalid)
           }
           const result = await verifySecondFactor(prisma, admin, code)
           if (!result.ok) {
-            recordFailedAttempt(mfaKey)
+            await recordFailedAttempt(mfaKey, ipKey(ip))
             await auditSignIn(req, 'auth.mfa.failure', 'admin', email, actor)
             throw new Error(SIGN_IN_ERRORS.mfaInvalid)
           }
-          clearAttempts(mfaKey)
+          await clearAttempts(mfaKey)
           mfaMethod = result.method
         }
-        clearAttempts(rateLimitKey)
+        await clearAttempts(rateLimitKey)
 
-        const ip = headerSource(req).headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null
         const sid = await createStaffSession(prisma, admin.id, {
           mfaVerified: Boolean(admin.mfaEnabledAt),
           ip,
@@ -132,12 +152,20 @@ export const authOptions: NextAuthOptions = {
         if (!creds?.memberId || !creds?.password) return null
         const attempted = creds.memberId.trim()
         const rateLimitKey = `member:${attempted.toLowerCase()}`
-        if (isRateLimited(rateLimitKey)) { await auditSignIn(req, 'auth.login.blocked', 'member', attempted); return null }
+        const ip = clientIp(headerSource(req).headers.get)
+        if ((await isRateLimited(rateLimitKey)) || (ip && (await isRateLimited(ipKey(ip)!, LIMITS.ip)))) {
+          await auditSignIn(req, 'auth.login.blocked', 'member', attempted)
+          await alertLockout('member', attempted, ip)
+          return null
+        }
         const member = await prisma.member.findUnique({ where: { id: attempted } })
-        if (!member || !member.portalEnabled || !member.portalPassword) { recordFailedAttempt(rateLimitKey); await auditSignIn(req, 'auth.login.failure', 'member', attempted); return null }
-        const ok = await bcrypt.compare(creds.password, member.portalPassword)
-        if (!ok) { recordFailedAttempt(rateLimitKey); await auditSignIn(req, 'auth.login.failure', 'member', attempted); return null }
-        clearAttempts(rateLimitKey)
+        const ok = member?.portalEnabled && member.portalPassword ? await bcrypt.compare(creds.password, member.portalPassword) : false
+        if (!member || !ok) {
+          await recordFailedAttempt(rateLimitKey, ipKey(ip))
+          await auditSignIn(req, 'auth.login.failure', 'member', attempted)
+          return null
+        }
+        await clearAttempts(rateLimitKey)
         await auditSignIn(req, 'auth.login.success', 'member', attempted, { kind: 'member', memberId: member.id })
         return { id: member.id, email: member.email || '', name: member.legalName, kind: 'member', memberId: member.id } as any
       },

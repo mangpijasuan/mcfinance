@@ -13,6 +13,20 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
     globalSetup: ['tests/setup/globalSetup.ts'],
     setupFiles: ['tests/setup/session.ts'],
+    // The money path must be fully tested (docs/architecture/11 §3):
+    // `npm run test:coverage` fails if any of these drops below 100%.
+    coverage: {
+      provider: 'v8',
+      include: [
+        'src/lib/money/**', 'src/lib/dates.ts', 'src/modules/loans/amortization/**', 'src/modules/accounting/ledger/**',
+        'src/modules/loans/state.ts', 'src/modules/loans/postings.ts', 'src/modules/accounting/autoPost.ts',
+        'src/modules/contributions/dues.ts', 'src/modules/contributions/index.ts',
+        'src/modules/accounting/opening.ts', 'src/modules/accounting/legacyActivity.ts',
+      ],
+      exclude: ['**/*.test.ts'],
+      thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
+      reporter: ['text-summary'],
+    },
     // Integration tests share one database, so files run one at a time.
     fileParallelism: false,
     env: {

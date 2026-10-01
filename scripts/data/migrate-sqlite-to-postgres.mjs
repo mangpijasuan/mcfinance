@@ -3,6 +3,10 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PrismaClient } from '@prisma/client'
 
+// Copies a legacy SQLite database (prisma/dev.db) into PostgreSQL:
+//   npm run db:migrate-sqlite [-- path/to/dev.db]
+// Real member data: run it only against a database outside git (A15).
+
 const sqlitePath = resolve(process.argv[2] || 'prisma/dev.db')
 if (!existsSync(sqlitePath)) {
   throw new Error(`Legacy SQLite database not found: ${sqlitePath}`)
@@ -67,7 +71,14 @@ async function main() {
   ]))
 
   rows.Member = rows.Member.map((member) => ({ ...member, portalEnabled: Boolean(member.portalEnabled) }))
-  rows.Loan = rows.Loan.map((loan) => ({ ...loan, overdue: Boolean(loan.overdue) }))
+  rows.Loan = rows.Loan.map((loan) => ({
+    ...loan,
+    overdue: Boolean(loan.overdue),
+    // Legacy loans were paid out long ago; keep their stage in step with the status.
+    lifecycle: loan.status === 'Paid Off' ? 'paid_off' : loan.status === 'Cancelled' ? 'cancelled' : 'disbursed',
+  }))
+  // Money in exact cents (legacy amounts are floats of whole cents).
+  rows.Contribution = rows.Contribution.map((c) => ({ ...c, amountCents: BigInt(Math.round(Number(c.amount) * 100)) }))
   rows.LoanAgreement = rows.LoanAgreement.map((agreement) => ({
     ...agreement,
     lenderName: agreement.lenderName === 'MC Finance' ? 'Millionaires Club' : agreement.lenderName,

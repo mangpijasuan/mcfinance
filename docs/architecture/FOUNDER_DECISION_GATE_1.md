@@ -79,11 +79,12 @@ Approving these commits to **principles only**. No token is created, and no cont
 
 | Item | Owed | Blocks |
 |---|---|---|
-| A4 | Names of at least three officers for maker/checker, and which role each holds | Replacing the transitional Club Officer role; turning on maker/checker enforcement (Stage 3) |
+| A4 | Names of at least three officers for maker/checker, and which role each holds | Replacing the transitional Club Officer role; switching maker/checker on (built; one setting, `MAKER_CHECKER_ENFORCED=true`) |
 | A7 | Counsel confirmation of late-fee limits in the club's state | Charging the first late fee (the delinquency job ships with fees switched off until confirmed) |
 | A12 | Counsel engagement and budget | Stage 3a legal scoping; Gate #2 |
 | A13 | Accountant engagement | Posting the chart of accounts (Stage 3) |
 | A14 | Production snapshot and bank statements | Opening balances (migration step M4) |
+| A15 | *Done in code:* real data removed from the repository; synthetic data for development. Owed: keep the original data files encrypted outside git (README "Real club data") | — |
 | Q-1, Q-2, Q-4, Q-6, Q-7, Q-10, Q-12, Q-23 | Blocking facts ([open questions](12-open-questions.md)) | Stage 3 |
 
 **Part B** (MCTN, rewards and UMI principles) is not yet decided. Until it is, no token, contract or UMI work starts.

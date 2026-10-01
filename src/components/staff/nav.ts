@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, Receipt, Landmark, CreditCard, History, ArrowDownLeft, Bell, FileText,
-  Shield, Wallet, ScrollText, KeyRound, type LucideIcon,
+  Shield, Wallet, ScrollText, KeyRound, BookOpen, CheckSquare, CalendarCheck, type LucideIcon,
 } from 'lucide-react'
 import type { Permission } from '@/modules/permissions'
 
@@ -20,12 +20,15 @@ export const STAFF_NAV: GroupedStaffNavItem[] = [
   { group: 'Overview',       href: '/dashboard',      label: 'Dashboard',             icon: LayoutDashboard, permission: 'dashboard.view' },
   { group: 'Members',        href: '/members',        label: 'Members',               icon: Users,           permission: 'members.read' },
   { group: 'Money',          href: '/contributions',  label: 'Contributions',         icon: Receipt,         permission: 'contributions.read' },
+  { group: 'Money',          href: '/dues',           label: 'Dues',                  icon: CalendarCheck,   permission: 'contributions.read' },
   { group: 'Money',          href: '/payments',       label: 'Online Payment Review', icon: Wallet,          permission: 'payments.read', badge: 'pendingPayments' },
   { group: 'Money',          href: '/withdrawals',    label: 'Withdrawals',           icon: ArrowDownLeft,   permission: 'withdrawals.read' },
+  { group: 'Money',          href: '/ledger',         label: 'Ledger',                icon: BookOpen,        permission: 'ledger.read' },
   { group: 'Lending',        href: '/loans',          label: 'Loans',                 icon: Landmark,        permission: 'loans.read', badge: 'overdueLoans' },
   { group: 'Lending',        href: '/agreements',     label: 'Loan Agreements',       icon: FileText,        permission: 'agreements.read' },
   { group: 'Lending',        href: '/loan-payments',  label: 'Repayments',            icon: CreditCard,      permission: 'loan_payments.read' },
   { group: 'Lending',        href: '/loan-history',   label: 'Loan History',          icon: History,         permission: 'loans.read' },
+  { group: 'Operations',     href: '/approvals',      label: 'Approvals',             icon: CheckSquare,     permission: 'approvals.view' },
   { group: 'Operations',     href: '/notifications',  label: 'Notifications',         icon: Bell,            permission: 'notifications.read', badge: 'notificationTasks' },
   { group: 'Administration', href: '/settings/staff', label: 'Staff & Roles',         icon: Shield,          permission: 'staff.read' },
   { group: 'Administration', href: '/settings/audit', label: 'Audit Log',             icon: ScrollText,      permission: 'audit.read' },

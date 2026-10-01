@@ -29,15 +29,15 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 | F-1 | No ledger. Balances are stored fields that route handlers overwrite (`contributions2026`, `overallContributions`, `currentLoanBalance`, `totalPaid`, `balanceRemaining`, `eligible`, `thisMonth`). They agree with the rows today; nothing enforces it. | H | **Replace** with a double-entry ledger (D-04) |
 | F-2 | Every money column is `Float`. The monthly payment is `Math.round(amount / term * 100) / 100`, so $10,000 / 24 is scheduled as 24 × $416.67 = $10,000.08. Loan L05 is this case. | H | **Replace** with integer cents (D-03) |
 | F-3 | Cancelling or deleting a loan agreement hard-deletes the loan and all of its repayments (`loanPayment.deleteMany`). | H | **Fixed (Stage 2):** cancel keeps both records (loan marked `Cancelled`) and is refused once a repayment exists; hard delete removed. Full void-and-reversal comes with the ledger (D-05) |
-| F-4 | Loan disbursements are never recorded as money leaving the club. | H | **Missing** |
+| F-4 | Loan disbursements are never recorded as money leaving the club. | H | **Fixed for new loans (Stage 3):** the payout is a lifecycle step (maker/checker) that posts Dr 1100 / Cr 1000 / Cr 4000 once the chart is approved. Older loans come in with the opening balances (M4) |
 | F-5 | Application fees are computed and printed on the agreement ("collect this separately") but never recorded. The $5 late fee in the policy is never applied. Stripe processing fees are not recorded; payments are booked gross. | M | **Missing** |
-| F-6 | `overdue` is never set by any code. It is only read, so delinquency reflects the seed data or manual edits. | H | **Replace** with computed delinquency |
+| F-6 | `overdue` is never set by any code. It is only read, so delinquency reflects the seed data or manual edits. | H | **Fixed for new loans (Stage 3):** computed from the stored schedule by the daily servicing job and after every payment. Older loans keep the hand-kept flag until migrated (`npm run loans:schedule-report` shows the differences) |
 | F-7 | Loans have one `nextDueDate` and a `monthlyDue`. There is no repayment schedule, so missed installments cannot be identified. | M | **Missing** |
-| F-8 | Two loan sources of truth. `HistoricalLoan` rows (2021–2025) link to members by normalised name. 2 pairs of members share a legal name; 12 of 66 historical borrower names match no member. 30 historical loans are still "Active" ($70,343) and are excluded from the dashboard's outstanding figure. `scripts/sync-active-historical-loans.js` bridges the two tables with substring name matching. | H | **Refactor**: link by member ID, reconcile balances |
+| F-8 | Two loan sources of truth. `HistoricalLoan` rows (2021–2025) link to members by normalised name. 2 pairs of members share a legal name; 12 of 66 historical borrower names match no member. 30 historical loans are still "Active" ($70,343) and are excluded from the dashboard's outstanding figure. `scripts/data/sync-active-historical-loans.js` bridges the two tables with substring name matching. | H | **Refactor**: link by member ID, reconcile balances |
 | F-9 | $164,790 (95.8%) of all recorded contributions exist only as per-member yearly totals, with no transaction detail. | M | **Keep** as opening balances in the ledger migration |
-| F-10 | The payment date is used as the period the payment covers (`monthYear` is derived from `paymentDate`). Prepayments are therefore recorded with future payment dates (rows exist dated Oct–Dec 2026). | M | **Refactor**: separate the payment date from the period covered |
+| F-10 | The payment date is used as the period the payment covers (`monthYear` is derived from `paymentDate`). Prepayments are therefore recorded with future payment dates (rows exist dated Oct–Dec 2026). | M | **Fixed (Stage 3):** monthly dues obligations; payments cover the oldest unpaid month first and extra is credit, so a prepayment is recorded on the day it is paid. Existing future-dated rows still count as payments; clean-up is part of the M4 review |
 | F-11 | Cash is collected by individuals (`receivedBy`: collectors' names) with no record of when it was deposited into the bank. | M | **Missing**: cash custody and deposit reconciliation |
-| F-12 | Admin `PATCH /api/loans/:id` can set `status` and `overdue` directly, e.g. mark a loan "Paid Off" with no payment. | H | **Replace** with event-driven state changes |
+| F-12 | Admin `PATCH /api/loans/:id` can set `status` and `overdue` directly, e.g. mark a loan "Paid Off" with no payment. | H | **Fixed (Stage 3):** `status` is no longer editable (it changes only through payments, cancellation and write-off); `overdue` and the due date are refused on new loans. The database allows only the documented lifecycle moves |
 | F-13 | Member withdrawals (`Full Exit`, `Partial`) change status but post no balance movement. | M | **Refactor** into the ledger |
 
 ### Access and security
@@ -48,10 +48,10 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 | S-2 | Two roles only. Every admin can record, edit and confirm any financial event alone. | H | **Partly fixed (Stage 2):** nine roles with least-privilege permissions (D-07). Maker/checker (D-06) follows in Stage 3; existing admins keep full access through the transitional Club Officer role until officers are named (A4) |
 | S-3 | No MFA for staff. | H | **Fixed (Stage 2):** TOTP required for every staff account, with recovery codes |
 | S-4 | No audit log of who changed what. | H | **Fixed (Stage 2):** append-only `AuditLog` (database trigger blocks UPDATE, DELETE, TRUNCATE) written in the same transaction by every write route, sign-ins and the Stripe webhook; super-admin viewer at `/settings/audit` |
-| S-5 | Login rate limiting is in-memory: it resets on restart and is per process. | M | **Refactor** to database- or Redis-backed |
-| S-6 | Backups sit on the same VM as the database, are unencrypted, and have never had a restore tested. | H | **Refactor** |
-| S-7 | Real member names and financial history are committed to git in `prisma/seed-data.json` and `historical-loans.json`. The repository is private. | M | **Refactor**: move to an encrypted import, anonymise dev fixtures |
-| S-8 | No Content-Security-Policy. Other security headers were added this session. | L | **Refactor** |
+| S-5 | Login rate limiting is in-memory: it resets on restart and is per process. | M | **Fixed (Stage 2):** limits stored in PostgreSQL; per account, per IP (password spraying) and tighter for two-factor codes; lockouts emailed to the security contact |
+| S-6 | Backups sit on the same VM as the database, are unencrypted, and have never had a restore tested. | H | **Fixed (Stage 2):** age-encrypted to officers' public keys, copied off-site to a write-only versioned bucket, health-checked; weekly scripted restore check ([runbook](../operations/backup-and-restore.md)). Setting it up on the server is an operations task |
+| S-7 | Real member names and financial history are committed to git in `prisma/seed-data.json` and `historical-loans.json`. The repository is private. | M | **Fixed going forward (Stage 2, Gate A15):** removed from the repository; development uses generated synthetic data; real data loads only from an encrypted file outside git. Still in git history by founder decision — the repository must stay private |
+| S-8 | No Content-Security-Policy. Other security headers were added this session. | L | **Fixed (Stage 2):** nonce-based CSP on every page (no inline or injected scripts), HSTS at Caddy |
 | S-9 | Previously found and fixed this session: Next.js critical CVEs, mass assignment, portal brute force, stray routes, a root Docker user, unescaped email HTML. | — | Done |
 
 ### Engineering
@@ -60,7 +60,7 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 |---|---|:-:|---|
 | E-1 | Zero automated tests. CI checks types and build only. | H | **Fixed (Stage 2):** Vitest against PostgreSQL in CI; authorisation matrix, ownership, payment and audit tests |
 | E-2 | Two Prisma schema files maintained by hand. | M | **Fixed (Stage 2):** one schema, PostgreSQL everywhere (D-02) |
-| E-3 | Prisma `db push` instead of migrations: there is no migration history for production. | H | **Fixed (Stage 2):** `prisma migrate` with a baseline; production baselines once ([deploy guide](../deploy-hetzner-postgres.md#7-initialize-the-database)) |
+| E-3 | Prisma `db push` instead of migrations: there is no migration history for production. | H | **Fixed (Stage 2):** `prisma migrate` with a baseline; production baselines once ([deploy guide](../operations/deploy-hetzner-postgres.md#7-initialize-the-database)) |
 | E-4 | Business logic lives inside route handlers. The shared `paymentActions.ts` is the first extraction. | M | **Refactor** into modules (D-01) |
 | E-5 | New member IDs are random (`MC-3F9A…`) while existing ones are sequential (`MC-10001`). | L | **Refactor** |
 | E-6 | No input schema validation library; validation is hand-written per route. | M | **Refactor** (zod) |
@@ -93,6 +93,6 @@ Severity: **H** = can produce wrong money or unauthorised access; **M** = integr
 | A-3 | Obtain bank statements for the club accounts and reconcile them to recorded contributions, loans and withdrawals for at least the last 12 months | Establishes the true cash position for the ledger's opening balance | Treasurer |
 | A-4 | Document the real-world cash process: who collects, how often it is deposited, who holds bank access | Defines the cash-custody controls and maker/checker roles | Founder + Treasurer |
 | A-5 | Inventory everyone with admin access, bank access or server access | Least-privilege baseline for RBAC | Founder |
-| A-6 | Review the Google Sheets import process referenced in `docs/deploy-hetzner-postgres.md` | A second, unaudited write path into financial data | Engineering |
+| A-6 | Review the Google Sheets import process referenced in `docs/operations/deploy-hetzner-postgres.md` | A second, unaudited write path into financial data | Engineering |
 | A-7 | Verify that production backups exist, and perform one restore into a scratch database | S-6 | Engineering |
 | A-8 | Identify the club's legal entity, governing documents, and any written loan or membership policy | Every compliance question depends on it | Founder |

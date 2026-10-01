@@ -1,5 +1,11 @@
 {$DOMAIN} {
   encode gzip zstd
+  header {
+    # Browsers remember to use HTTPS only (S-8). No "preload": that is
+    # hard to undo and needs a deliberate decision.
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    -Server
+  }
   reverse_proxy app:3000
 }
 

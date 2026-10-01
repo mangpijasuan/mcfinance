@@ -21,6 +21,8 @@ beforeEach(async () => {
 
 describe('Zelle claims', () => {
   it('records a contribution when an admin confirms', async () => {
+    // A member who joined this month owes only this month's dues.
+    await prisma.member.update({ where: { id: TEST_IDS.member }, data: { joinDate: new Date() } })
     const claim = await zelleClaim({ type: 'contribution', amount: 25, zelleReference: 'ZL-123' })
     expect(claim.status).toBe('pending')
 

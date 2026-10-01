@@ -215,10 +215,11 @@ function NewLoanModal({ open, onClose, onSaved }: any) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     })
+    const d = await readJsonSafe(res)
     if (res.ok) {
+      if (res.status === 202 && d?.approvalRequest) window.alert(`Sent for approval (${d.approvalRequest.publicId}). Someone else must approve it under Approvals before it takes effect.`)
       onSaved()
     } else {
-      const d = await readJsonSafe(res)
       setError(d?.error || 'Failed to create loan.')
       if (Array.isArray(d?.violations)) setViolations(d.violations)
       setSaving(false)
@@ -305,7 +306,7 @@ function NewLoanModal({ open, onClose, onSaved }: any) {
         {/* Application fee notice */}
         {policy?.eligible && policy.applicationFee > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
-            💰 Application fee of <strong>{fmt$(policy.applicationFee)}</strong> applies per loan policy. Collect this separately from the borrower.
+            💰 Application fee of <strong>{fmt$(policy.applicationFee)}</strong> applies per loan policy. It is deducted from the payout (Gate #1 A8): the borrower receives the loan amount less the fee and repays the full loan amount.
           </div>
         )}
 

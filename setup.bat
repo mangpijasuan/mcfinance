@@ -40,7 +40,7 @@ if "%ADMIN_SEED_PASSWORD%"=="" (
     set /p ADMIN_SEED_PASSWORD=Choose a password for admin@mcfinance.local ^(12+ characters^):
 )
 echo.
-echo Loading club data...
+echo Loading synthetic demo data (no real members)...
 call npx prisma db seed || goto :error
 
 echo.
