@@ -7,7 +7,8 @@ services:
     environment:
       POSTGRES_DB: mcfinance
       POSTGRES_USER: mcfinance
-      POSTGRES_PASSWORD: change-me
+      # Set in .env next to this file (see .env.hetzner.example).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -38,7 +39,7 @@ services:
       app:
         condition: service_started
     environment:
-      DOMAIN: ${DOMAIN}
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
     ports:
       - "80:80"
       - "443:443"

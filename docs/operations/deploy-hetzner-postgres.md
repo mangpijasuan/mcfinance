@@ -20,7 +20,10 @@ PostgreSQL is the database in every environment. Schema changes ship as Prisma m
 - `Dockerfile`
 - `docker-compose.hetzner.yml`
 - `Caddyfile`
-- `.env.production.example`
+- `.env.hetzner.example` (domain and database password, read by Docker Compose)
+- `.env.production.example` (the app's settings)
+
+Run every `docker compose` command below from the project directory: Compose reads `.env` from there.
 
 ## 1. Create a Hetzner server
 
@@ -53,37 +56,61 @@ sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-## 4. Upload the project
+## 4. Get the code onto the server
 
-Copy the repo to the server, then enter the project directory.
-
-## 5. Create the production env file
+The repository is private, so give the server a read-only deploy key:
 
 ```bash
+ssh-keygen -t ed25519 -f ~/.ssh/mcfinance_deploy -N ""
+cat ~/.ssh/mcfinance_deploy.pub
+```
+
+On GitHub, open the repository's **Settings → Deploy keys → Add deploy key**, paste the key, and leave "Allow write access" off. Then:
+
+```bash
+GIT_SSH_COMMAND='ssh -i ~/.ssh/mcfinance_deploy' git clone git@github.com:mangpijasuan/mcfinance.git ~/mcfinance
+cd ~/mcfinance
+git config core.sshCommand 'ssh -i ~/.ssh/mcfinance_deploy'
+```
+
+## 5. Create the two settings files
+
+Neither file is ever committed. Keep a copy of both with the club's other secrets.
+
+```bash
+cp .env.hetzner.example .env
 cp .env.production.example .env.production
+openssl rand -hex 24       # database password
+openssl rand -base64 32    # NEXTAUTH_SECRET
+openssl rand -base64 32    # MFA_ENCRYPTION_KEY (a different value)
 ```
 
-Update these values:
+In `.env`:
 
-- `NEXTAUTH_URL`
+- `DOMAIN`: the admin panel's address, e.g. `admin.your-domain.example`
+- `POSTGRES_PASSWORD`: the database password
+
+In `.env.production`:
+
+- `NEXTAUTH_URL`: `https://` plus the same domain
 - `NEXTAUTH_SECRET`
-- `MFA_ENCRYPTION_KEY` (`openssl rand -base64 32`; back it up with your other secrets — losing it means every staff member re-enrols two-factor authentication)
+- `MFA_ENCRYPTION_KEY` (losing it means every staff member sets up two-factor authentication again)
+- `DATABASE_URL`: replace `change-me` with the database password from `.env`
 - `SECURITY_ALERT_EMAIL` (receives an alert on every Super Admin sign-in)
-- `DATABASE_URL`
-- `ADMIN_EMAIL`
-- `EMAIL_FROM`
-
-Also export the domain used by Caddy:
-
-```bash
-export DOMAIN=admin.your-domain.example
-```
+- `RESEND_API_KEY`, `ADMIN_EMAIL`, `EMAIL_FROM` for email
+- `STRIPE_*` and `NEXT_PUBLIC_ZELLE_*` for online payments, if used
+- leave `MAKER_CHECKER_ENFORCED` and `LATE_FEES_ENABLED` at `"false"` until Gate #1 A4 and A7 are settled
 
 ## 6. Bring up the stack
 
+The domain's DNS record must already point at the server, so Caddy can obtain the HTTPS certificate.
+
 ```bash
 docker compose -f docker-compose.hetzner.yml up -d --build
+docker compose -f docker-compose.hetzner.yml ps    # app and postgres: "healthy"
 ```
+
+The first build takes a few minutes.
 
 ## 7. Initialize the database
 
@@ -91,8 +118,24 @@ docker compose -f docker-compose.hetzner.yml up -d --build
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
-docker compose -f docker-compose.hetzner.yml exec -e ADMIN_SEED_PASSWORD='a long passphrase' app npx prisma db seed
+
+# The first Super Admin (sets up two-factor authentication at first sign-in)
+docker compose -f docker-compose.hetzner.yml exec \
+  -e ADMIN_EMAIL_TO_RESET=you@your-domain.example -e NEW_ADMIN_PASSWORD='a long passphrase' \
+  app npm run admin:reset-password
 ```
+
+To load the club's records, copy the decrypted data file (README, "Real club data") in, seed from it, and delete it from the container:
+
+```bash
+docker compose -f docker-compose.hetzner.yml cp club-data.json app:/tmp/club-data.json
+docker compose -f docker-compose.hetzner.yml exec \
+  -e SEED_DATA_FILE=/tmp/club-data.json -e ADMIN_SEED_PASSWORD='a long passphrase' \
+  app npx prisma db seed
+docker compose -f docker-compose.hetzner.yml exec -u root app rm /tmp/club-data.json
+```
+
+Then delete `club-data.json` from the server too. The seed refuses to load demo data in production.
 
 **Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-migration.dump`, kept off the server — then compare the live schema with the current one:
 
@@ -112,13 +155,27 @@ The output should contain **only** the `AuditLog` table and its three indexes (a
 
 **Upgrading to roles and two-factor authentication** (migration `20260926020000_rbac_mfa`): set `MFA_ENCRYPTION_KEY` in `.env.production` *before* deploying. The migration turns each existing Super Admin into a Super Admin role holder and every other admin into the transitional Club Officer role (the audit log records each one). Every staff member is asked to set up two-factor authentication at their next sign-in, so tell them to have their phone ready.
 
-**Every deploy after that:**
+**Every deploy after that** (migrations run before the new version starts):
 
 ```bash
+cd ~/mcfinance
 ./scripts/ops/backup-postgres.sh
-docker compose -f docker-compose.hetzner.yml up -d --build
-docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
+git pull
+docker compose -f docker-compose.hetzner.yml build app
+docker compose -f docker-compose.hetzner.yml run --rm --no-deps app npx prisma migrate deploy
+docker compose -f docker-compose.hetzner.yml up -d
 ```
+
+Until encrypted backups are set up (step 9), use `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-deploy.dump` instead of the backup script, and copy the file off the server.
+
+**A server set up before `.env` existed** used the password `change-me`, and the database keeps the password it was created with. Put `POSTGRES_PASSWORD=change-me` in `.env` at first, then change it:
+
+```bash
+docker compose -f docker-compose.hetzner.yml exec postgres \
+  psql -U mcfinance -d mcfinance -c "ALTER USER mcfinance PASSWORD 'the-new-password'"
+```
+
+Then put the new password in `.env` and in `DATABASE_URL` in `.env.production`, and run `docker compose -f docker-compose.hetzner.yml up -d`.
 
 Never run `prisma db push` or `prisma migrate reset` against production.
 
