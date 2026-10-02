@@ -144,6 +144,18 @@ describe('the cash figure before the ledger holds cash', () => {
     expect(p.warnings).toEqual([])
   })
 
+  it('places a payment confirmed at a moment on its club calendar day (America/Chicago)', async () => {
+    await recordBankBalance(10_000_00, '2026-03-31')
+    // 11:30 pm in Chicago on the statement day: already in that day's balance.
+    await contribution('MC-CAPITAL', '2026-04-01T04:30:00Z', 40_00)
+    // 10 pm in Chicago on 1 May (already 2 May in UTC): counted on May 1st.
+    await contribution('MC-CAPITAL', '2026-05-02T03:00:00Z', 60_00)
+    // The next club day: not yet.
+    await contribution('MC-CAPITAL', '2026-05-02T15:00:00Z', 80_00)
+    const p = await treasuryPosition(prisma, '2026-05-01')
+    expect(p.cash.source === 'bank_balance' && p.cash.since.contributions).toEqual({ count: 1, cents: 60_00 })
+  })
+
   it('warns when the balance is stale or cash is below the reserve', async () => {
     await recordBankBalance(1_000_00, '2026-02-01')
     const p = await treasuryPosition(prisma, '2026-04-30')

@@ -62,9 +62,10 @@ export type TreasuryPosition = {
 }
 
 const centsOf = (value: number) => legacyCents(value).amount
+const DAY_MS = 86_400_000
 
 function daysBetween(from: IsoDate, to: IsoDate): number {
-  return Math.round((dateOnly(to).getTime() - dateOnly(from).getTime()) / 86_400_000)
+  return Math.round((dateOnly(to).getTime() - dateOnly(from).getTime()) / DAY_MS)
 }
 
 /** The same calendar day `months` months earlier (a 31st falls back to the month's end). */
@@ -73,6 +74,26 @@ function monthsBefore(date: IsoDate, months: number): IsoDate {
   const first = new Date(Date.UTC(y, m - 1 - months, 1))
   const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate()
   return isoDateOf(new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(d, lastDay))))
+}
+
+function dayBefore(date: IsoDate): IsoDate {
+  return isoDateOf(new Date(dateOnly(date).getTime() - DAY_MS))
+}
+
+/**
+ * A query range wide enough for every moment on the club days after
+ * `after` up to and including `upTo`, whatever the time zone. Money dates
+ * are calendar dates (midnight UTC) or, for a confirmed Zelle or card
+ * payment, the moment it was confirmed; `onClubDays` then keeps the rows
+ * whose club calendar date is in range.
+ */
+function around(after: IsoDate, upTo: IsoDate) {
+  return { gte: dateOnly(after), lt: new Date(dateOnly(upTo).getTime() + 2 * DAY_MS) }
+}
+
+function onClubDays(value: Date, after: IsoDate, upTo: IsoDate): boolean {
+  const day = isoDateOf(value)
+  return day > after && day <= upTo
 }
 
 /** The bank balance that counts: the latest statement date, then the latest recorded. */
@@ -89,16 +110,17 @@ export async function latestBankBalance(db: Db, asOf: IsoDate): Promise<BankBala
   }
 }
 
-async function ledgerCash(db: Db, cutover: IsoDate): Promise<CashPosition> {
+async function ledgerCash(db: Db, cutover: IsoDate, asOf: IsoDate): Promise<CashPosition> {
   const accounts = await Promise.all(
-    Object.values(CASH_ACCOUNTS).map(async (code) => ({ code, cents: (await accountBalance(db, code)).balance })),
+    Object.values(CASH_ACCOUNTS).map(async (code) => ({ code, cents: (await accountBalance(db, code, { asOf })).balance })),
   )
   // Withdrawals reach the ledger through the daily job until M5; count the
   // ones recorded since its last run as already paid out.
-  const withdrawals = await db.withdrawal.findMany({
-    where: { withdrawalDate: { gte: dateOnly(cutover) }, amount: { gt: 0 } },
-    select: { withdrawalId: true, amount: true },
-  })
+  const since = dayBefore(cutover)
+  const withdrawals = (await db.withdrawal.findMany({
+    where: { withdrawalDate: around(since, asOf), amount: { gt: 0 } },
+    select: { withdrawalId: true, amount: true, withdrawalDate: true },
+  })).filter((w) => onClubDays(w.withdrawalDate, since, asOf))
   const posted = new Set(
     (await db.journalEntry.findMany({
       where: { idempotencyKey: { in: withdrawals.map((w) => `withdrawal:${w.withdrawalId}`) } },
@@ -115,15 +137,22 @@ async function ledgerCash(db: Db, cutover: IsoDate): Promise<CashPosition> {
 }
 
 async function bankBalanceCash(db: Db, balance: BankBalanceView, asOf: IsoDate): Promise<CashPosition> {
-  // Money recorded after the end of the statement day, up to today.
-  const window = { gt: dateOnly(balance.statementDate), lte: dateOnly(asOf) }
+  // Money recorded on the club days after the statement day, up to asOf.
+  const after = balance.statementDate
+  const window = around(after, asOf)
+  const inRange = (value: Date) => onClubDays(value, after, asOf)
   const [contributions, repayments, enginePayouts, olderPayouts, withdrawals] = await Promise.all([
-    db.contribution.findMany({ where: { paymentDate: window, reversedAt: null, amountCents: { gt: 0 } }, select: { amountCents: true } }),
-    db.loanPayment.findMany({ where: { paymentDate: window, amount: { gt: 0 } }, select: { amount: true } }),
-    db.loan.findMany({ where: { disbursedOn: window, disbursedAmountCents: { not: null } }, select: { disbursedAmountCents: true } }),
+    db.contribution.findMany({ where: { paymentDate: window, reversedAt: null, amountCents: { gt: 0 } }, select: { amountCents: true, paymentDate: true } })
+      .then((rows) => rows.filter((r) => inRange(r.paymentDate))),
+    db.loanPayment.findMany({ where: { paymentDate: window, amount: { gt: 0 } }, select: { amount: true, paymentDate: true } })
+      .then((rows) => rows.filter((r) => inRange(r.paymentDate))),
+    db.loan.findMany({ where: { disbursedOn: window, disbursedAmountCents: { not: null } }, select: { disbursedAmountCents: true, disbursedOn: true } })
+      .then((rows) => rows.filter((r) => inRange(r.disbursedOn!))),
     // Loans made before the loan engine were paid out on their loan date.
-    db.loan.findMany({ where: { loanDate: window, principalCents: null, lifecycle: { notIn: ['cancelled', ...COMMITTED_STAGES] } }, select: { loanAmount: true } }),
-    db.withdrawal.findMany({ where: { withdrawalDate: window, amount: { gt: 0 } }, select: { amount: true } }),
+    db.loan.findMany({ where: { loanDate: window, principalCents: null, lifecycle: { notIn: ['cancelled', ...COMMITTED_STAGES] } }, select: { loanAmount: true, loanDate: true } })
+      .then((rows) => rows.filter((r) => inRange(r.loanDate))),
+    db.withdrawal.findMany({ where: { withdrawalDate: window, amount: { gt: 0 } }, select: { amount: true, withdrawalDate: true } })
+      .then((rows) => rows.filter((r) => inRange(r.withdrawalDate))),
   ])
   const movements = {
     contributions: contributions.map((c) => fromBigInt(c.amountCents)),
@@ -149,11 +178,13 @@ async function bankBalanceCash(db: Db, balance: BankBalanceView, asOf: IsoDate):
 }
 
 /** Member capital: the ledger once it holds it, otherwise the stored totals less withdrawals since the cutover. */
-async function memberCapital(db: Db, opened: { cutover: IsoDate } | null): Promise<Cents> {
-  if (opened) return (await accountBalance(db, MEMBER_CAPITAL)).balance
+async function memberCapital(db: Db, opened: { cutover: IsoDate } | null, asOf: IsoDate): Promise<Cents> {
+  if (opened) return (await accountBalance(db, MEMBER_CAPITAL, { asOf })).balance
+  const since = dayBefore(DEFAULT_CUTOVER)
   const [members, withdrawals] = await Promise.all([
     db.member.findMany({ select: { overallContributions: true } }),
-    db.withdrawal.findMany({ where: { withdrawalDate: { gte: dateOnly(DEFAULT_CUTOVER) }, amount: { gt: 0 } }, select: { amount: true } }),
+    db.withdrawal.findMany({ where: { withdrawalDate: around(since, asOf), amount: { gt: 0 } }, select: { amount: true, withdrawalDate: true } })
+      .then((rows) => rows.filter((w) => onClubDays(w.withdrawalDate, since, asOf))),
   ])
   return subtract(sum(members.map((m) => centsOf(m.overallContributions))), sum(withdrawals.map((w) => centsOf(w.amount))))
 }
@@ -163,13 +194,14 @@ export async function treasuryPosition(db: Db, asOf: IsoDate = todayIso()): Prom
   const opened = await ledgerOpening(db)
   const balance = opened ? null : await latestBankBalance(db, asOf)
   const cash: CashPosition = opened
-    ? await ledgerCash(db, opened.cutover)
+    ? await ledgerCash(db, opened.cutover, asOf)
     : balance ? await bankBalanceCash(db, balance, asOf) : { source: 'unknown', cents: null }
 
   const from = monthsBefore(asOf, LIQUIDITY_POLICY.withdrawalLookbackMonths)
   const [capitalCents, recent, committedLoans] = await Promise.all([
-    memberCapital(db, opened),
-    db.withdrawal.findMany({ where: { withdrawalDate: { gt: dateOnly(from), lte: dateOnly(asOf) }, amount: { gt: 0 } }, select: { amount: true } }),
+    memberCapital(db, opened, asOf),
+    db.withdrawal.findMany({ where: { withdrawalDate: around(from, asOf), amount: { gt: 0 } }, select: { amount: true, withdrawalDate: true } })
+      .then((rows) => rows.filter((w) => onClubDays(w.withdrawalDate, from, asOf))),
     db.loan.findMany({
       where: { lifecycle: { in: COMMITTED_STAGES } },
       select: { loanId: true, borrowerName: true, lifecycle: true, loanAmount: true, principalCents: true, applicationFeeCents: true },

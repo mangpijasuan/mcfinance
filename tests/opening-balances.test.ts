@@ -180,13 +180,17 @@ describe('posting', () => {
     await prisma.withdrawal.create({ data: { withdrawalId: 'WD-T2', memberId: 'M1', memberName: 'M1', amount: 50, withdrawalDate: new Date('2026-09-01'), type: 'Full Exit' } })
     // Treasury (A10): the ledger now holds the cash; the withdrawal the
     // daily job has not posted yet already counts as paid out.
+    // Dated after the day asked about: not part of that day's position.
+    await prisma.withdrawal.create({ data: { withdrawalId: 'WD-T3', memberId: 'M2', memberName: 'M2', amount: 30, withdrawalDate: new Date('2026-12-01') } })
     const before = await treasuryPosition(prisma, '2026-09-20')
     expect(before.cash.source).toBe('ledger')
     if (before.cash.source !== 'ledger') throw new Error('unreachable')
     expect(before.cash.unpostedWithdrawalsCents).toBe(5000)
-    const ledgerCash = (await Promise.all(['1000', '1010', '1020', '1030'].map((code) => accountBalance(prisma, code)))).reduce((t, b) => t + b.balance, 0)
+    // As of that day: the contribution dated 2027 is in the ledger but not yet.
+    const ledgerCash = (await Promise.all(['1000', '1010', '1020', '1030'].map((code) => accountBalance(prisma, code, { asOf: '2026-09-20' })))).reduce((t, b) => t + b.balance, 0)
     expect(before.cash.cents).toBe(ledgerCash - 5000)
-    expect(before.memberCapitalCents).toBe((await accountBalance(prisma, '2000')).balance)
+    expect(before.memberCapitalCents).toBe((await accountBalance(prisma, '2000', { asOf: '2026-09-20' })).balance)
+    expect(before.memberCapitalCents).toBe((await accountBalance(prisma, '2000')).balance - 2000)
     expect(before.committed.loans.map((l) => [l.borrowerName, l.payoutCents])).toEqual([[expect.any(String), 50000 - 3000]])
 
     await payment('LBAD', 'M2', '2026-09-10', 100)
@@ -200,6 +204,12 @@ describe('posting', () => {
     expect(await prisma.journalEntry.findUnique({ where: { idempotencyKey: 'withdrawal:WD-T2' } })).not.toBeNull()
     const after = await treasuryPosition(prisma, '2026-09-20')
     expect(after.cash.source === 'ledger' && after.cash.unpostedWithdrawalsCents).toBe(0)
+    // WD-T3 is now in the ledger, dated in December: still not in September's cash or capital.
+    expect(await prisma.journalEntry.findUnique({ where: { idempotencyKey: 'withdrawal:WD-T3' } })).not.toBeNull()
+    const septemberCash = (await Promise.all(['1000', '1010', '1020', '1030'].map((code) => accountBalance(prisma, code, { asOf: '2026-09-20' })))).reduce((t, b) => t + b.balance, 0)
+    expect(after.cash.cents).toBe(septemberCash)
+    expect(after.memberCapitalCents).toBe((await accountBalance(prisma, '2000', { asOf: '2026-09-20' })).balance)
+    expect((await treasuryPosition(prisma, '2026-12-31')).memberCapitalCents).toBe(after.memberCapitalCents - 3000)
     expect((await serviceDues()).journalEntries).toEqual([])
     expect(await prisma.$transaction((tx) => postLegacyActivity(tx))).toEqual([])
     expect(await checkInvariants(prisma)).toEqual({ ok: true, problems: [] })

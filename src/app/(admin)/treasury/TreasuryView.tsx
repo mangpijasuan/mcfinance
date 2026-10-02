@@ -14,11 +14,11 @@ const ACCOUNT_NAMES: Record<string, string> = {
   '1030': 'Cash held by collectors',
 }
 
-export default function TreasuryView({ canRecord }: { canRecord: boolean }) {
+export default function TreasuryView({ canRecord, today }: { canRecord: boolean; today: string }) {
   const [position, setPosition] = useState<TreasuryPosition | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [statementDate, setStatementDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [statementDate, setStatementDate] = useState(today)
   const [balance, setBalance] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
