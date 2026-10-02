@@ -24,6 +24,13 @@ else
   echo "✓ .env.local already exists"
 fi
 
+# A copy set up before the rename still points at the old database.
+if grep -qs 'postgresql://mcfinance:' .env.local .env; then
+  echo "This copy was set up before the rename to mcfinancial."
+  echo "See README, \"Upgrading a local copy from mcfinance\", then run setup again."
+  exit 1
+fi
+
 # Prisma's CLI reads .env, the app reads .env.local
 if [ ! -f .env ]; then
   cp .env.local .env

@@ -17,6 +17,13 @@ if not exist .env.local (
     echo [OK] .env.local already exists
 )
 
+:: A copy set up before the rename still points at the old database.
+findstr /c:"postgresql://mcfinance:" .env.local .env >nul 2>&1 && (
+    echo This copy was set up before the rename to mcfinancial.
+    echo See README, "Upgrading a local copy from mcfinance", then run setup again.
+    goto :error
+)
+
 if not exist .env (
     copy .env.local .env
     echo [OK] Created .env for Prisma

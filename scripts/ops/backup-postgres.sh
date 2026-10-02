@@ -89,6 +89,8 @@ if [ "${BACKUP_LOCAL_ONLY:-0}" != "1" ]; then
   log "off-site copy verified ($remote_size bytes)"
 fi
 
-find "$LOCAL_DIR" -maxdepth 1 \( -name 'mcfinancial-*.dump.age' -o -name 'mcfinancial-*.dump.age.sha256' \) -mtime "+$RETENTION_DAYS" -delete
+# mcfinance-* are backups taken before the rename; they age out the same way.
+find "$LOCAL_DIR" -maxdepth 1 \( -name 'mcfinancial-*.dump.age' -o -name 'mcfinancial-*.dump.age.sha256' \
+  -o -name 'mcfinance-*.dump.age' -o -name 'mcfinance-*.dump.age.sha256' \) -mtime "+$RETENTION_DAYS" -delete
 ping_health ""
 log "backup complete: $name"

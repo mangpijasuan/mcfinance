@@ -62,9 +62,10 @@ trap cleanup EXIT
 
 newest_backup() {
   if [ -n "${BACKUP_REMOTE:-}" ]; then
-    rclone lsf --files-only --include 'mcfinancial-*.dump.age' "$BACKUP_REMOTE" | sort | tail -1
+    # mcfinance-* are backups taken before the rename; sort on the timestamp.
+    rclone lsf --files-only --include 'mcfinancial-*.dump.age' --include 'mcfinance-*.dump.age' "$BACKUP_REMOTE" | sort -t- -k2 | tail -1
   else
-    ls -1 "${BACKUP_LOCAL_DIR:-backups}" 2>/dev/null | grep -E '^mcfinancial-.*\.dump\.age$' | sort | tail -1
+    ls -1 "${BACKUP_LOCAL_DIR:-backups}" 2>/dev/null | grep -E '^mcfinan(cial|ce)-.*\.dump\.age$' | sort -t- -k2 | tail -1
   fi
 }
 
@@ -142,7 +143,7 @@ case "$mode" in
     [ -n "$ref" ] || die "no backups found"
     log "verifying $ref"
     # Freshness, from the UTC timestamp in the file name.
-    stamp=$(basename "$ref" | sed -E 's/^mcfinancial-([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z.*/\1 \2:\3:\4/')
+    stamp=$(basename "$ref" | sed -E 's/^mcfinan(cial|ce)-([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z.*/\2 \3:\4:\5/')
     if [ -z "${2:-}" ] && taken=$(date -u -d "$stamp" +%s 2>/dev/null); then
       hours=$(( ($(date -u +%s) - taken) / 3600 ))
       log "newest backup is $hours hour(s) old"
