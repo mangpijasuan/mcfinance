@@ -1,7 +1,7 @@
 // Reset (or create) a staff account's password without a hard-coded
 // default. Break-glass for lockouts: run it from the server shell.
 //
-//   ADMIN_EMAIL_TO_RESET=admin@mcfinance.local \
+//   ADMIN_EMAIL_TO_RESET=admin@mcfinancial.local \
 //   NEW_ADMIN_PASSWORD='a long passphrase' \
 //   [RESET_MFA=1] \
 //   npm run admin:reset-password

@@ -144,11 +144,11 @@ At the club's volume (hundreds of entries a year, not millions), balances can be
 ## 3. Repository architecture
 
 <a id="d-01"></a>
-### D-01 — Modular monolith now; the `mcfinance/` monorepo is the target, reached in stages
+### D-01 — Modular monolith now; the `mcfinancial/` monorepo is the target, reached in stages
 
-**DECISION:** Keep the single Next.js application and organise it into domain modules **named exactly like the packages of the target `mcfinance/` monorepo** (below), so each module can later move into `packages/` without code changes. Split out apps, services and `web3/` only when the trigger for each is met ([staged path](#staged-path-to-the-target-monorepo)). No separate NestJS/Fastify backend now.
+**DECISION:** Keep the single Next.js application and organise it into domain modules **named exactly like the packages of the target `mcfinancial/` monorepo** (below), so each module can later move into `packages/` without code changes. Split out apps, services and `web3/` only when the trigger for each is met ([staged path](#staged-path-to-the-target-monorepo)). No separate NestJS/Fastify backend now.
 **WHY:** One small team and about 200 members. Built all at once, the target is about 16 deployables (4 apps, 11 services, contracts), each with its own CI, deployment, secrets, monitoring and copy of member data. Staging captures the target's organisation now and pays the operational cost only when a split buys something.
-**ALTERNATIVES:** Build the full `mcfinance/` monorepo now (§44); keep a monolith with no target shape.
+**ALTERNATIVES:** Build the full `mcfinancial/` monorepo now (§44); keep a monolith with no target shape.
 **BENEFITS:** Incremental modernisation of working code; one security perimeter until a split is justified; a destination everyone agrees on.
 **RISKS:** Module boundaries can erode before the split. The mitigation is an import-boundary lint rule and each module exposing only `index.ts`.
 **REVERSIBILITY:** easy. Modules become packages by moving folders.
@@ -158,7 +158,7 @@ At the club's volume (hundreds of entries a year, not millions), balances can be
 ### Current structure (Stages 1–3)
 
 ```
-mcfinance/
+mcfinancial/
 ├── src/
 │   ├── app/                    # Next.js routes: UI (portal + admin route groups) + thin /api/v1 handlers
 │   ├── modules/                # names match the target packages/
@@ -188,7 +188,7 @@ mcfinance/
 
 **Module rules:** a module owns its tables; other modules call its exported functions; only `accounting` writes journal entries; `loans/amortization` and `accounting/ledger/invariants` are pure functions with no I/O.
 
-### Target structure (`mcfinance/`)
+### Target structure (`mcfinancial/`)
 
 The founder's proposed layout, adopted as the destination with five adjustments:
 
@@ -199,12 +199,12 @@ The founder's proposed layout, adopted as the destination with five adjustments:
 5. **No MCTN pages** in `apps/web`, `apps/member-portal` or `apps/admin` until Gate #2 ([product map](13-product-map.md)).
 
 ```
-mcfinance/
+mcfinancial/
 ├── apps/
-│   ├── web/                    # mcfinance.us — static public site (no member data)
-│   ├── member-portal/          # app.mcfinance.us
-│   ├── admin/                  # admin.mcfinance.us — access-gated, own session
-│   └── api/                    # api.mcfinance.us — only when a second client exists (e.g. mobile)
+│   ├── web/                    # mcfinancial.us — static public site (no member data)
+│   ├── member-portal/          # app.mcfinancial.us
+│   ├── admin/                  # admin.mcfinancial.us — access-gated, own session
+│   └── api/                    # api.mcfinancial.us — only when a second client exists (e.g. mobile)
 ├── packages/
 │   ├── database/               # schema, migrations, seeds (synthetic only), repositories
 │   ├── accounting/             # ledger, accounts, journal-entries, reconciliation, reporting

@@ -3,7 +3,7 @@ set -e
 
 echo ""
 echo "================================================"
-echo "  MC Finance - Setup"
+echo "  MC Financial - Setup"
 echo "================================================"
 echo ""
 
@@ -22,6 +22,13 @@ if [ ! -f .env.local ]; then
   echo "✓ Created .env.local"
 else
   echo "✓ .env.local already exists"
+fi
+
+# A copy set up before the rename still points at the old database.
+if grep -qs 'postgresql://mcfinance:' .env.local .env; then
+  echo "This copy was set up before the rename to mcfinancial."
+  echo "See README, \"Upgrading a local copy from mcfinance\", then run setup again."
+  exit 1
 fi
 
 # Prisma's CLI reads .env, the app reads .env.local
@@ -46,7 +53,7 @@ npx prisma migrate deploy
 # 4. Seed data
 if [ -z "$ADMIN_SEED_PASSWORD" ]; then
   echo ""
-  read -r -s -p "Choose a password for admin@mcfinance.local (12+ characters): " ADMIN_SEED_PASSWORD
+  read -r -s -p "Choose a password for admin@mcfinancial.local (12+ characters): " ADMIN_SEED_PASSWORD
   echo ""
   export ADMIN_SEED_PASSWORD
 fi
@@ -61,7 +68,7 @@ echo ""
 echo "  Run:  npm run dev"
 echo "  Open: http://localhost:3000"
 echo ""
-echo "  Login: admin@mcfinance.local"
+echo "  Login: admin@mcfinancial.local"
 echo "         with the password you just chose."
 echo "  You will set up two-factor authentication (an"
 echo "  authenticator app on your phone) at first sign-in."

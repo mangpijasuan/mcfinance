@@ -86,7 +86,7 @@ async function main() {
 
   const admins = readTable('Admin').map((row) => ({
     ...select(row, ['id', 'email', 'name', 'password', 'linkedMemberId', 'createdAt'], ['createdAt']),
-    email: row.email === 'admin@millionairesclub.com' ? 'admin@mcfinance.local' : row.email,
+    email: row.email === 'admin@millionairesclub.com' ? 'admin@mcfinancial.local' : row.email,
     name: row.email === 'admin@millionairesclub.com' ? 'Millionaires Club Admin' : row.name,
     legacyRole: row.role,
   }))

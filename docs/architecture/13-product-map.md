@@ -5,12 +5,12 @@ How the platform is presented to people: three **surfaces** on separate hosts, a
 ## 1. Map
 
 ```
-                          mcfinance.us
+                          mcfinancial.us
                                │
           ┌────────────────────┼────────────────────┐
           │                    │                    │
          WWW                  APP                 ADMIN
-    mcfinance.us        app.mcfinance.us    admin.mcfinance.us
+    mcfinancial.us        app.mcfinancial.us    admin.mcfinancial.us
     (public, static)    (members)           (staff only; own session,
                                              IP / access-gated)
                                │                    │
@@ -32,20 +32,20 @@ Dashed lines (`┆`) mark what does not exist until Founder Decision Gate #2 app
 <a id="d-17"></a>
 ### D-17 — Three surfaces on separate hosts, with isolated sessions
 
-**DECISION:** Present the platform as three surfaces: a public site (`mcfinance.us`), a member app (`app.`) and an admin console (`admin.`). Each host has its own host-only session, and admin sits behind an access gateway. Inside the member app, group navigation into Membership, Finance and (after Gate #2) Web3, with money and tokens never shown together.
+**DECISION:** Present the platform as three surfaces: a public site (`mcfinancial.us`), a member app (`app.`) and an admin console (`admin.`). Each host has its own host-only session, and admin sits behind an access gateway. Inside the member app, group navigation into Membership, Finance and (after Gate #2) Web3, with money and tokens never shown together.
 **WHY:** Separating staff from members is the strongest cheap security boundary available. It lets admin be locked down (MFA, IP / access gateway, strict cookies) without affecting members. The pillars make the §9 separation of fiat and tokens visible in the product.
 **ALTERNATIVES:** One host with path-based sections (today's `/portal` and admin routes); the admin console as a section of the member app.
 **BENEFITS:** A stolen member session cannot reach admin; the public site carries no member data or attack surface; navigation matches the domain model.
 **RISKS:** Three hosts to configure (DNS, TLS, cookies). Officers who are also members manage two logins, which is intended.
 **REVERSIBILITY:** easy
-**REQUIRES LEGAL REVIEW:** yes (public-site copy and the "mcfinance" / "financial services" branding; compliance rows 2, 3, 17)
+**REQUIRES LEGAL REVIEW:** yes (public-site copy and the "mcfinancial" / "financial services" branding; compliance rows 2, 3, 17)
 **REQUIRES FOUNDER APPROVAL:** yes (domain, branding)
 
 ## 2. Surfaces
 
 | | **WWW** | **APP** | **ADMIN** |
 |---|---|---|---|
-| Host | `mcfinance.us` | `app.mcfinance.us` | `admin.mcfinance.us` |
+| Host | `mcfinancial.us` | `app.mcfinancial.us` | `admin.mcfinancial.us` |
 | Audience | the public, prospective members | members | officers and staff |
 | Sign-in | none | member credentials; passkey or TOTP optional | staff credentials; **MFA required** (D-07) |
 | Data | **no member data, no database access** | the signed-in member's own data only | per-role access (RBAC matrix in [05](05-security-and-privacy.md#rbac-and-makerchecker)) |
@@ -55,7 +55,7 @@ Dashed lines (`┆`) mark what does not exist until Founder Decision Gate #2 app
 
 ### Session isolation (non-negotiable)
 
-- Each host has its **own** session cookie, host-only: no `Domain=.mcfinance.us` attribute, a `__Host-` prefix, `Secure`, `HttpOnly`, `SameSite=Lax` (admin: `Strict`). A member session can then never be presented to `admin.`, and a compromised page on one host cannot read another host's session.
+- Each host has its **own** session cookie, host-only: no `Domain=.mcfinancial.us` attribute, a `__Host-` prefix, `Secure`, `HttpOnly`, `SameSite=Lax` (admin: `Strict`). A member session can then never be presented to `admin.`, and a compromised page on one host cannot read another host's session.
 - Staff who are also members sign in to each surface separately, as different identities with different permissions.
 - Staff sessions: 12-hour absolute limit, 30-minute idle timeout. Member sessions: 7 days with re-authentication for payments and profile changes.
 
@@ -102,7 +102,7 @@ The Finance and Web3 columns are styled differently: dollar amounts and point/to
 | MCTN | — | **Not published** until counsel approves the copy after Gate #2. No price, return, income or listing language, ever (§51) |
 | Contact | form → email; no member data collected beyond the enquiry | spam protection |
 
-**Branding note:** "mcfinance" and "financial services" present the club to the public as a finance provider. Confirm with counsel (compliance row 17) before the public site goes live.
+**Branding note:** "mcfinancial" and "financial services" present the club to the public as a finance provider. Confirm with counsel (compliance row 17) before the public site goes live.
 
 ## 6. How this maps onto the current app
 
@@ -111,7 +111,7 @@ The surfaces are a product boundary first and a deployment boundary later ([stag
 | Stage | WWW | APP | ADMIN |
 |---|---|---|---|
 | Today | does not exist | `/portal/*` in the single Next.js app | `(admin)` routes in the same app |
-| Stage 2 | new static site (`apps/web`) on `mcfinance.us` | the same app answers on `app.mcfinance.us` | the same app answers on `admin.mcfinance.us`. Host-matched routing (`next.config` rewrites with `has: [{ type: 'host' }]`, or reading the Host header in `proxy.ts`) serves each route group only on its own host, and the data-access layer re-checks the role on every request |
+| Stage 2 | new static site (`apps/web`) on `mcfinancial.us` | the same app answers on `app.mcfinancial.us` | the same app answers on `admin.mcfinancial.us`. Host-matched routing (`next.config` rewrites with `has: [{ type: 'host' }]`, or reading the Host header in `proxy.ts`) serves each route group only on its own host, and the data-access layer re-checks the role on every request |
 | After RBAC is stable | — | stays the member app | split into its own deployment (`apps/admin`) behind the access gateway |
 
 Caddy terminates TLS for all three hosts. DNS and certificates are added when each host goes live.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Encrypted, off-site PostgreSQL backup (S-6). Run nightly from the repo
 # root on the server, e.g. via cron:
-#   15 3 * * * cd /path/to/mcfinance && ./scripts/ops/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
+#   15 3 * * * cd /path/to/mcfinancial && ./scripts/ops/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
 #
 # What it does
 #   1. pg_dump (custom format) of the production database;
@@ -27,8 +27,8 @@ cd "$(dirname "$0")/../.."
 [ -f .env.backup ] && set -a && . ./.env.backup && set +a
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.hetzner.yml}"
-DB_USER="${DB_USER:-mcfinance}"
-DB_NAME="${DB_NAME:-mcfinance}"
+DB_USER="${DB_USER:-mcfinancial}"
+DB_NAME="${DB_NAME:-mcfinancial}"
 LOCAL_DIR="${BACKUP_LOCAL_DIR:-backups}"
 RETENTION_DAYS="${BACKUP_LOCAL_RETENTION_DAYS:-7}"
 
@@ -61,7 +61,7 @@ mkdir -p "$LOCAL_DIR"
 chmod 700 "$LOCAL_DIR"
 umask 077
 
-name="mcfinance-$(date -u +%Y%m%dT%H%M%SZ).dump.age"
+name="mcfinancial-$(date -u +%Y%m%dT%H%M%SZ).dump.age"
 tmp_file="$LOCAL_DIR/.$name.partial"
 
 log "dumping and encrypting"
@@ -89,6 +89,8 @@ if [ "${BACKUP_LOCAL_ONLY:-0}" != "1" ]; then
   log "off-site copy verified ($remote_size bytes)"
 fi
 
-find "$LOCAL_DIR" -maxdepth 1 \( -name 'mcfinance-*.dump.age' -o -name 'mcfinance-*.dump.age.sha256' \) -mtime "+$RETENTION_DAYS" -delete
+# mcfinance-* are backups taken before the rename; they age out the same way.
+find "$LOCAL_DIR" -maxdepth 1 \( -name 'mcfinancial-*.dump.age' -o -name 'mcfinancial-*.dump.age.sha256' \
+  -o -name 'mcfinance-*.dump.age' -o -name 'mcfinance-*.dump.age.sha256' \) -mtime "+$RETENTION_DAYS" -delete
 ping_health ""
 log "backup complete: $name"

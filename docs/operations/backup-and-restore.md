@@ -70,7 +70,7 @@ Run it once by hand, then schedule it:
 ```bash
 ./scripts/ops/backup-postgres.sh
 crontab -e
-# 15 3 * * * cd /path/to/mcfinance && ./scripts/ops/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
+# 15 3 * * * cd /path/to/mcfinancial && ./scripts/ops/backup-postgres.sh >> /var/log/mc-backup.log 2>&1
 ```
 
 The script refuses to run if a **private** key is put in the recipients file.
@@ -97,7 +97,7 @@ The last line reads **PASS** or **FAIL**. A FAIL, or a newest backup more than 3
    ```bash
    export AGE_IDENTITY_FILE=~/secure/mc-backup-identity.txt BACKUP_REMOTE=mcbackup-read:mc-club-backups/postgres
    rclone lsf mcbackup-read:mc-club-backups/postgres | sort | tail -3   # pick the newest good one
-   ./scripts/ops/restore-postgres.sh restore mcfinance-YYYYMMDDTHHMMSSZ.dump.age 'postgresql://mcfinance:…@localhost:15432/mcfinance'
+   ./scripts/ops/restore-postgres.sh restore mcfinancial-YYYYMMDDTHHMMSSZ.dump.age 'postgresql://mcfinancial:…@localhost:15432/mcfinancial'
    ```
 
    The restore is a single transaction: it either loads completely or changes nothing. It prints row counts and checks the audit log.

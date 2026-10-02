@@ -49,7 +49,7 @@ The club's only non-contribution revenue is about $1,200 a year of loan applicat
 
 - **Lending.** The club has made 20–25 installment loans a year, including 25 in 2021, and charges application fees. Federal truth-in-lending rules use a "more than 25 times in the preceding calendar year" test to decide who counts as a creditor. State lending law may apply regardless. **LEGAL REVIEW REQUIRED.**
 - **Securities.** A pool of member money, plus a token, plus payments described as "income" is the pattern that invites securities analysis. **LEGAL REVIEW REQUIRED** before MCTN or UMI design is finalised (D-16).
-- **Entity.** The legal form of MC Finance (association, LLC, nonprofit, cooperative) is not recorded anywhere in the system. It changes almost every answer in the [compliance matrix](09-compliance-matrix.md).
+- **Entity.** The legal form of MC Financial (association, LLC, nonprofit, cooperative) is not recorded anywhere in the system. It changes almost every answer in the [compliance matrix](09-compliance-matrix.md).
 
 ## Recommended sequence
 

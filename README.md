@@ -87,6 +87,18 @@ npm run db:migrate-sqlite # one-time import from prisma/dev.db into PostgreSQL
 
 Never use `prisma db push` — it changes the database without recording a migration.
 
+### Upgrading a local copy from mcfinance
+
+The project was renamed from `mcfinance` to `mcfinancial`, including the local database, its user and the Docker project. A copy set up before the rename keeps the old database. Setup stops with a pointer here until it is upgraded.
+
+```bash
+docker compose -p mcfinance -f docker-compose.postgres-local.yml down -v   # old local database (demo data only)
+# in .env.local and .env, change DATABASE_URL to the value in .env.example
+sh setup.sh
+```
+
+`-v` deletes the old local database. Leave it out to keep the old container's volume, but the new database starts empty either way. Local data is synthetic, so setup re-seeds it.
+
 ## Tests
 
 ```bash
