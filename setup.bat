@@ -1,7 +1,7 @@
 @echo off
 echo.
 echo ================================================
-echo   MC Finance -- Setup
+echo   MC Financial -- Setup
 echo ================================================
 echo.
 echo Needs Node.js 22+ and Docker Desktop (for the local PostgreSQL database).
@@ -37,7 +37,7 @@ call npx prisma migrate deploy || goto :error
 
 :: 4. Seed data
 if "%ADMIN_SEED_PASSWORD%"=="" (
-    set /p ADMIN_SEED_PASSWORD=Choose a password for admin@mcfinance.local ^(12+ characters^):
+    set /p ADMIN_SEED_PASSWORD=Choose a password for admin@mcfinancial.local ^(12+ characters^):
 )
 echo.
 echo Loading synthetic demo data (no real members)...
@@ -50,7 +50,7 @@ echo.
 echo   Run:  npm run dev
 echo   Open: http://localhost:3000
 echo.
-echo   Login: admin@mcfinance.local
+echo   Login: admin@mcfinancial.local
 echo          with the password you just chose.
 echo   You will set up two-factor authentication at first sign-in.
 echo ================================================

@@ -62,9 +62,9 @@ trap cleanup EXIT
 
 newest_backup() {
   if [ -n "${BACKUP_REMOTE:-}" ]; then
-    rclone lsf --files-only --include 'mcfinance-*.dump.age' "$BACKUP_REMOTE" | sort | tail -1
+    rclone lsf --files-only --include 'mcfinancial-*.dump.age' "$BACKUP_REMOTE" | sort | tail -1
   else
-    ls -1 "${BACKUP_LOCAL_DIR:-backups}" 2>/dev/null | grep -E '^mcfinance-.*\.dump\.age$' | sort | tail -1
+    ls -1 "${BACKUP_LOCAL_DIR:-backups}" 2>/dev/null | grep -E '^mcfinancial-.*\.dump\.age$' | sort | tail -1
   fi
 }
 
@@ -137,12 +137,12 @@ check_restored() { # check_restored <database url>
 
 case "$mode" in
   verify)
-    ADMIN_URL="${RESTORE_ADMIN_URL:-postgresql://mcfinance:mcfinance_dev@127.0.0.1:5434/postgres}"
+    ADMIN_URL="${RESTORE_ADMIN_URL:-postgresql://mcfinancial:mcfinancial_dev@127.0.0.1:5434/postgres}"
     ref="${2:-$(newest_backup)}"
     [ -n "$ref" ] || die "no backups found"
     log "verifying $ref"
     # Freshness, from the UTC timestamp in the file name.
-    stamp=$(basename "$ref" | sed -E 's/^mcfinance-([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z.*/\1 \2:\3:\4/')
+    stamp=$(basename "$ref" | sed -E 's/^mcfinancial-([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z.*/\1 \2:\3:\4/')
     if [ -z "${2:-}" ] && taken=$(date -u -d "$stamp" +%s 2>/dev/null); then
       hours=$(( ($(date -u +%s) - taken) / 3600 ))
       log "newest backup is $hours hour(s) old"

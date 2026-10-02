@@ -6,7 +6,7 @@ Grouped by who can answer them. Items marked ★ block the start of the financia
 
 | # | Question | Why it matters |
 |---|---|---|
-| Q-1 ★ | What is MC Finance's legal entity type (association, LLC, nonprofit, cooperative), and who are its officers? | Drives almost every row of the [compliance matrix](09-compliance-matrix.md); maps to RBAC roles |
+| Q-1 ★ | What is MC Financial's legal entity type (association, LLC, nonprofit, cooperative), and who are its officers? | Drives almost every row of the [compliance matrix](09-compliance-matrix.md); maps to RBAC roles |
 | Q-2 ★ | Which state(s) is the club organised in, and where do members live? | Lending, privacy and money-transmission rules are state-specific |
 | Q-3 | Do written bylaws, membership terms or loan terms exist? Where? | The system should enforce what the documents say, not the reverse |
 | Q-4 ★ | Is member capital refundable on request? On what notice, and with what exceptions (e.g. while co-signing)? | Liability vs. equity classification (D-04); liquidity policy ([08](08-treasury.md)) |

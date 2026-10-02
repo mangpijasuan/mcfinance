@@ -3,7 +3,7 @@ set -e
 
 echo ""
 echo "================================================"
-echo "  MC Finance - Setup"
+echo "  MC Financial - Setup"
 echo "================================================"
 echo ""
 
@@ -46,7 +46,7 @@ npx prisma migrate deploy
 # 4. Seed data
 if [ -z "$ADMIN_SEED_PASSWORD" ]; then
   echo ""
-  read -r -s -p "Choose a password for admin@mcfinance.local (12+ characters): " ADMIN_SEED_PASSWORD
+  read -r -s -p "Choose a password for admin@mcfinancial.local (12+ characters): " ADMIN_SEED_PASSWORD
   echo ""
   export ADMIN_SEED_PASSWORD
 fi
@@ -61,7 +61,7 @@ echo ""
 echo "  Run:  npm run dev"
 echo "  Open: http://localhost:3000"
 echo ""
-echo "  Login: admin@mcfinance.local"
+echo "  Login: admin@mcfinancial.local"
 echo "         with the password you just chose."
 echo "  You will set up two-factor authentication (an"
 echo "  authenticator app on your phone) at first sign-in."

@@ -47,7 +47,7 @@ export default function Sidebar({ permissions, roleSummary }: { permissions: str
         : null
 
   useEffect(() => {
-    setCollapsed(window.localStorage.getItem('mcfinance.sidebar.collapsed') === 'true')
+    setCollapsed(window.localStorage.getItem('mcfinancial.sidebar.collapsed') === 'true')
   }, [])
 
   useEffect(() => {
@@ -131,7 +131,7 @@ export default function Sidebar({ permissions, roleSummary }: { permissions: str
   function toggleCollapsed() {
     setCollapsed((current) => {
       const next = !current
-      window.localStorage.setItem('mcfinance.sidebar.collapsed', String(next))
+      window.localStorage.setItem('mcfinancial.sidebar.collapsed', String(next))
       return next
     })
   }

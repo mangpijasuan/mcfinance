@@ -61,16 +61,16 @@ newgrp docker
 The repository is private, so give the server a read-only deploy key:
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/mcfinance_deploy -N ""
-cat ~/.ssh/mcfinance_deploy.pub
+ssh-keygen -t ed25519 -f ~/.ssh/mcfinancial_deploy -N ""
+cat ~/.ssh/mcfinancial_deploy.pub
 ```
 
 On GitHub, open the repository's **Settings → Deploy keys → Add deploy key**, paste the key, and leave "Allow write access" off. Then:
 
 ```bash
-GIT_SSH_COMMAND='ssh -i ~/.ssh/mcfinance_deploy' git clone git@github.com:mangpijasuan/mcfinance.git ~/mcfinance
-cd ~/mcfinance
-git config core.sshCommand 'ssh -i ~/.ssh/mcfinance_deploy'
+GIT_SSH_COMMAND='ssh -i ~/.ssh/mcfinancial_deploy' git clone git@github.com:mangpijasuan/mcfinancial.git ~/mcfinancial
+cd ~/mcfinancial
+git config core.sshCommand 'ssh -i ~/.ssh/mcfinancial_deploy'
 ```
 
 ## 5. Create the two settings files
@@ -144,7 +144,7 @@ unset ADMIN_SEED_PASSWORD
 
 The seed refuses to load demo data in production.
 
-**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `(umask 077; docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-migration.dump)`, copied off the server and then shredded — then compare the live schema with the current one:
+**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `(umask 077; docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinancial mcfinancial > pre-migration.dump)`, copied off the server and then shredded — then compare the live schema with the current one:
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec app \
@@ -165,7 +165,7 @@ The output should contain **only** the `AuditLog` table and its three indexes (a
 **Every deploy after that** (migrations run before the new version starts):
 
 ```bash
-cd ~/mcfinance
+cd ~/mcfinancial
 ./scripts/ops/backup-postgres.sh
 git pull
 docker compose -f docker-compose.hetzner.yml build app
@@ -176,15 +176,15 @@ docker compose -f docker-compose.hetzner.yml up -d
 Until encrypted backups are set up (step 9), take a private, unencrypted dump instead of running the backup script. Copy it somewhere safe off the server, then delete it (`shred -u pre-deploy.dump`):
 
 ```bash
-(umask 077; docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-deploy.dump)
+(umask 077; docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinancial mcfinancial > pre-deploy.dump)
 ```
 
 **A server set up before `.env` existed** used the password `change-me`, and the database keeps the password it was created with. Put `POSTGRES_PASSWORD=change-me` in `.env` at first, then change it:
 
 ```bash
-docker compose -f docker-compose.hetzner.yml exec postgres psql -U mcfinance -d mcfinance
+docker compose -f docker-compose.hetzner.yml exec postgres psql -U mcfinancial -d mcfinancial
 # at the psql prompt (asks twice, nothing is echoed or saved in history):
-\password mcfinance
+\password mcfinancial
 \q
 ```
 
@@ -199,7 +199,7 @@ The `AuditLog` table is append-only: a database trigger rejects `UPDATE`, `DELET
 ```bash
 read -rsp 'New password (12+ characters): ' NEW_ADMIN_PASSWORD; echo; export NEW_ADMIN_PASSWORD
 docker compose -f docker-compose.hetzner.yml exec \
-  -e ADMIN_EMAIL_TO_RESET=admin@mcfinance.local -e NEW_ADMIN_PASSWORD \
+  -e ADMIN_EMAIL_TO_RESET=admin@mcfinancial.local -e NEW_ADMIN_PASSWORD \
   app npm run admin:reset-password
 unset NEW_ADMIN_PASSWORD
 ```
@@ -228,8 +228,8 @@ Both are safe to run more than once a day. Run `dues:service` once by hand right
 
 ```bash
 crontab -e
-# 20 6 * * * cd /path/to/mcfinance && docker compose -f docker-compose.hetzner.yml exec -T app npm run dues:service >> /var/log/mc-dues.log 2>&1
-# 30 6 * * * cd /path/to/mcfinance && docker compose -f docker-compose.hetzner.yml exec -T app npm run loans:service >> /var/log/mc-loans.log 2>&1
+# 20 6 * * * cd /path/to/mcfinancial && docker compose -f docker-compose.hetzner.yml exec -T app npm run dues:service >> /var/log/mc-dues.log 2>&1
+# 30 6 * * * cd /path/to/mcfinancial && docker compose -f docker-compose.hetzner.yml exec -T app npm run loans:service >> /var/log/mc-loans.log 2>&1
 ```
 
 A non-zero exit means a member or loan could not be processed; the log names it.

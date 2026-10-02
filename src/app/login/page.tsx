@@ -56,7 +56,7 @@ export default function LoginPage() {
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
                   id="email" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required
-                  className={inputClass} placeholder="you@mcfinance.local"
+                  className={inputClass} placeholder="you@mcfinancial.local"
                 />
               </div>
               <div>

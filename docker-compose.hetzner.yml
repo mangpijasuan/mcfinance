@@ -1,18 +1,18 @@
-name: mcfinance
+name: mcfinancial
 
 services:
   postgres:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_DB: mcfinance
-      POSTGRES_USER: mcfinance
+      POSTGRES_DB: mcfinancial
+      POSTGRES_USER: mcfinancial
       # Set in .env next to this file (see .env.hetzner.example).
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mcfinance -d mcfinance"]
+      test: ["CMD-SHELL", "pg_isready -U mcfinancial -d mcfinancial"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -1,4 +1,4 @@
-name: mcfinance
+name: mcfinancial
 
 services:
   postgres:
@@ -7,13 +7,13 @@ services:
     ports:
       - "5434:5432"
     environment:
-      POSTGRES_DB: mcfinance
-      POSTGRES_USER: mcfinance
-      POSTGRES_PASSWORD: mcfinance_dev
+      POSTGRES_DB: mcfinancial
+      POSTGRES_USER: mcfinancial
+      POSTGRES_PASSWORD: mcfinancial_dev
     volumes:
       - postgres_local_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mcfinance -d mcfinance"]
+      test: ["CMD-SHELL", "pg_isready -U mcfinancial -d mcfinancial"]
       interval: 10s
       timeout: 5s
       retries: 5
