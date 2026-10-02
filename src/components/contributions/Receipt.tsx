@@ -55,7 +55,7 @@ export default function Receipt({ id, backHref }: { id: string; backHref: string
       </div>
       <article className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm print:border-none print:shadow-none">
         <header className="flex items-center gap-3 border-b border-gray-100 pb-4">
-          <Image src="/mc-logo.png" alt="" width={40} height={40} />
+          <Image src="/mc-logo.png" alt="" width={72} height={40} />
           <div className="min-w-0">
             <p className="font-bold text-gray-900">Millionaires Club</p>
             <p className="text-xs text-gray-500">Contribution receipt</p>
