@@ -586,3 +586,22 @@ model ApprovalDecision {
 
   @@unique([requestId, deciderId])
 }
+
+// A bank balance the Treasurer read from the club's bank statement or
+// online banking (docs/architecture/08 §1). Until the ledger holds the
+// club's cash (opening balances, M4), the latest one, rolled forward with
+// the money recorded since, is the cash figure behind the cash reserve
+// and lending capacity (Gate #1 A10). Never changed or deleted (database
+// trigger); a newer balance supersedes it.
+model TreasuryBankBalance {
+  id            String   @id @default(cuid())
+  balanceId     String   @unique // BB-…
+  statementDate DateTime @db.Date // the balance is at the end of this day
+  balanceCents  BigInt
+  note          String?
+  recordedBy    String // staff id (maker)
+  approvedBy    String? // checker, when maker/checker applied (D-06)
+  createdAt     DateTime @default(now())
+
+  @@index([statementDate])
+}

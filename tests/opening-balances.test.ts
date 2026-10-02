@@ -5,12 +5,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { signInAs, staffId } from './helpers/actors'
 import { prisma, resetDatabase } from './helpers/db'
-import { createBaseFixtures, createLoan, createMember } from './helpers/factories'
+import { createBaseFixtures, createLoan, createMember, recordBankBalance } from './helpers/factories'
 import { callRoute } from './helpers/routes'
 import { accountBalance, approveAccounts, checkInvariants, trialBalance } from '@/modules/accounting/ledger'
 import { OPENING_KEYS, checkOpening, ledgerOpening, planOpening, postLegacyActivity, reconcile } from '@/modules/accounting/opening'
 import { postPendingLoanEntries } from '@/modules/loans/postings'
 import { serviceDues } from '@/modules/contributions'
+import { treasuryPosition } from '@/modules/treasury'
 import { cents } from '@/lib/money'
 
 const approve = (id: string) => callRoute('approvals/[id]/approve', 'POST', { params: { id }, body: {} })
@@ -165,6 +166,7 @@ describe('posting', () => {
     await approveChart()
     // A loan already on the loan engine (approved, not paid out yet).
     await createMember('MC-ENG', { monthsActive: 24, archiveLifetime: 2000, overallContributions: 2000 })
+    await recordBankBalance(5000_00, '2025-12-31') // the lending capacity before the ledger holds cash (A10)
     const { createLoan: createEngineLoan } = await import('@/modules/loans/create')
     await prisma.$transaction((tx) => createEngineLoan(tx, {
       borrowerId: 'MC-ENG', cosignerId: null, loanAmount: 500, termMonths: 5, loanDate: '2026-09-01', notes: null, borrowerAddress: null, borrowerCity: null, borrowerState: null,
@@ -176,6 +178,17 @@ describe('posting', () => {
       { actorType: 'system', actorId: null, actorLabel: 'test', ip: null, userAgent: null, requestId: null } as never), { timeout: 60_000 })
 
     await prisma.withdrawal.create({ data: { withdrawalId: 'WD-T2', memberId: 'M1', memberName: 'M1', amount: 50, withdrawalDate: new Date('2026-09-01'), type: 'Full Exit' } })
+    // Treasury (A10): the ledger now holds the cash; the withdrawal the
+    // daily job has not posted yet already counts as paid out.
+    const before = await treasuryPosition(prisma, '2026-09-20')
+    expect(before.cash.source).toBe('ledger')
+    if (before.cash.source !== 'ledger') throw new Error('unreachable')
+    expect(before.cash.unpostedWithdrawalsCents).toBe(5000)
+    const ledgerCash = (await Promise.all(['1000', '1010', '1020', '1030'].map((code) => accountBalance(prisma, code)))).reduce((t, b) => t + b.balance, 0)
+    expect(before.cash.cents).toBe(ledgerCash - 5000)
+    expect(before.memberCapitalCents).toBe((await accountBalance(prisma, '2000')).balance)
+    expect(before.committed.loans.map((l) => [l.borrowerName, l.payoutCents])).toEqual([[expect.any(String), 50000 - 3000]])
+
     await payment('LBAD', 'M2', '2026-09-10', 100)
     await payment('LBAD', 'M2', '2026-09-11', 800) // $700 left: $100 beyond the balance
     await payment('LBAD', 'M2', '2026-09-12', 50) // nothing left: all unapplied
@@ -185,6 +198,8 @@ describe('posting', () => {
     expect(run.errors).toEqual([])
     expect(run.journalEntries.length).toBeGreaterThanOrEqual(3)
     expect(await prisma.journalEntry.findUnique({ where: { idempotencyKey: 'withdrawal:WD-T2' } })).not.toBeNull()
+    const after = await treasuryPosition(prisma, '2026-09-20')
+    expect(after.cash.source === 'ledger' && after.cash.unpostedWithdrawalsCents).toBe(0)
     expect((await serviceDues()).journalEntries).toEqual([])
     expect(await prisma.$transaction((tx) => postLegacyActivity(tx))).toEqual([])
     expect(await checkInvariants(prisma)).toEqual({ ok: true, problems: [] })

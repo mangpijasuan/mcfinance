@@ -87,6 +87,21 @@ export async function createLoan(loanId: string, borrowerId: string, overrides: 
   })
 }
 
+/**
+ * A bank balance the Treasurer recorded (Gate #1 A10): without one the
+ * lending capacity is unknown and no loan can be approved.
+ */
+export async function recordBankBalance(balanceCents: number, statementDate = '2026-01-01') {
+  return prisma.treasuryBankBalance.create({
+    data: {
+      balanceId: `BB-TEST-${statementDate}-${balanceCents}`,
+      statementDate: new Date(`${statementDate}T00:00:00.000Z`),
+      balanceCents: BigInt(balanceCents),
+      recordedBy: 'test',
+    },
+  })
+}
+
 /** Two members with portal access, staff for every role, and a loan each. */
 export async function createBaseFixtures() {
   await createMember(TEST_IDS.member)

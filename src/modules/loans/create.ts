@@ -6,6 +6,7 @@ import { dateOnly, isoDateOf } from '@/lib/dates'
 import { fromLegacyDollars, parseDollars, subtract, toBigInt, toLegacyDollars } from '@/lib/money'
 import { type AuditContext, recordAudit } from '@/modules/audit'
 import type { Actors } from '@/modules/approvals/actors'
+import { checkLendingCapacity } from '@/modules/treasury'
 import { DEFAULT_DUE_DAY, buildSchedule } from './amortization'
 import { agreementTermsHash } from './lifecycle'
 
@@ -74,7 +75,11 @@ export async function createLoan(tx: Prisma.TransactionClient, input: LoanInput,
   const last = schedule.installments[schedule.installments.length - 1]
   const applicationFee = calcApplicationFee(loanAmount, termMonths)
   const feeCents = parseDollars(applicationFee)
-  const amountPaidOut = toLegacyDollars(subtract(principal, feeCents))
+  const payout = subtract(principal, feeCents)
+  const amountPaidOut = toLegacyDollars(payout)
+  // Gate #1 A10: within the lending capacity, checked under a lock so two
+  // approvals cannot both spend the same room.
+  await checkLendingCapacity(tx, payout, { lock: true })
   const monthlyDue = toLegacyDollars(first.principal)
   const loanId = nextPublicId('L')
   const agreementId = nextPublicId('AGR')

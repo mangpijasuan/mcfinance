@@ -234,6 +234,10 @@ crontab -e
 
 A non-zero exit means a member or loan could not be processed; the log names it.
 
+## 11. Record the bank balance
+
+Loans are approved only within the lending capacity (Gate #1 A10), which needs the club's cash. Until opening balances are posted (M4), that is the bank balance the Treasurer records. **Without one, no loan can be approved.** Right after deploying, the Treasurer opens *Money → Treasury* and records the current balance from online banking, then records a new one at least monthly from the statement.
+
 ## Google Sheets recommendation
 
 Use Google Sheets only for:

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/modules/auth'
-import { cents, formatUSD, parseDollars, toLegacyDollars } from '@/lib/money'
+import { cents, formatUSD, parseDollars, subtract, toLegacyDollars } from '@/lib/money'
+import { calcApplicationFee } from '@/lib/loanPolicy'
 import { operationErrorResponse } from '@/lib/operationError'
 import { submitOrExecute } from '@/modules/approvals'
 import { checkLoan, type LoanInput } from '@/modules/loans/create'
+import { checkLendingCapacity } from '@/modules/treasury'
 import { badRequest, parseDate, readJsonObject, requiredString } from '@/lib/http'
 
 export async function GET(req: NextRequest) {
@@ -71,6 +73,9 @@ export async function POST(req: NextRequest) {
     // Policy is checked now (so an ineligible loan is never queued) and
     // again when it runs.
     const { borrower } = await checkLoan(prisma, input)
+    // So is the lending capacity (Gate #1 A10): the payout is the amount
+    // less the application fee.
+    await checkLendingCapacity(prisma, subtract(cents(amountCents), parseDollars(calcApplicationFee(input.loanAmount, termMonths))))
     const out = await submitOrExecute({
       action: 'loan.create',
       principal: auth.principal,

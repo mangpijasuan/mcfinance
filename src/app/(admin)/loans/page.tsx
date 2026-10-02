@@ -159,6 +159,15 @@ function NewLoanModal({ open, onClose, onSaved }: any) {
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
   const [violations, setViolations] = useState<string[]>([])
+  // Gate #1 A10: how much is left to lend (null when the user cannot see the treasury).
+  const [capacity, setCapacity] = useState<{ cents: number | null } | null>(null)
+  useEffect(() => {
+    if (!open) return
+    fetch('/api/treasury', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((t) => setCapacity(t ? { cents: t.capacityCents } : null))
+      .catch(() => setCapacity(null))
+  }, [open])
   const set = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   async function readJsonSafe(res: Response) {
@@ -309,6 +318,20 @@ function NewLoanModal({ open, onClose, onSaved }: any) {
             💰 Application fee of <strong>{fmt$(policy.applicationFee)}</strong> applies per loan policy. It is deducted from the payout (Gate #1 A8): the borrower receives the loan amount less the fee and repays the full loan amount.
           </div>
         )}
+
+        {/* Lending capacity (Gate #1 A10) */}
+        {capacity && (() => {
+          const payout = policy?.eligible && form.loanAmount ? Math.round(parseFloat(form.loanAmount) * 100) - Math.round((policy.applicationFee ?? 0) * 100) : null
+          const over = capacity.cents === null || (payout !== null && payout > capacity.cents)
+          return (
+            <div className={`rounded-lg border px-4 py-3 text-sm ${over ? 'bg-red-50 border-red-200 text-red-800' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+              {capacity.cents === null
+                ? <>Lending capacity is unknown: the Treasurer must record the bank balance on the <a className="underline" href="/treasury">Treasury</a> page before any loan can be approved.</>
+                : <>Lending capacity: <strong>{fmt$(capacity.cents / 100)}</strong>
+                  {payout !== null && <> · this loan pays out <strong>{fmt$(payout / 100)}</strong>{over ? ', more than the club can lend now. It will be refused.' : '.'}</>}</>}
+            </div>
+          )
+        })()}
 
         {/* Borrower address (for agreement) */}
         <div className="border-t border-gray-100 pt-4 space-y-3">

@@ -22,9 +22,9 @@ Members can withdraw their capital (`Partial` / `Full Exit` withdrawals exist), 
 | Member capital recorded | $171,960 |
 | Live loan principal outstanding | $26,860 |
 | Historical loans still marked Active | $70,343 (to be reconciled, A-2) |
-| Cash on hand | **unknown**: the system cannot compute it today (F-4, F-11) |
+| Cash on hand | **unknown** at the time of the assessment (F-4, F-11). *Now:* the Treasury page computes it from a recorded bank balance carried forward, and from the ledger once opening balances are posted (A10, below) |
 
-Proposed **liquidity policy** (founder / board decision; numbers are starting points):
+**Liquidity policy** (founder / board decision; numbers are starting points). Items 1 and 2 were approved as Gate #1 A10 and are **built** (`src/modules/treasury`, *Money → Treasury*): the reserve and capacity are shown on the Treasury page and the new-loan form, and a loan whose payout does not fit is refused, at proposal and again at approval. Until the ledger holds the club's cash, the cash figure is the Treasurer's latest recorded bank balance carried forward with the money recorded since; without one, no loan can be approved. Items 3–5 are not built yet.
 
 1. **Minimum cash reserve** = the greater of 15% of member capital or 3 months of historical withdrawals. It is never lent out.
 2. **Lending capacity** = cash − reserve − approved but undisbursed loans. The loan approval screen shows it and blocks approvals beyond it.

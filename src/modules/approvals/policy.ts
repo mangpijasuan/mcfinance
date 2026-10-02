@@ -6,6 +6,7 @@ import type { Permission } from '@/modules/permissions'
 export type ApprovalAction =
   | 'payment.zelle.confirm' | 'withdrawal.record' | 'loan.create' | 'journal.manual'
   | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off' | 'contribution.reverse' | 'ledger.opening_balances'
+  | 'treasury.bank_balance'
 
 type Policy = {
   label: string
@@ -106,6 +107,17 @@ export const APPROVAL_POLICIES: Record<ApprovalAction, Policy> = {
     thresholdCents: null,
     approvalsRequired: 1,
     alwaysEnforced: true,
+  },
+  // The cash figure behind the lending capacity (Gate #1 A10). Recording
+  // the bank balance is everyday Treasurer work, so it follows the
+  // maker/checker switch; once on, a Board member confirms it.
+  'treasury.bank_balance': {
+    label: 'Record the bank balance',
+    makerPermission: 'treasury.record_balance',
+    checkerPermission: 'treasury.approve_balance',
+    thresholdCents: null,
+    approvalsRequired: 1,
+    alwaysEnforced: false,
   },
 }
 
