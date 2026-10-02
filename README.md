@@ -1,4 +1,4 @@
-# MC Finance
+# MC Financial
 
 ## ⚡ Quick Setup
 
@@ -11,7 +11,7 @@
 ### Mac / Linux
 
 ```bash
-cd mcfinance
+cd mcfinancial
 sh setup.sh
 npm run dev
 ```
@@ -22,7 +22,7 @@ npm run dev
 2. Double-click **`setup.bat`** and wait for it to finish
 3. In Command Prompt: `npm run dev`
 
-Open **http://localhost:3000**. Sign in as `admin@mcfinance.local` with the password you chose during setup. The first sign-in asks you to set up two-factor authentication with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).
+Open **http://localhost:3000**. Sign in as `admin@mcfinancial.local` with the password you chose during setup. The first sign-in asks you to set up two-factor authentication with an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).
 
 ---
 
@@ -94,7 +94,7 @@ npm test          # run once
 npm run test:watch
 ```
 
-Tests run against a separate PostgreSQL database that is **wiped on every run**: `mcfinance_test` on the Docker database by default, or `TEST_DATABASE_URL`. The name must end in `_test`, otherwise the run refuses to start. Fixtures are synthetic; never put real member data in tests.
+Tests run against a separate PostgreSQL database that is **wiped on every run**: `mcfinancial_test` on the Docker database by default, or `TEST_DATABASE_URL`. The name must end in `_test`, otherwise the run refuses to start. Fixtures are synthetic; never put real member data in tests.
 
 - `tests/authorization-matrix.test.ts` — every API route × method × caller (anonymous, member, admin, super admin). Adding a route without adding it to the matrix fails the build.
 - `tests/ownership.test.ts` — members only reach their own agreements, loans and payments.
@@ -104,13 +104,13 @@ Tests run against a separate PostgreSQL database that is **wiped on every run**:
 
 ## Staff access: roles and two-factor authentication
 
-Staff permissions come from **roles** (Loan Officer, Finance, Treasurer, Compliance, Auditor, Board, Administrator, Super Admin), assigned under **Staff & Roles**. Role definitions live in `src/modules/permissions`; who holds which role is stored in the database and checked on every request, so a change or a disabled account takes effect immediately. Every staff account must use two-factor authentication. Staff sessions end after 12 hours, or 30 minutes of inactivity.
+Staff permissions come from **roles** (Loan Officer, Financial, Treasurer, Compliance, Auditor, Board, Administrator, Super Admin), assigned under **Staff & Roles**. Role definitions live in `src/modules/permissions`; who holds which role is stored in the database and checked on every request, so a change or a disabled account takes effect immediately. Every staff account must use two-factor authentication. Staff sessions end after 12 hours, or 30 minutes of inactivity.
 
 Accounts that existed before roles were introduced have the transitional **Club Officer** role (the same access as before). Replace it with specific roles once officers are named.
 
 **Locked out** (forgot the password, or lost both the phone and the recovery codes)? From the server shell:
 ```bash
-ADMIN_EMAIL_TO_RESET=admin@mcfinance.local NEW_ADMIN_PASSWORD='a long passphrase' RESET_MFA=1 npm run admin:reset-password
+ADMIN_EMAIL_TO_RESET=admin@mcfinancial.local NEW_ADMIN_PASSWORD='a long passphrase' RESET_MFA=1 npm run admin:reset-password
 ```
 Leave out `RESET_MFA=1` to keep the existing authenticator. For anyone else, a staff administrator can reset their password or two-factor authentication under Staff & Roles.
 
@@ -172,7 +172,7 @@ activity and clicks **Confirm** (which records the payment) or **Reject**. `NEXT
 
 ## Ledger
 
-`/ledger` (for Finance, Treasurer, Compliance, Auditor, Board) shows the club's double-entry books: chart of accounts, trial balance as of any date, integrity checks and the journal. Amounts are exact integer cents.
+`/ledger` (for Financial, Treasurer, Compliance, Auditor, Board) shows the club's double-entry books: chart of accounts, trial balance as of any date, integrity checks and the journal. Amounts are exact integer cents.
 
 The ledger is **empty on purpose** until two things happen: the club's accountant confirms the proposed chart of accounts (the Treasurer records this on the Ledger page; it cannot be undone), and the opening balances are posted (migration step M4).
 
@@ -195,10 +195,10 @@ Some actions need a second person (D-06): the person who proposes them can never
 | Action | Proposed by | Approved by | When |
 |---|---|---|---|
 | Confirm a Zelle claim | anyone who reviews payments | a different reviewer | over $100 |
-| Pay out a withdrawal | Finance | Treasurer | always |
+| Pay out a withdrawal | Financial | Treasurer | always |
 | Create a loan | Loan Officer | Treasurer or Board | always |
 | Pay out a loan | Treasurer | Board | always |
-| Manual journal entry | Finance / Treasurer | Treasurer / Board | always |
+| Manual journal entry | Financial / Treasurer | Treasurer / Board | always |
 | Waive a late fee | Loan Officer / Treasurer | Treasurer | always |
 | Write off a loan | Treasurer | **two** Board members | always |
 
@@ -212,7 +212,7 @@ Every member owes **monthly dues** ($20 unless changed), billed month by month f
 - **Receipts.** Every payment gets a numbered receipt (`RC-2026-000123`) that says which months it covered. Staff open it from Contributions; members see theirs in the portal. Receipts can be printed.
 - **Paid this month** is recalculated on every payment and by the daily job, so it resets when a new month starts. No dues are billed while a member is inactive, and reactivating does not bill the months away.
 - **`/dues`** lists members in arrears (1, 2–3, or 4+ months behind) and how much of each month's dues has been collected. Each member's page shows their months and the months they have paid through.
-- **Corrections** are made by **reversing** a contribution, never by editing or deleting it (the database refuses both). Finance proposes the reversal and the Treasurer approves it (D-06). The reversed payment stays on record, marked, and stops counting.
+- **Corrections** are made by **reversing** a contribution, never by editing or deleting it (the database refuses both). Financial proposes the reversal and the Treasurer approves it (D-06). The reversed payment stays on record, marked, and stops counting.
 - **Changing a member's monthly amount** (Treasurer) applies from a month not yet billed. A $0 amount means no more dues are billed.
 - **Ledger.** Contributions with a receipt post `Dr cash / Cr 2000 Member capital` once the chart of accounts is approved. Rows recorded before receipts existed come in with the opening balances (M4).
 
