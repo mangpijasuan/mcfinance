@@ -80,6 +80,7 @@ Neither file is ever committed. Keep a copy of both with the club's other secret
 ```bash
 cp .env.hetzner.example .env
 cp .env.production.example .env.production
+chmod 600 .env .env.production   # only your user can read the secrets
 openssl rand -hex 24       # database password
 openssl rand -base64 32    # NEXTAUTH_SECRET
 openssl rand -base64 32    # MFA_ENCRYPTION_KEY (a different value)
@@ -88,7 +89,7 @@ openssl rand -base64 32    # MFA_ENCRYPTION_KEY (a different value)
 In `.env`:
 
 - `DOMAIN`: the admin panel's address, e.g. `admin.your-domain.example`
-- `POSTGRES_PASSWORD`: the database password
+- `POSTGRES_PASSWORD`: the database password (the stack refuses to start while it is empty)
 
 In `.env.production`:
 
@@ -119,25 +120,31 @@ The first build takes a few minutes.
 ```bash
 docker compose -f docker-compose.hetzner.yml exec app npx prisma migrate deploy
 
-# The first Super Admin (sets up two-factor authentication at first sign-in)
+# The first Super Admin (sets up two-factor authentication at first sign-in).
+# The password is typed at a hidden prompt, so it stays out of shell history.
+read -rsp 'Password (12+ characters): ' NEW_ADMIN_PASSWORD; echo; export NEW_ADMIN_PASSWORD
 docker compose -f docker-compose.hetzner.yml exec \
-  -e ADMIN_EMAIL_TO_RESET=you@your-domain.example -e NEW_ADMIN_PASSWORD='a long passphrase' \
+  -e ADMIN_EMAIL_TO_RESET=you@your-domain.example -e NEW_ADMIN_PASSWORD \
   app npm run admin:reset-password
+unset NEW_ADMIN_PASSWORD
 ```
 
-To load the club's records, copy the decrypted data file (README, "Real club data") in, seed from it, and delete it from the container:
+To load the club's records, upload the decrypted data file (README, "Real club data") straight into a private file (`chmod 600 club-data.json`), copy it into the container, seed from it, and delete both copies:
 
 ```bash
+read -rsp 'Admin password (12+ characters): ' ADMIN_SEED_PASSWORD; echo; export ADMIN_SEED_PASSWORD
 docker compose -f docker-compose.hetzner.yml cp club-data.json app:/tmp/club-data.json
 docker compose -f docker-compose.hetzner.yml exec \
-  -e SEED_DATA_FILE=/tmp/club-data.json -e ADMIN_SEED_PASSWORD='a long passphrase' \
+  -e SEED_DATA_FILE=/tmp/club-data.json -e ADMIN_SEED_PASSWORD \
   app npx prisma db seed
 docker compose -f docker-compose.hetzner.yml exec -u root app rm /tmp/club-data.json
+shred -u club-data.json
+unset ADMIN_SEED_PASSWORD
 ```
 
-Then delete `club-data.json` from the server too. The seed refuses to load demo data in production.
+The seed refuses to load demo data in production.
 
-**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-migration.dump`, kept off the server — then compare the live schema with the current one:
+**Existing installation created with `prisma db push`** (before migrations existed) — baseline it once. Take a backup first — `scripts/ops/backup-postgres.sh` if encrypted backups are already set up (step 9), otherwise `(umask 077; docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-migration.dump)`, copied off the server and then shredded — then compare the live schema with the current one:
 
 ```bash
 docker compose -f docker-compose.hetzner.yml exec app \
@@ -166,13 +173,19 @@ docker compose -f docker-compose.hetzner.yml run --rm --no-deps app npx prisma m
 docker compose -f docker-compose.hetzner.yml up -d
 ```
 
-Until encrypted backups are set up (step 9), use `docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-deploy.dump` instead of the backup script, and copy the file off the server.
+Until encrypted backups are set up (step 9), take a private, unencrypted dump instead of running the backup script. Copy it somewhere safe off the server, then delete it (`shred -u pre-deploy.dump`):
+
+```bash
+(umask 077; docker compose -f docker-compose.hetzner.yml exec -T postgres pg_dump -Fc -U mcfinance mcfinance > pre-deploy.dump)
+```
 
 **A server set up before `.env` existed** used the password `change-me`, and the database keeps the password it was created with. Put `POSTGRES_PASSWORD=change-me` in `.env` at first, then change it:
 
 ```bash
-docker compose -f docker-compose.hetzner.yml exec postgres \
-  psql -U mcfinance -d mcfinance -c "ALTER USER mcfinance PASSWORD 'the-new-password'"
+docker compose -f docker-compose.hetzner.yml exec postgres psql -U mcfinance -d mcfinance
+# at the psql prompt (asks twice, nothing is echoed or saved in history):
+\password mcfinance
+\q
 ```
 
 Then put the new password in `.env` and in `DATABASE_URL` in `.env.production`, and run `docker compose -f docker-compose.hetzner.yml up -d`.
@@ -184,9 +197,11 @@ The `AuditLog` table is append-only: a database trigger rejects `UPDATE`, `DELET
 **Admin password reset** (no default passwords exist):
 
 ```bash
+read -rsp 'New password (12+ characters): ' NEW_ADMIN_PASSWORD; echo; export NEW_ADMIN_PASSWORD
 docker compose -f docker-compose.hetzner.yml exec \
-  -e ADMIN_EMAIL_TO_RESET=admin@mcfinance.local -e NEW_ADMIN_PASSWORD='a long passphrase' \
+  -e ADMIN_EMAIL_TO_RESET=admin@mcfinance.local -e NEW_ADMIN_PASSWORD \
   app npm run admin:reset-password
+unset NEW_ADMIN_PASSWORD
 ```
 
 Add `-e RESET_MFA=1` if the person also lost their authenticator and recovery codes. All of their sessions end; the reset is recorded in the audit log.
