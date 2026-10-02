@@ -56,3 +56,40 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # The production image (docs/operations/deploy-hetzner-postgres.md): it
+  # builds, Prisma's engine loads, and the scripts run from inside it.
+  docker:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: mcfinance
+          POSTGRES_USER: mcfinance
+          POSTGRES_PASSWORD: mcfinance_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mcfinance -d mcfinance"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the production image
+        run: docker build -t mcfinance-app .
+
+      - name: Migrations, first admin and daily jobs inside the image
+        run: |
+          run() {
+            docker run --rm --network host \
+              -e DATABASE_URL=postgresql://mcfinance:mcfinance_ci@127.0.0.1:5432/mcfinance?schema=public \
+              "$@"
+          }
+          run mcfinance-app npx prisma migrate deploy
+          run -e ADMIN_EMAIL_TO_RESET=ci@example.test -e NEW_ADMIN_PASSWORD=ci-passphrase-123 mcfinance-app npm run -s admin:reset-password
+          run mcfinance-app npm run -s dues:service
+          run mcfinance-app npm run -s loans:service
+          run mcfinance-app test -f public/mc-logo.png
