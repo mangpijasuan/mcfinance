@@ -23,3 +23,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER ledger_comparison_immutable
   BEFORE UPDATE OR DELETE ON "LedgerComparison"
   FOR EACH ROW EXECUTE FUNCTION ledger_comparison_immutable();
+
+CREATE TRIGGER ledger_comparison_no_truncate
+  BEFORE TRUNCATE ON "LedgerComparison"
+  FOR EACH STATEMENT EXECUTE FUNCTION ledger_comparison_immutable();

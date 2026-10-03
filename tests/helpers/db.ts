@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 // Append-only tables whose triggers also refuse TRUNCATE. The test reset
 // switches those triggers off for a moment (the table owner may), which
 // the application itself never does.
-const LEDGER_TABLES = ['JournalLine', 'JournalEntry']
+const LEDGER_TABLES = ['JournalLine', 'JournalEntry', 'LedgerComparison']
 
 /**
  * Empties every application table and returns the chart of accounts to

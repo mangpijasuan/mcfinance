@@ -8,7 +8,7 @@
 // capital in the ledger differs from their stored total, a loan whose
 // receivable differs from its stored balance, or a money record dated on
 // or after the cutover with no ledger entry.
-import type { Prisma } from '@prisma/client'
+import { Prisma, type PrismaClient } from '@prisma/client'
 import { type Cents, fromBigInt } from '@/lib/money'
 import { type IsoDate, clubDateOf, dateOnly, isoDateOf, todayIso } from '@/lib/dates'
 import { escapeHtml, sendEmail } from '@/lib/email'
@@ -54,14 +54,19 @@ export function isMonthEnd(date: IsoDate): boolean {
 
 export type Streak = { days: number; from: IsoDate | null; to: IsoDate | null; includesMonthEnd: boolean; met: boolean }
 
+export type RunRecord = { runDate: IsoDate; ok: boolean; ranOn: IsoDate }
+
 /**
  * Consecutive clean days ending today (or yesterday, before today's run).
- * A day is clean only if every run that day found no differences; a day
- * without a run breaks the streak.
+ * A day counts only if it was compared on that day (a run backdated with
+ * --as-of reads today's balances, so it proves nothing about that day)
+ * and every run for it found no differences; a day without such a run
+ * breaks the streak.
  */
-export function cleanStreak(runs: readonly { runDate: IsoDate; ok: boolean }[], asOf: IsoDate): Streak {
+export function cleanStreak(runs: readonly RunRecord[], asOf: IsoDate): Streak {
+  const failed = new Set(runs.filter((r) => !r.ok).map((r) => r.runDate))
   const clean = new Map<IsoDate, boolean>()
-  for (const r of runs) clean.set(r.runDate, (clean.get(r.runDate) ?? true) && r.ok)
+  for (const r of runs) if (r.ranOn === r.runDate) clean.set(r.runDate, !failed.has(r.runDate))
   let day = clean.has(asOf) ? asOf : dayBefore(asOf)
   const to = clean.get(day) ? day : null
   let days = 0
@@ -84,18 +89,20 @@ async function unpostedRecords(db: Db, cutover: IsoDate, asOf: IsoDate): Promise
     const day = isoDateOf(value)
     return day >= cutover && day <= asOf
   }
-  const [contributions, reversals, withdrawals, payments, payouts, writeOffs, fees, waivers] = await Promise.all([
+  const [contributions, reversals, withdrawals, payments, payouts, olderLoans, writeOffs, fees, waivers] = await Promise.all([
     db.contribution.findMany({ where: { amountCents: { gt: 0 }, journalEntry: null }, select: { transactionId: true, paymentDate: true, amountCents: true } }),
-    db.contribution.findMany({ where: { journalEntry: { not: null }, reversedAt: { not: null }, reversalEntry: null }, select: { transactionId: true, reversedAt: true, amountCents: true } }),
+    db.contribution.findMany({ where: { amountCents: { gt: 0 }, reversedAt: { not: null }, reversalEntry: null }, select: { transactionId: true, reversedAt: true, amountCents: true } }),
     db.withdrawal.findMany({ where: { amount: { gt: 0 } }, select: { withdrawalId: true, withdrawalDate: true, amount: true } }),
     db.loanPayment.findMany({ where: { amount: { gt: 0 }, journalEntry: null, loan: { lifecycle: { not: 'cancelled' } } }, select: { paymentId: true, paymentDate: true, amount: true } }),
     db.loan.findMany({ where: { disbursedOn: { not: null }, disbursementEntry: null }, select: { loanId: true, disbursedOn: true, disbursedAmountCents: true } }),
+    // Loans made before the loan engine are paid out on their loan date (key m4:loan-disbursement:<id>).
+    db.loan.findMany({ where: { principalCents: null, lifecycle: { notIn: ['cancelled', 'approved', 'agreement_signed'] } }, select: { loanId: true, loanDate: true, loanAmount: true } }),
     db.loan.findMany({ where: { chargedOffOn: { not: null }, chargeOffEntry: null }, select: { loanId: true, chargedOffOn: true, balanceRemaining: true } }),
     db.loanFee.findMany({ where: { journalEntry: null }, select: { feeId: true, assessedOn: true, amountCents: true } }),
     db.loanFee.findMany({ where: { status: 'waived', waiverEntry: null }, select: { feeId: true, waivedOn: true, amountCents: true } }),
   ])
-  const postedWithdrawals = new Set((await db.journalEntry.findMany({
-    where: { idempotencyKey: { in: withdrawals.map((w) => `withdrawal:${w.withdrawalId}`) } },
+  const postedKeys = new Set((await db.journalEntry.findMany({
+    where: { idempotencyKey: { in: [...withdrawals.map((w) => `withdrawal:${w.withdrawalId}`), ...olderLoans.map((l) => `m4:loan-disbursement:${l.loanId}`)] } },
     select: { idempotencyKey: true },
   })).map((e) => e.idempotencyKey))
 
@@ -109,10 +116,13 @@ async function unpostedRecords(db: Db, cutover: IsoDate, asOf: IsoDate): Promise
     if (day >= cutover && day <= asOf) out.push({ kind: 'contribution_reversal', id: c.transactionId, date: day, cents: fromBigInt(c.amountCents) })
   }
   for (const w of withdrawals) {
-    if (!postedWithdrawals.has(`withdrawal:${w.withdrawalId}`)) add('withdrawal', w.withdrawalId, w.withdrawalDate, legacyCents(w.amount).amount)
+    if (!postedKeys.has(`withdrawal:${w.withdrawalId}`)) add('withdrawal', w.withdrawalId, w.withdrawalDate, legacyCents(w.amount).amount)
   }
   for (const p of payments) add('loan_payment', p.paymentId, p.paymentDate, legacyCents(p.amount).amount)
   for (const l of payouts) add('loan_payout', l.loanId, l.disbursedOn!, fromBigInt(l.disbursedAmountCents ?? BigInt(0)))
+  for (const l of olderLoans) {
+    if (!postedKeys.has(`m4:loan-disbursement:${l.loanId}`)) add('loan_payout', l.loanId, l.loanDate, legacyCents(l.loanAmount).amount)
+  }
   for (const l of writeOffs) add('loan_write_off', l.loanId, l.chargedOffOn!, legacyCents(l.balanceRemaining).amount)
   for (const f of fees) add('loan_fee', f.feeId, f.assessedOn, fromBigInt(f.amountCents))
   for (const f of waivers) add('loan_fee_waiver', f.feeId, f.waivedOn!, fromBigInt(f.amountCents))
@@ -151,9 +161,13 @@ function alertHtml(r: ComparisonResult): string {
 /**
  * Run the comparison, store it, and email LEDGER_ALERT_EMAIL (or
  * SECURITY_ALERT_EMAIL) when anything differs. Null before opening balances.
+ * Every read happens in one Repeatable Read transaction, so a payment
+ * recorded while it runs cannot show up on one side only.
  */
-export async function runLedgerComparison(db: Db, asOf: IsoDate = todayIso()) {
-  const result = await compareLedger(db, asOf)
+export async function runLedgerComparison(db: Pick<PrismaClient, '$transaction' | 'ledgerComparison'>, asOf: IsoDate = todayIso()) {
+  const result = await db.$transaction((tx) => compareLedger(tx, asOf), {
+    isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 120_000,
+  })
   if (!result) return null
   let emailedTo: string | null = null
   const to = process.env.LEDGER_ALERT_EMAIL || process.env.SECURITY_ALERT_EMAIL
@@ -170,7 +184,7 @@ export async function runLedgerComparison(db: Db, asOf: IsoDate = todayIso()) {
   return { ...result, emailedTo }
 }
 
-export type ComparisonRunSummary = { runDate: IsoDate; ranAt: string; ok: boolean; differences: number }
+export type ComparisonRunSummary = { runDate: IsoDate; ranAt: string; ok: boolean; differences: number; backdated: boolean }
 
 /** The M5 status: the latest run with its details, recent runs, and the clean-day streak. */
 export async function comparisonStatus(db: Db, asOf: IsoDate = todayIso()) {
@@ -180,10 +194,13 @@ export async function comparisonStatus(db: Db, asOf: IsoDate = todayIso()) {
     where: { runDate: { gte: dateOnly(opened.cutover), lte: dateOnly(asOf) } },
     orderBy: [{ runDate: 'desc' }, { ranAt: 'desc' }],
   })
-  const runs = rows.map((r) => ({ runDate: isoDateOf(r.runDate), ok: r.ok }))
+  const runs = rows.map((r) => ({ runDate: isoDateOf(r.runDate), ok: r.ok, ranOn: clubDateOf(r.ranAt) }))
   const latest = rows[0]
     ? { runDate: isoDateOf(rows[0].runDate), ranAt: rows[0].ranAt.toISOString(), ok: rows[0].ok, differences: rows[0].differences, details: rows[0].details as unknown as ComparisonDetails, emailedTo: rows[0].emailedTo }
     : null
-  const history: ComparisonRunSummary[] = rows.slice(0, 60).map((r) => ({ runDate: isoDateOf(r.runDate), ranAt: r.ranAt.toISOString(), ok: r.ok, differences: r.differences }))
+  const history: ComparisonRunSummary[] = rows.slice(0, 60).map((r) => ({
+    runDate: isoDateOf(r.runDate), ranAt: r.ranAt.toISOString(), ok: r.ok, differences: r.differences,
+    backdated: clubDateOf(r.ranAt) !== isoDateOf(r.runDate),
+  }))
   return { started: true as const, target: M5_TARGET_DAYS, cutover: opened.cutover, streak: cleanStreak(runs, asOf), latest, history }
 }

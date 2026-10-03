@@ -94,6 +94,7 @@ describe('dual-write', () => {
     expect((await prisma.loan.findUniqueOrThrow({ where: { loanId: 'LN-ODD' } })).principalCents).toBeNull()
     const odd = await callRoute('loan-payments', 'POST', { body: { loanId: 'LN-ODD', amount: 100, paymentDate: '2026-09-22', paymentMethod: 'Cash' } })
     expect(odd.status).toBe(201)
+    expect(odd.json.journalEntry).toMatch(/^JE-/)
     const oddPayment = await prisma.loanPayment.findFirstOrThrow({ where: { loanId: 'LN-ODD' } })
     const oddEntry = await prisma.journalEntry.findUniqueOrThrow({ where: { entryNumber: oddPayment.journalEntry! }, include: { lines: { orderBy: { lineNo: 'asc' } } } })
     expect(oddEntry.idempotencyKey).toBe(`m4:loan-payment:${oddPayment.paymentId}`)
@@ -135,6 +136,10 @@ describe('the nightly comparison', () => {
     await contribution('2026-12-01', 20_00) // after today: not yet
     await contribution('2026-09-11', 30_00, { journalEntry: 'JE-OUTSIDE', reversedAt: new Date('2026-09-12T15:00:00Z'), reversedBy: 'x', reversalReason: 'mistake' })
     await contribution('2025-11-11', 30_00, { journalEntry: 'JE-OLD', reversedAt: new Date('2025-11-12T15:00:00Z'), reversedBy: 'x', reversalReason: 'mistake' }) // before the cutover
+    // Recorded and reversed before either reached the ledger: both are missing.
+    await contribution('2026-09-18', 15_00, { reversedAt: new Date('2026-09-19T15:00:00Z'), reversedBy: 'x', reversalReason: 'duplicate' })
+    // An older loan made and repaid outside the app after the cutover: both balances are zero, but the payout is missing.
+    await createLoan('LN-OUTSIDE', 'M1', { loanDate: new Date('2026-09-05'), loanAmount: 300, termMonths: 3, balanceRemaining: 0, status: 'Paid Off', lifecycle: 'paid_off' })
     await prisma.loanPayment.create({ data: { paymentId: 'LP-OUT', loanId: 'LN-TEST-B', borrowerId: 'MC-TEST-B', borrowerName: 'B', paymentDate: new Date('2026-09-13'), amount: 40 } })
     const engine = (loanId: string, data: Record<string, unknown>) => prisma.loan.create({
       data: { loanId, borrowerId: 'M1', borrowerName: 'M1', loanDate: new Date('2026-09-01'), termMonths: 5, loanAmount: 500, monthlyDue: 100, balanceRemaining: 500, principalCents: BigInt(500_00), applicationFeeCents: BigInt(30_00), ...data },
@@ -146,6 +151,7 @@ describe('the nightly comparison', () => {
 
     const result = (await compareLedger(prisma, TODAY))!
     expect(result.details.unposted.map((u) => [u.kind, u.date, u.cents])).toEqual([
+      ['loan_payout', '2026-09-05', 30000],
       ['contribution', '2026-09-10', 2000],
       ['contribution_reversal', '2026-09-12', 3000],
       ['loan_payment', '2026-09-13', 4000],
@@ -153,10 +159,12 @@ describe('the nightly comparison', () => {
       ['loan_write_off', '2026-09-15', 50000],
       ['loan_fee', '2026-09-16', 500],
       ['loan_fee_waiver', '2026-09-17', 500],
+      ['contribution', '2026-09-18', 1500],
+      ['contribution_reversal', '2026-09-19', 1500],
     ])
     // The paid-out engine loan has no receivable in the ledger either.
     expect(result.details.loans.map((l) => l.loanId)).toEqual(['LN-PAID'])
-    expect(result.differences).toBe(8)
+    expect(result.differences).toBe(11)
     process.env.LEDGER_ALERT_EMAIL = 'treasurer@example.test'
     await runLedgerComparison(prisma, TODAY)
     expect(vi.mocked(sendEmail).mock.calls[0][2]).toContain('Loan LN-PAID (M1): ledger 0, records 500')
@@ -178,13 +186,20 @@ describe('the nightly comparison', () => {
 
   it('keeps every run as evidence and counts clean days', async () => {
     expect(await comparisonStatus(prisma, TODAY)).toMatchObject({ started: true, latest: null, history: [], streak: { days: 0 } })
-    for (const day of ['2026-09-28', '2026-09-29', '2026-09-30']) await runLedgerComparison(prisma, day)
+    // Nightly runs, each made on its own day (06:45 in Chicago).
+    for (const day of ['2026-09-28', '2026-09-29', '2026-09-30']) {
+      await prisma.ledgerComparison.create({ data: { runDate: new Date(day), ranAt: new Date(`${day}T11:45:00Z`), ok: true, differences: 0, details: {} } })
+    }
+    // Backdated with --as-of today: shown, but proves nothing about that day.
+    await runLedgerComparison(prisma, '2026-09-27')
     const status = await comparisonStatus(prisma, TODAY)
     expect(status).toMatchObject({ started: true, cutover: '2026-01-01', target: 30, streak: { days: 3, from: '2026-09-28', includesMonthEnd: true, met: false } })
     expect(status.started && status.latest).toMatchObject({ runDate: '2026-09-30', ok: true, differences: 0 })
+    expect(status.started && status.history.map((h) => [h.runDate, h.backdated])).toEqual([['2026-09-30', false], ['2026-09-29', false], ['2026-09-28', false], ['2026-09-27', true]])
     const row = await prisma.ledgerComparison.findFirstOrThrow()
     await expect(prisma.ledgerComparison.update({ where: { id: row.id }, data: { ok: false } })).rejects.toThrow(/cannot be changed or deleted/)
     await expect(prisma.ledgerComparison.delete({ where: { id: row.id } })).rejects.toThrow(/cannot be changed or deleted/)
+    await expect(prisma.$executeRawUnsafe('TRUNCATE "LedgerComparison"')).rejects.toThrow(/cannot be changed or deleted/)
   })
 
   it('can be run from the Ledger page by someone who manages the books, and is audited', async () => {

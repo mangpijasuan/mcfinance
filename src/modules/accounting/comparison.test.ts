@@ -4,7 +4,8 @@ import { M5_TARGET_DAYS, cleanStreak, isMonthEnd } from './comparison'
 const days = (from: string, count: number, ok = true) => Array.from({ length: count }, (_, i) => {
   const d = new Date(`${from}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() + i)
-  return { runDate: d.toISOString().slice(0, 10), ok }
+  const runDate = d.toISOString().slice(0, 10)
+  return { runDate, ok, ranOn: runDate }
 })
 
 describe('isMonthEnd', () => {
@@ -27,10 +28,17 @@ describe('cleanStreak', () => {
   })
 
   it('stops at a day with differences, a day without a run, or a day with any failed run', () => {
-    expect(cleanStreak([...days('2026-10-01', 3), { runDate: '2026-10-04', ok: false }, ...days('2026-10-05', 3)], '2026-10-07').days).toBe(3)
+    expect(cleanStreak([...days('2026-10-01', 3), { runDate: '2026-10-04', ok: false, ranOn: '2026-10-04' }, ...days('2026-10-05', 3)], '2026-10-07').days).toBe(3)
     expect(cleanStreak([...days('2026-10-01', 3), ...days('2026-10-05', 3)], '2026-10-07').days).toBe(3)
     // A failed run and a clean rerun on the same day: the day is not clean.
-    expect(cleanStreak([...days('2026-10-01', 3), { runDate: '2026-10-03', ok: false }], '2026-10-03').days).toBe(0)
+    expect(cleanStreak([...days('2026-10-01', 3), { runDate: '2026-10-03', ok: false, ranOn: '2026-10-03' }], '2026-10-03').days).toBe(0)
+  })
+
+  it('counts a day only if it was compared on that day; a backdated failure still breaks it', () => {
+    const today = days('2026-10-08', 3) // 8th–10th, run on the day
+    const backdated = ['2026-10-05', '2026-10-06', '2026-10-07'].map((runDate) => ({ runDate, ok: true, ranOn: '2026-10-10' }))
+    expect(cleanStreak([...backdated, ...today], '2026-10-10')).toMatchObject({ days: 3, from: '2026-10-08' })
+    expect(cleanStreak([...days('2026-10-05', 6), { runDate: '2026-10-07', ok: false, ranOn: '2026-10-10' }], '2026-10-10').days).toBe(3)
   })
 
   it('is met after 30 clean days that include a month-end', () => {

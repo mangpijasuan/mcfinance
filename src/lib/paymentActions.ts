@@ -87,9 +87,10 @@ export async function recordLoanPayment(tx: Tx, params: RecordLoanPaymentParams)
   }
 
   // Dual-write (M5): in the ledger in the same transaction, once opening
-  // balances exist.
+  // balances exist. Re-read so the result shows the entry it posted to.
   const journalEntries = await postLegacyLoanNow(tx, params.loanId)
-  return { ...createdPayment, journalEntries }
+  const stored = await tx.loanPayment.findUniqueOrThrow({ where: { id: createdPayment.id } })
+  return { ...stored, journalEntries }
 }
 
 async function recordEngineLoanPayment(tx: Tx, loan: { loanId: string; borrowerId: string; borrowerName: string; cosignerId: string | null }, params: RecordLoanPaymentParams) {
@@ -115,5 +116,6 @@ async function recordEngineLoanPayment(tx: Tx, loan: { loanId: string; borrowerI
   await recalcMemberLoanState(tx, loan.borrowerId)
   if (loan.cosignerId) await recalcMemberLoanState(tx, loan.cosignerId)
   const journalEntries = await postPendingLoanEntries(tx, loan.loanId)
-  return { ...createdPayment, journalEntries }
+  const stored = await tx.loanPayment.findUniqueOrThrow({ where: { id: createdPayment.id } })
+  return { ...stored, journalEntries }
 }

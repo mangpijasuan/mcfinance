@@ -148,7 +148,10 @@ export default function ComparisonView({ canRun }: { canRun: boolean }) {
                 ? <EmptyState message="No comparison has run yet. Schedule npm run ledger:compare nightly (deploy guide, step 10)." />
                 : s.history.map((r) => (
                   <tr key={`${r.runDate}-${r.ranAt}`}>
-                    <td className="px-4 py-2 whitespace-nowrap">{r.runDate}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      {r.runDate}
+                      {r.backdated && <span className="ml-2 text-xs text-gray-400" title="Run on a later day with --as-of: does not count towards the clean days">backdated</span>}
+                    </td>
                     <td className="px-4 py-2">{r.ok ? <Badge variant="green">No differences</Badge> : <Badge variant="red">{r.differences} difference(s)</Badge>}</td>
                     <td className="px-4 py-2 text-xs text-gray-500">{new Date(r.ranAt).toLocaleString()}</td>
                   </tr>
