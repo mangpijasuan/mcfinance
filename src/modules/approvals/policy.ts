@@ -6,7 +6,7 @@ import type { Permission } from '@/modules/permissions'
 export type ApprovalAction =
   | 'payment.zelle.confirm' | 'withdrawal.record' | 'loan.create' | 'journal.manual'
   | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off' | 'contribution.reverse' | 'ledger.opening_balances'
-  | 'treasury.bank_balance'
+  | 'treasury.bank_balance' | 'treasury.clearing_transfer'
 
 type Policy = {
   label: string
@@ -115,6 +115,17 @@ export const APPROVAL_POLICIES: Record<ApprovalAction, Policy> = {
     label: 'Record the bank balance',
     makerPermission: 'treasury.record_balance',
     checkerPermission: 'treasury.approve_balance',
+    thresholdCents: null,
+    approvalsRequired: 1,
+    alwaysEnforced: false,
+  },
+  // Money moved from a clearing account to the bank (F-11). D-06: a cash
+  // deposit is recorded by the collector or Finance and approved by the
+  // Treasurer; follows the maker/checker switch like the other everyday flows.
+  'treasury.clearing_transfer': {
+    label: 'Record a transfer to the bank',
+    makerPermission: 'treasury.record_transfer',
+    checkerPermission: 'treasury.approve_transfer',
     thresholdCents: null,
     approvalsRequired: 1,
     alwaysEnforced: false,

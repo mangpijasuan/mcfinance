@@ -83,8 +83,8 @@ export function cleanStreak(runs: readonly RunRecord[], asOf: IsoDate): Streak {
 
 // ── Comparing (database) ────────────────────────────────────────────────
 
-/** Money records dated from the cutover to `asOf` (club calendar days) with no ledger entry. */
-async function unpostedRecords(db: Db, cutover: IsoDate, asOf: IsoDate): Promise<Unposted[]> {
+/** Money records dated from `cutover` to `asOf` (club calendar days, both included) with no ledger entry. */
+export async function unpostedRecords(db: Db, cutover: IsoDate, asOf: IsoDate): Promise<Unposted[]> {
   const inRange = (value: Date) => {
     const day = isoDateOf(value)
     return day >= cutover && day <= asOf

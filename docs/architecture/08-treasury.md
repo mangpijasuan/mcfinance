@@ -41,7 +41,7 @@ Members can withdraw their capital (`Partial` / `Full Exit` withdrawals exist), 
 | Collector cash | Recorded at collection; deposit within *N* days; aging alert ([contributions](04-contributions-loans-ledger.md#1-contribution-management)) |
 | Stripe | Payouts only to the club bank account; Stripe dashboard access requires MFA; restricted API keys |
 | Disbursements | Treasurer proposes, a board member approves (D-06); paid only to the borrower's verified account |
-| Reconciliation | Monthly bank, daily Stripe; the period cannot close with unreconciled items above a tolerance |
+| Reconciliation | Monthly bank, daily Stripe; the period cannot close with unreconciled items above a tolerance. *Built:* monthly bank reconciliation and month-end close with a zero tolerance (*Money → Reconciliation*); Stripe is reconciled by recording each payout until its balance transactions are imported |
 
 ## 2. MCTN treasury (design for Phase 12+)
 

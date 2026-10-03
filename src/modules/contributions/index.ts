@@ -14,7 +14,7 @@ import { prisma } from '@/lib/prisma'
 import { OperationError } from '@/lib/operationError'
 import { type AuditContext, recordAudit } from '@/modules/audit'
 import type { Actors } from '@/modules/approvals/actors'
-import { ledgerOpening, postWhenChartApproved, receiptAccount } from '@/modules/accounting/autoPost'
+import { ledgerOpening, openPostingDate, postWhenChartApproved, receiptAccount } from '@/modules/accounting/autoPost'
 import { reverseEntry } from '@/modules/accounting/ledger'
 import { postLegacyActivity } from '@/modules/accounting/legacyActivity'
 import {
@@ -317,7 +317,7 @@ export async function postPendingContributionEntries(tx: Tx, memberId: string): 
     if (c.reversedAt && !c.reversalEntry) {
       const original = await tx.journalEntry.findUniqueOrThrow({ where: { entryNumber: journalEntry }, select: { id: true } })
       const reversal = await reverseEntry(tx, original.id, {
-        effectiveDate: clubDateOf(c.reversedAt), reason: c.reversalReason!, createdBy: c.reversedBy,
+        effectiveDate: await openPostingDate(tx, clubDateOf(c.reversedAt)), reason: c.reversalReason!, createdBy: c.reversedBy,
       })
       posted.push(reversal.entryNumber)
       await tx.contribution.update({ where: { id: c.id }, data: { reversalEntry: reversal.entryNumber } })

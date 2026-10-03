@@ -22,6 +22,7 @@ import {
 import { type ReverseInput, reverseContribution } from '@/modules/contributions'
 import { type OpeningPayload, postOpeningBalances } from '@/modules/accounting/opening'
 import { type BankBalanceInput, recordBankBalance } from '@/modules/treasury'
+import { type TransferInput, recordTransfer } from '@/modules/accounting/reconciliation'
 import { APPROVAL_POLICIES, type ApprovalAction, needsApproval } from './policy'
 import type { Actors, StaffRef } from './actors'
 
@@ -38,6 +39,7 @@ export type ApprovalPayload = {
   'contribution.reverse': ReverseInput
   'ledger.opening_balances': OpeningPayload
   'treasury.bank_balance': BankBalanceInput
+  'treasury.clearing_transfer': TransferInput
 }
 
 /** Run an operation, now (no approval needed) or when its request is approved. */
@@ -73,6 +75,10 @@ export async function executeOperation<A extends ApprovalAction>(
     case 'ledger.opening_balances': {
       const result = await postOpeningBalances(tx, payload as OpeningPayload, actors, ctx)
       return { resultRef: result.entries[0] ?? 'opening-balances', result }
+    }
+    case 'treasury.clearing_transfer': {
+      const result = await recordTransfer(tx, payload as TransferInput, actors, ctx)
+      return { resultRef: result.transferId, result }
     }
     case 'treasury.bank_balance': {
       const result = await recordBankBalance(tx, payload as BankBalanceInput, actors, ctx)
