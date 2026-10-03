@@ -6,6 +6,7 @@ import { MoneyError, fromLegacyDollars } from './money'
 import { todayIso } from './dates'
 import { isEngineLoan, refreshLoan } from '@/modules/loans/state'
 import { postPendingLoanEntries } from '@/modules/loans/postings'
+import { postLegacyLoanNow } from '@/modules/accounting/legacyActivity'
 
 type Tx = Prisma.TransactionClient
 
@@ -85,7 +86,10 @@ export async function recordLoanPayment(tx: Tx, params: RecordLoanPaymentParams)
     await recalcMemberLoanState(tx, loan.cosignerId)
   }
 
-  return createdPayment
+  // Dual-write (M5): in the ledger in the same transaction, once opening
+  // balances exist.
+  const journalEntries = await postLegacyLoanNow(tx, params.loanId)
+  return { ...createdPayment, journalEntries }
 }
 
 async function recordEngineLoanPayment(tx: Tx, loan: { loanId: string; borrowerId: string; borrowerName: string; cosignerId: string | null }, params: RecordLoanPaymentParams) {

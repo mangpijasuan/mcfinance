@@ -223,6 +223,7 @@ Also take a Hetzner server snapshot before any upgrade.
 
 - `dues:service` bills each active member's dues for the new month (so everyone who has not prepaid starts the month unpaid), refreshes "paid this month" and arrears, and posts contributions waiting for the ledger.
 - `loans:service` marks loans delinquent from their schedules, charges late fees once they are switched on (Gate #1 A7), and posts anything waiting for the ledger.
+- `ledger:compare` (migration step M5) compares the ledger with the old records after the other two have run, keeps the result (*Ledger → Nightly comparison*), and emails `LEDGER_ALERT_EMAIL` (or `SECURITY_ALERT_EMAIL`) on any difference. It does nothing until opening balances are posted.
 
 Both are safe to run more than once a day. Run `dues:service` once by hand right after deploying, so every member's dues are billed from January 2026 (`DUES_TRACKING_START`).
 
@@ -230,6 +231,7 @@ Both are safe to run more than once a day. Run `dues:service` once by hand right
 crontab -e
 # 20 6 * * * cd /path/to/mcfinancial && docker compose -f docker-compose.hetzner.yml exec -T app npm run dues:service >> /var/log/mc-dues.log 2>&1
 # 30 6 * * * cd /path/to/mcfinancial && docker compose -f docker-compose.hetzner.yml exec -T app npm run loans:service >> /var/log/mc-loans.log 2>&1
+# 45 6 * * * cd /path/to/mcfinancial && docker compose -f docker-compose.hetzner.yml exec -T app npm run ledger:compare >> /var/log/mc-ledger-compare.log 2>&1
 ```
 
 A non-zero exit means a member or loan could not be processed; the log names it.
