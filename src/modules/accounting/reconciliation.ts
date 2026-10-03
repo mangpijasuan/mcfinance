@@ -18,8 +18,8 @@ import { nextPublicId } from '@/lib/publicIds'
 import { OperationError } from '@/lib/operationError'
 import { type AuditContext, recordAudit } from '@/modules/audit'
 import type { Actors } from '@/modules/approvals/actors'
-import { accountBalance, checkInvariants } from './ledger'
-import { CASH_ACCOUNTS, ledgerOpening, postMoneyEvent, receiptAccount } from './autoPost'
+import { accountBalance, checkInvariants, lockPeriodsExclusive, lockPeriodsShared } from './ledger'
+import { CASH_ACCOUNTS, ledgerOpening, openPostingDate, postMoneyEvent, receiptAccount } from './autoPost'
 import { legacyCents } from './legacyActivity'
 import { unpostedRecords } from './comparison'
 
@@ -95,31 +95,65 @@ export function collectorCash(collector: string, receipts: readonly CashReceipt[
   }
 }
 
+export type Movement = { date: IsoDate; cents: Cents }
+
+/**
+ * How much can leave on `from` without the balance going below zero on any
+ * day from then on: the balance at the end of `from`, then the lowest
+ * end-of-day balance after it. Money that arrives later cannot fund an
+ * earlier transfer, and money a later transfer already moved cannot be
+ * moved again by a backdated one.
+ */
+export function availableFrom(movements: readonly Movement[], from: IsoDate): Cents {
+  const byDay = new Map<IsoDate, Cents>()
+  for (const m of movements) byDay.set(m.date, add(byDay.get(m.date) ?? ZERO, m.cents))
+  const days = [...byDay.keys()].sort()
+  let running = sum(days.filter((d) => d <= from).map((d) => byDay.get(d)!))
+  let lowest = running
+  for (const d of days.filter((x) => x > from)) {
+    running = add(running, byDay.get(d)!)
+    if (running < lowest) lowest = running
+  }
+  return lowest
+}
+
 // ── Reading ─────────────────────────────────────────────────────────────
 
 const collectorName = (value: string | null) => value?.trim() || 'Not recorded'
 
-/** Cash payments recorded since the cutover, by collector, less their deposits. */
-async function collectorPositions(db: Db, cutover: IsoDate, asOf: IsoDate): Promise<CollectorCash[]> {
+type CollectorBook = Map<string, { receipts: CashReceipt[]; deposits: CashReceipt[] }>
+
+/** Each collector's cash payments since the cutover and their deposits, dated. */
+async function collectorBook(db: Db, cutover: IsoDate): Promise<CollectorBook> {
   const isCash = (method: string | null) => receiptAccount(method) === CASH_ACCOUNTS.collectorCash
   const [contributions, payments, deposits] = await Promise.all([
     db.contribution.findMany({ where: { amountCents: { gt: 0 }, reversedAt: null }, select: { paymentDate: true, amountCents: true, paymentMethod: true, receivedBy: true } }),
     db.loanPayment.findMany({ where: { amount: { gt: 0 } }, select: { paymentDate: true, amount: true, paymentMethod: true, receivedBy: true } }),
-    db.clearingTransfer.findMany({ where: { fromAccount: CASH_ACCOUNTS.collectorCash, bankDate: { lte: dateOnly(asOf) } }, select: { collector: true, amountCents: true } }),
+    db.clearingTransfer.findMany({ where: { fromAccount: CASH_ACCOUNTS.collectorCash }, select: { collector: true, amountCents: true, bankDate: true } }),
   ])
-  const receipts = new Map<string, CashReceipt[]>()
+  const book: CollectorBook = new Map()
+  const entry = (name: string) => {
+    if (!book.has(name)) book.set(name, { receipts: [], deposits: [] })
+    return book.get(name)!
+  }
   const keep = (date: Date, amount: Cents, method: string | null, by: string | null) => {
     const day = isoDateOf(date)
-    if (!isCash(method) || day < cutover || day > asOf) return
-    const name = collectorName(by)
-    receipts.set(name, [...(receipts.get(name) ?? []), { date: day, cents: amount }])
+    if (isCash(method) && day >= cutover) entry(collectorName(by)).receipts.push({ date: day, cents: amount })
   }
   for (const c of contributions) keep(c.paymentDate, fromBigInt(c.amountCents), c.paymentMethod, c.receivedBy)
   for (const p of payments) keep(p.paymentDate, legacyCents(p.amount).amount, p.paymentMethod, p.receivedBy)
-  const deposited = new Map<string, Cents>()
-  for (const d of deposits) deposited.set(collectorName(d.collector), add(deposited.get(collectorName(d.collector)) ?? ZERO, fromBigInt(d.amountCents)))
-  const names = new Set([...receipts.keys(), ...deposited.keys()])
-  return [...names].sort().map((name) => collectorCash(name, receipts.get(name) ?? [], deposited.get(name) ?? ZERO, asOf))
+  for (const d of deposits) entry(collectorName(d.collector)).deposits.push({ date: isoDateOf(d.bankDate), cents: fromBigInt(d.amountCents) })
+  return book
+}
+
+/** What each collector holds as of a day: cash recorded up to then, less deposits up to then. */
+async function collectorPositions(db: Db, cutover: IsoDate, asOf: IsoDate): Promise<CollectorCash[]> {
+  const book = await collectorBook(db, cutover)
+  return [...book.keys()].sort().map((name) => {
+    const { receipts, deposits } = book.get(name)!
+    const deposited = sum(deposits.filter((d) => d.date <= asOf).map((d) => d.cents))
+    return collectorCash(name, receipts.filter((r) => r.date <= asOf), deposited, asOf)
+  })
 }
 
 export type PeriodStatus = {
@@ -150,9 +184,15 @@ export async function closeBlockers(db: Db, period: string, today: IsoDate = tod
     const wanted = previous ? nextPeriod(previous.period) : first
     if (wanted !== period) blockers.push(`Close ${wanted} first: months close in order.`)
   }
-  const rec = await db.bankReconciliation.findFirst({ where: { period }, orderBy: { createdAt: 'desc' } })
+  const rec = await db.bankReconciliation.findFirst({ where: { period }, orderBy: { seq: 'desc' } })
   if (!rec) blockers.push('The bank account has not been reconciled for this month.')
   else if (rec.differenceCents !== BigInt(0)) blockers.push(`The latest bank reconciliation differs by ${formatUSD(fromBigInt(rec.differenceCents))}. Find the difference, post what is missing, and reconcile again.`)
+  else {
+    // Something posted into the month since (a late payment, a transfer) changes the bank balance it reconciled.
+    const now = (await accountBalance(db, CASH_ACCOUNTS.bank, { asOf: periodEnd(period) })).balance
+    const then = fromBigInt(rec.ledgerBalanceCents)
+    if (now !== then) blockers.push(`The ledger's bank balance at ${periodEnd(period)} changed from ${formatUSD(then)} to ${formatUSD(now)} since the last reconciliation. Reconcile again.`)
+  }
   const from = `${period}-01` < opened.cutover ? opened.cutover : `${period}-01`
   const unposted = from <= periodEnd(period) ? await unpostedRecords(db, from, periodEnd(period)) : []
   if (unposted.length > 0) blockers.push(`${unposted.length} money record(s) dated in ${period} are not in the ledger yet (see Ledger → Nightly comparison).`)
@@ -179,7 +219,7 @@ export async function reconciliationStatus(db: Db, today: IsoDate = todayIso()) 
   const lastEnded = isoDateOf(new Date(dateOnly(`${today.slice(0, 7)}-01`).getTime() - DAY_MS)).slice(0, 7)
   const [states, recs] = await Promise.all([
     db.ledgerPeriod.findMany({ where: { period: { gte: first } } }),
-    db.bankReconciliation.findMany({ where: { period: { gte: first } }, orderBy: { createdAt: 'desc' } }),
+    db.bankReconciliation.findMany({ where: { period: { gte: first } }, orderBy: { seq: 'desc' } }),
   ])
   const periods: PeriodStatus[] = []
   let nextToClose: string | null = null
@@ -220,13 +260,20 @@ export async function checkTransfer(db: Db, input: TransferInput, today: IsoDate
   if (input.bankDate > today) throw new OperationError(400, 'The bank date cannot be in the future.')
   if (input.bankDate < opened.cutover) throw new OperationError(400, `The bank date must be on or after the ledger's start (${opened.cutover}).`)
   if (input.fromAccount === CASH_ACCOUNTS.collectorCash && !input.collector) throw new OperationError(400, 'Name the collector who deposited the cash.')
-  const balance = (await accountBalance(db, input.fromAccount)).balance
-  if (input.amountCents > balance) {
-    throw new OperationError(409, `${CLEARING_ACCOUNTS[input.fromAccount]} holds ${formatUSD(balance)} in the ledger; a transfer cannot move more than that.`)
+  // The day it will post on (the first open day, if the bank date's month is closed).
+  const postOn = await openPostingDate(db, input.bankDate)
+  const lines = await db.journalLine.findMany({
+    where: { accountCode: input.fromAccount },
+    select: { debitCents: true, creditCents: true, entry: { select: { effectiveDate: true } } },
+  })
+  const inLedger = availableFrom(lines.map((l) => ({ date: isoDateOf(l.entry.effectiveDate), cents: subtract(fromBigInt(l.debitCents), fromBigInt(l.creditCents)) })), postOn)
+  if (input.amountCents > inLedger) {
+    throw new OperationError(409, `${CLEARING_ACCOUNTS[input.fromAccount]} holds ${formatUSD(inLedger)} in the ledger on ${postOn}, counting later transfers; a transfer cannot move more than that.`)
   }
   if (input.fromAccount === CASH_ACCOUNTS.collectorCash) {
-    const held = (await collectorPositions(db, opened.cutover, today)).find((c) => c.collector === input.collector)?.heldCents ?? ZERO
-    if (input.amountCents > held) throw new OperationError(409, `${input.collector} holds ${formatUSD(held)} in recorded cash; the deposit cannot be more than that.`)
+    const mine = (await collectorBook(db, opened.cutover)).get(input.collector!) ?? { receipts: [], deposits: [] }
+    const held = availableFrom([...mine.receipts, ...mine.deposits.map((d) => ({ date: d.date, cents: subtract(ZERO, d.cents) }))], postOn)
+    if (input.amountCents > held) throw new OperationError(409, `${input.collector} holds ${formatUSD(held)} in recorded cash on ${postOn}, counting later deposits; the deposit cannot be more than that.`)
   }
 }
 
@@ -275,6 +322,8 @@ export type BankReconciliationInput = {
 }
 
 export async function reconcileBank(tx: Db, input: BankReconciliationInput, preparedBy: string, ctx: AuditContext, today: IsoDate = todayIso()) {
+  // Waits for a close in progress, and makes a close wait for this.
+  await lockPeriodsShared(tx)
   const opened = await ledgerOpening(tx)
   if (!opened) throw new OperationError(409, 'The bank is reconciled against the ledger, which starts with the opening balances (M4).')
   const statementDate = periodEnd(input.period)
@@ -303,7 +352,8 @@ export async function reconcileBank(tx: Db, input: BankReconciliationInput, prep
 // ── Month-end close ─────────────────────────────────────────────────────
 
 export async function closePeriod(tx: Db, period: string, closedBy: string, ctx: AuditContext, today: IsoDate = todayIso()) {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('ledger.close_period'))`
+  // Waits for every posting and reconciliation in flight; new ones wait for this close.
+  await lockPeriodsExclusive(tx)
   const blockers = await closeBlockers(tx, period, today)
   if (blockers.length > 0) throw new OperationError(409, `${period} cannot be closed yet.`, { blockers })
   const closedAt = new Date()

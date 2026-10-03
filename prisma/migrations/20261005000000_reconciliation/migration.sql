@@ -25,6 +25,7 @@ CREATE INDEX "ClearingTransfer_fromAccount_bankDate_idx" ON "ClearingTransfer"("
 
 CREATE TABLE "BankReconciliation" (
     "id" TEXT NOT NULL,
+    "seq" BIGSERIAL NOT NULL,
     "period" TEXT NOT NULL,
     "statementDate" DATE NOT NULL,
     "statementBalanceCents" BIGINT NOT NULL,
@@ -39,7 +40,8 @@ CREATE TABLE "BankReconciliation" (
     CONSTRAINT "BankReconciliation_period_check" CHECK ("period" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$')
 );
 
-CREATE INDEX "BankReconciliation_period_createdAt_idx" ON "BankReconciliation"("period", "createdAt");
+CREATE UNIQUE INDEX "BankReconciliation_seq_key" ON "BankReconciliation"("seq");
+CREATE INDEX "BankReconciliation_period_seq_idx" ON "BankReconciliation"("period", "seq");
 
 CREATE FUNCTION reconciliation_immutable() RETURNS trigger AS $$
 BEGIN

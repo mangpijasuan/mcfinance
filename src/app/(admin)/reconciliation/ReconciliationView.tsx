@@ -52,7 +52,8 @@ export default function ReconciliationView({ today, canTransfer, canReconcile, c
     setStatus(body)
     if (body.started) {
       const open = (body.periods as PeriodStatus[]).filter((p) => !p.closed).map((p) => p.period).sort()
-      setPeriod((current) => current || open[0] || '')
+      // Keep the choice only while that month is still open (it may just have closed).
+      setPeriod((current) => (open.includes(current) ? current : open[0] || ''))
     }
   }, [])
   useEffect(() => { load() }, [load])

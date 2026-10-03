@@ -648,6 +648,7 @@ model ClearingTransfer {
 // latest one shows no difference. Never changed; redo it to correct it.
 model BankReconciliation {
   id                    String   @id @default(cuid())
+  seq                   BigInt   @unique @default(autoincrement()) // recording order; the latest per month counts
   period                String // YYYY-MM
   statementDate         DateTime @db.Date // the month's last day
   statementBalanceCents BigInt
@@ -658,5 +659,5 @@ model BankReconciliation {
   preparedBy            String // staff id
   createdAt             DateTime @default(now())
 
-  @@index([period, createdAt])
+  @@index([period, seq])
 }

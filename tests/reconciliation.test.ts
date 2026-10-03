@@ -9,6 +9,8 @@ import { callRoute } from './helpers/routes'
 import { accountBalance, approveAccounts, checkInvariants } from '@/modules/accounting/ledger'
 import { checkOpening, postOpeningBalances } from '@/modules/accounting/opening'
 import { closeBlockers, reconciliationStatus } from '@/modules/accounting/reconciliation'
+import { lockPeriodsShared } from '@/modules/accounting/ledger'
+import { postMoneyEvent } from '@/modules/accounting/autoPost'
 import { serviceDues } from '@/modules/contributions'
 import { cents } from '@/lib/money'
 
@@ -100,6 +102,14 @@ describe('with the ledger open', () => {
     expect((await auditEntriesSince(marker)).map((a) => a.action)).toEqual(['reconciliation.transfer.record'])
     expect((await transfer({ fromAccount: '1020', amount: '25', bankDate: '2026-09-21' })).status).toBe(201)
 
+    // Money that arrived later cannot fund an earlier deposit: on the 5th Pat
+    // held the $40 of the 1st, and the $40 deposited on the 20th needs $20 of
+    // it (the rest came on the 10th), so only $20 could have gone on the 5th.
+    expect((await transfer({ fromAccount: '1030', collector: 'Pat Collector', amount: '21', bankDate: '2026-09-05' })).json.error).toMatch(/Pat Collector holds \$20\.00 in recorded cash on 2026-09-05, counting later deposits/)
+    expect((await transfer({ fromAccount: '1020', amount: '1', bankDate: '2026-09-11' })).json.error).toMatch(/holds \$0\.00 in the ledger on 2026-09-11/) // Zelle money arrived on the 12th
+    // And a backdated transfer cannot move what the transfer on the 21st already moved.
+    expect((await transfer({ fromAccount: '1020', amount: '10', bankDate: '2026-09-15' })).json.error).toMatch(/holds \$0\.00 in the ledger on 2026-09-15, counting later transfers/)
+
     status = await reconciliationStatus(prisma, TODAY)
     if (!status.started) throw new Error('unreachable')
     expect(status.collectors.find((c) => c.collector === 'Pat Collector')).toMatchObject({ depositedCents: 40_00, heldCents: 20_00, oldestHeld: '2026-09-10' })
@@ -174,8 +184,10 @@ describe('with the ledger open', () => {
     vi.mocked(checkInvariants).mockResolvedValueOnce({ ok: false, problems: ['entry JE-X does not balance'] })
     expect(await closeBlockers(prisma, '2026-01', TODAY)).toContainEqual('The ledger breaks its own rules: entry JE-X does not balance.')
 
-    // Post it, reconcile January again (now $3,020) and close it.
+    // Posting it changes January's bank balance: the clean reconciliation no longer holds.
     await serviceDues(TODAY)
+    expect(await closeBlockers(prisma, '2026-01', TODAY)).toEqual(['The ledger\'s bank balance at 2026-01-31 changed from $3,000.00 to $3,020.00 since the last reconciliation. Reconcile again.'])
+    // Reconcile January again (now $3,020) and close it.
     expect((await reconcile({ period: '2026-01', statementBalance: '3,520', items: [{ kind: 'outstanding_payment', description: 'payout LN-TEST-B', amount: '500' }] })).json.differenceCents).toBe(0)
     expect((await close('2026-01')).status).toBe(200)
 
@@ -202,6 +214,51 @@ describe('with the ledger open', () => {
     const rec = await prisma.bankReconciliation.findFirstOrThrow()
     await expect(prisma.bankReconciliation.delete({ where: { id: rec.id } })).rejects.toThrow(/cannot be changed or deleted/)
     await expect(prisma.$executeRawUnsafe('TRUNCATE "BankReconciliation"')).rejects.toThrow(/cannot be changed or deleted/)
+  })
+
+  it('refuses different content under an event already posted, and replays it unchanged after its month closed', async () => {
+    const event = (amount: number, date = '2026-01-20') => ({
+      effectiveDate: date, type: 'contribution' as const, description: 'Test event', idempotencyKey: 'test:event-1',
+      lines: [{ account: '1000', debit: cents(amount) }, { account: '2000', credit: cents(amount), memberId: 'M1' }],
+    })
+    const first = await prisma.$transaction((tx) => postMoneyEvent(tx, event(10_00)))
+    expect(first.replayed).toBe(false)
+    await expect(prisma.$transaction((tx) => postMoneyEvent(tx, event(99_00)))).rejects.toThrow(/idempotency key test:event-1 was already used/)
+    signInAs('treasurer')
+    await reconcile({ period: '2025-12', statementBalance: '5000' })
+    await close('2025-12')
+    expect(await prisma.$transaction((tx) => postMoneyEvent(tx, event(10_00)))).toEqual({ entryNumber: first.entryNumber, replayed: true })
+  })
+
+  it('takes the latest reconciliation by recording order, even within the same millisecond', async () => {
+    const at = new Date('2026-02-01T12:00:00.000Z')
+    const row = (difference: number) => ({ period: '2025-12', statementDate: new Date('2025-12-31'), statementBalanceCents: BigInt(5000_00), ledgerBalanceCents: BigInt(5000_00), items: [], differenceCents: BigInt(difference), preparedBy: 'x', createdAt: at })
+    await prisma.bankReconciliation.create({ data: row(0) })
+    await prisma.bankReconciliation.create({ data: row(1_00) })
+    expect(await closeBlockers(prisma, '2025-12', TODAY)).toEqual([expect.stringMatching(/differs by \$1\.00/)])
+    const status = await reconciliationStatus(prisma, TODAY)
+    expect(status.started && status.periods.find((p) => p.period === '2025-12')!.reconciliation!.differenceCents).toBe(1_00)
+  })
+
+  it('makes a close wait for a posting in flight, which then cannot land in the closed month', async () => {
+    signInAs('treasurer')
+    await reconcile({ period: '2025-12', statementBalance: '5000' })
+    const order: string[] = []
+    let release!: () => void
+    const held = new Promise<void>((r) => { release = r })
+    const posting = prisma.$transaction(async (tx) => {
+      await lockPeriodsShared(tx)
+      order.push('posting started')
+      await held
+      order.push('posting committed')
+    }, { timeout: 20_000 })
+    await new Promise((r) => setTimeout(r, 200))
+    const closing = close('2025-12').then((res) => { order.push(`close ${res.status}`) })
+    await new Promise((r) => setTimeout(r, 500))
+    expect(order).toEqual(['posting started']) // the close is waiting
+    release()
+    await Promise.all([posting, closing])
+    expect(order).toEqual(['posting started', 'posting committed', 'close 200'])
   })
 
   it('is shown to anyone who can read the ledger', async () => {

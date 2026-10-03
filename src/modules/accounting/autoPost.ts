@@ -4,8 +4,8 @@
 // it off, Gate #1 A13); the caller records the event either way and posts
 // the backlog on a later run. Idempotency keys make repeats harmless.
 import type { Prisma } from '@prisma/client'
-import type { IsoDate } from '@/lib/dates'
-import { type EntryInput, postEntry } from './ledger'
+import { type IsoDate, isoDateOf } from '@/lib/dates'
+import { type EntryInput, lockPeriodsShared, postEntry } from './ledger'
 
 type Tx = Prisma.TransactionClient
 
@@ -41,7 +41,9 @@ export async function accountsReady(tx: Tx, codes: readonly string[]): Promise<b
  * a payment dated September but recorded after September was closed goes
  * into October, as the correction rule requires (docs/architecture/04 §4).
  */
-export async function openPostingDate(tx: Pick<Tx, 'ledgerPeriod'>, date: IsoDate): Promise<IsoDate> {
+export async function openPostingDate(tx: Pick<Tx, 'ledgerPeriod' | '$executeRaw'>, date: IsoDate): Promise<IsoDate> {
+  // Held until the transaction ends, so no month can close between choosing the date and posting.
+  await lockPeriodsShared(tx)
   const latestClosed = await tx.ledgerPeriod.findFirst({ where: { status: 'closed' }, orderBy: { period: 'desc' }, select: { period: true } })
   if (!latestClosed || date.slice(0, 7) > latestClosed.period) return date
   const [y, m] = latestClosed.period.split('-').map(Number)
@@ -49,15 +51,16 @@ export async function openPostingDate(tx: Pick<Tx, 'ledgerPeriod'>, date: IsoDat
 }
 
 /**
- * Post an entry the system makes on its own (a money event). An event
- * already in the ledger is not posted again, even if its month has closed
- * since; a new one dated in a closed month posts on the first open day,
- * with its own date in the description.
+ * Post an entry the system makes on its own (a money event). A new one
+ * dated in a closed month posts on the first open day, with its own date in
+ * the description. An event already in the ledger is checked against the
+ * entry as it was posted (same moved date), so an unchanged retry replays
+ * even after its month closed, and different content under the same key is
+ * still refused as an idempotency conflict.
  */
 export async function postMoneyEvent(tx: Tx, input: EntryInput): Promise<{ entryNumber: string; replayed: boolean }> {
-  const existing = await tx.journalEntry.findUnique({ where: { idempotencyKey: input.idempotencyKey }, select: { entryNumber: true } })
-  if (existing) return { entryNumber: existing.entryNumber, replayed: true }
-  const effectiveDate = await openPostingDate(tx, input.effectiveDate)
+  const existing = await tx.journalEntry.findUnique({ where: { idempotencyKey: input.idempotencyKey }, select: { effectiveDate: true } })
+  const effectiveDate = existing ? isoDateOf(existing.effectiveDate) : await openPostingDate(tx, input.effectiveDate)
   const moved = effectiveDate === input.effectiveDate
     ? input
     : { ...input, effectiveDate, description: `${input.description} (dated ${input.effectiveDate}; that month is closed)` }

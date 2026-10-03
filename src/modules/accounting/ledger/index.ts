@@ -172,7 +172,22 @@ export async function getEntry(db: Db, id: string): Promise<PostedEntry | null> 
   return row ? toPosted(row) : null
 }
 
+// Closing a month (F-11) must not cross a posting: every posting holds
+// this lock shared for the rest of its transaction, and closing a month
+// holds it exclusively, so a close waits for postings in flight and
+// postings that start during a close wait for it (then see it closed).
+const PERIOD_LOCK = 'ledger.periods'
+
+export async function lockPeriodsShared(tx: Pick<Tx, '$executeRaw'>) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtext(${PERIOD_LOCK}))`
+}
+
+export async function lockPeriodsExclusive(tx: Pick<Tx, '$executeRaw'>) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${PERIOD_LOCK}))`
+}
+
 async function insertEntry(tx: Tx, input: EntryInput, reversesEntryId: string | null): Promise<PostedEntry> {
+  await lockPeriodsShared(tx)
   const codes = Array.from(new Set(input.lines.map((l) => l.account)))
   const accounts = await tx.ledgerAccount.findMany({ where: { code: { in: codes } } })
   const byCode = new Map(accounts.map((a) => [a.code, a]))

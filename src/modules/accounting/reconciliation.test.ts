@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cents } from '@/lib/money'
-import { COLLECTOR_DEPOSIT_DAYS, collectorCash, isClearingAccount, isPeriod, nextPeriod, periodEnd, reconciliationDifference } from './reconciliation'
+import { COLLECTOR_DEPOSIT_DAYS, availableFrom, collectorCash, isClearingAccount, isPeriod, nextPeriod, periodEnd, reconciliationDifference } from './reconciliation'
 
 const c = (n: number) => cents(n)
 
@@ -55,5 +55,26 @@ describe('collectorCash', () => {
     expect(collectorCash('Pat', [{ date: '2026-09-01', cents: c(10_00) }], c(0), `2026-09-${String(1 + COLLECTOR_DEPOSIT_DAYS).padStart(2, '0')}`).overdue).toBe(false)
     expect(collectorCash('Pat', receipts, c(90_00), '2026-09-21')).toMatchObject({ heldCents: 0, oldestHeld: null, ageDays: null, overdue: false })
     expect(collectorCash('Lee', [], c(0), '2026-09-21')).toMatchObject({ receivedCents: 0, heldCents: 0, oldestHeld: null })
+  })
+})
+
+describe('availableFrom', () => {
+  const m = (date: string, n: number) => ({ date, cents: c(n) })
+
+  it('is the balance at the end of the day when nothing happens later', () => {
+    expect(availableFrom([m('2026-09-01', 40_00), m('2026-09-10', 20_00)], '2026-09-15')).toBe(60_00)
+    expect(availableFrom([], '2026-09-15')).toBe(0)
+  })
+
+  it('does not let money that arrives later fund an earlier transfer', () => {
+    expect(availableFrom([m('2026-09-01', 40_00), m('2026-09-10', 20_00)], '2026-09-05')).toBe(40_00)
+    expect(availableFrom([m('2026-09-10', 20_00)], '2026-09-05')).toBe(0)
+  })
+
+  it('does not let a backdated transfer move money a later one already moved', () => {
+    // 25 in on the 12th, 25 out on the 21st: nothing is free on the 15th.
+    expect(availableFrom([m('2026-09-12', 25_00), m('2026-09-21', -25_00)], '2026-09-15')).toBe(0)
+    // Same-day in and out net first; then the lowest later end-of-day balance counts.
+    expect(availableFrom([m('2026-09-12', 50_00), m('2026-09-20', -30_00), m('2026-09-20', 10_00), m('2026-09-25', 5_00)], '2026-09-15')).toBe(30_00)
   })
 })
