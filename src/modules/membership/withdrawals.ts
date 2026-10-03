@@ -3,6 +3,7 @@ import { nextPublicId } from '@/lib/publicIds'
 import { OperationError } from '@/lib/operationError'
 import { type AuditContext, recordAudit } from '@/modules/audit'
 import { onMemberStatusChange } from '@/modules/contributions'
+import { postWithdrawalNow } from '@/modules/accounting/legacyActivity'
 import type { Actors } from '@/modules/approvals/actors'
 
 export type WithdrawalInput = {
@@ -44,6 +45,9 @@ export async function recordWithdrawal(tx: Prisma.TransactionClient, input: With
       notes: input.notes,
     },
   })
+  // Dual-write (M5): in the ledger in the same transaction, once opening
+  // balances exist (earlier ones are in the opening balances).
+  const journalEntry = await postWithdrawalNow(tx, created.withdrawalId)
   if (isFullExit) {
     await tx.member.update({ where: { id: input.memberId }, data: { status: 'Inactive', eligible: 'NO - Inactive' } })
     await onMemberStatusChange(tx, input.memberId, member.status, 'Inactive')
@@ -51,7 +55,7 @@ export async function recordWithdrawal(tx: Prisma.TransactionClient, input: With
   await recordAudit(tx, ctx, {
     action: isFullExit ? 'withdrawal.full_exit' : 'withdrawal.create',
     entityType: 'withdrawal', entityId: created.withdrawalId, after: created,
-    metadata: { maker: actors.maker.id, checker: actors.checker?.id ?? null },
+    metadata: { maker: actors.maker.id, checker: actors.checker?.id ?? null, journalEntry },
   })
-  return created
+  return { ...created, journalEntry }
 }

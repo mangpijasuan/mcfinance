@@ -74,7 +74,12 @@ export default function LedgerView({ canApprove }: { canApprove: boolean }) {
       <PageHeader
         title="Ledger"
         sub="The club’s double-entry books in exact cents. Posted entries are final; corrections are reversing entries."
-        action={<a href="/ledger/opening" className="text-sm text-indigo-700 underline">Opening balances (M4) →</a>}
+        action={
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <a href="/ledger/opening" className="text-sm text-indigo-700 underline">Opening balances (M4) →</a>
+            <a href="/ledger/comparison" className="text-sm text-indigo-700 underline">Nightly comparison (M5) →</a>
+          </div>
+        }
       />
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {message && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{message}</p>}

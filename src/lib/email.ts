@@ -136,4 +136,4 @@ export function adminSummaryEmail(stats: {
   }
 }
 
-export { sendEmail }
+export { sendEmail, esc as escapeHtml }

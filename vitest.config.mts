@@ -22,7 +22,7 @@ export default defineConfig({
         'src/modules/loans/state.ts', 'src/modules/loans/postings.ts', 'src/modules/accounting/autoPost.ts',
         'src/modules/contributions/dues.ts', 'src/modules/contributions/index.ts',
         'src/modules/accounting/opening.ts', 'src/modules/accounting/legacyActivity.ts',
-        'src/modules/treasury/liquidity.ts', 'src/modules/treasury/index.ts',
+        'src/modules/treasury/liquidity.ts', 'src/modules/treasury/index.ts', 'src/modules/accounting/comparison.ts',
       ],
       exclude: ['**/*.test.ts'],
       thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },

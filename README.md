@@ -198,7 +198,22 @@ Rehearse on a copy of the production data first. This posts everything inside a 
 
 ```bash
 npm run ledger:opening -- --bank-balance=12345.67 --rehearse   # add --loans=confirmed.json for confirmed loan balances
-``` Posted entries can never be edited or deleted — the database refuses — so mistakes are corrected with reversing entries.
+```
+
+Posted entries can never be edited or deleted — the database refuses — so mistakes are corrected with reversing entries.
+
+### Dual-write and the nightly comparison (M5)
+
+Once opening balances are posted, every money event is written to the ledger **and** the old records in the same transaction: contributions and their reversals, withdrawals, loan payouts, repayments (on the loan engine and on older loans), late fees, waivers and write-offs. The daily jobs still post anything recorded outside the app (a direct import, say).
+
+Each night `npm run ledger:compare` (after the daily jobs) checks that the two agree:
+
+- the ledger's own rules (every entry balances, reversals mirror their originals, no negative loan balance, maker ≠ checker);
+- each member's capital in the ledger against their stored total less withdrawals since the cutover;
+- each loan's balance in the ledger against its stored balance;
+- every money record dated from the cutover to today has a ledger entry.
+
+Each run is stored (never changed) and shown on *Ledger → Nightly comparison*, with the count of clean days in a row. Any difference emails `LEDGER_ALERT_EMAIL` (or `SECURITY_ALERT_EMAIL`) and restarts the count. **The ledger can become the system of record (M6) after 30 clean days in a row that include a month-end.** Someone with `ledger.manage_accounts` can rerun it from the page after fixing a difference.
 
 ## Approvals (maker / checker)
 

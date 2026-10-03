@@ -605,3 +605,19 @@ model TreasuryBankBalance {
 
   @@index([statementDate])
 }
+
+// The nightly comparison of the ledger with the old records (migration
+// step M5, docs/architecture/11 §1). The ledger becomes the system of
+// record after 30 consecutive clean days, including a month-end. Kept as
+// evidence: never changed or deleted (database trigger).
+model LedgerComparison {
+  id          String   @id @default(cuid())
+  runDate     DateTime @db.Date // the club day compared
+  ranAt       DateTime @default(now())
+  ok          Boolean
+  differences Int
+  details     Json // what differed: invariants, member capital, loans, unposted records
+  emailedTo   String? // where the alert went, when there were differences
+
+  @@index([runDate])
+}
