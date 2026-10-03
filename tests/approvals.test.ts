@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { TEST_IDS, signInAs, signInAsMember, staffId } from './helpers/actors'
 import { auditEntriesSince, auditMarker, prisma, resetDatabase } from './helpers/db'
-import { createBaseFixtures, createMember } from './helpers/factories'
+import { createBaseFixtures, createMember, recordBankBalance } from './helpers/factories'
 import { callRoute } from './helpers/routes'
 import { approveAccounts, checkInvariants } from '@/modules/accounting/ledger'
 
@@ -24,6 +24,8 @@ beforeEach(async () => {
   await createBaseFixtures()
   // An eligible borrower for loan requests.
   await createMember('MC-BORROW', { monthsActive: 24, archiveLifetime: 2000, contributions2026: 180 })
+  // Plenty of room to lend (Gate #1 A10); tests/treasury.test.ts covers the limits.
+  await recordBankBalance(1_000_000_00)
 })
 afterEach(() => enforce(false))
 

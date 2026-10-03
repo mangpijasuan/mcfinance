@@ -253,6 +253,22 @@ Payouts, repayments, fees, waivers and write-offs **post to the ledger** once th
 
 Loans made **before** this change keep working the old way (hand-kept balance and overdue flag) until they are migrated with the opening balances (M4). `npm run loans:schedule-report` compares each of them with the schedule the engine would give it. It changes nothing; run it on the production snapshot (A14).
 
+## Treasury: cash reserve and lending capacity
+
+*Treasury* (Gate #1 A10, docs/architecture/08 §1) shows the club's cash, the minimum reserve kept for withdrawals, and how much is left to lend:
+
+- **Minimum reserve**: the greater of 15% of member capital or three months of withdrawals (at the average of the last 12 months). It is never lent out.
+- **Lending capacity** = cash − reserve − loans approved but not yet paid out.
+- **A loan is approved only if its payout** (the amount less the application fee) fits in the lending capacity. The check runs when the loan is proposed and again when it takes effect (after a checker's approval, when maker/checker is on), under a lock so two approvals cannot both use the same room. The new-loan form shows the capacity.
+
+Where the cash figure comes from:
+
+1. **The ledger**, once opening balances are posted (M4): the cash accounts (1000–1030), less withdrawals the daily job has not posted yet.
+2. **Before that, the bank balance the Treasurer records** on the Treasury page, from the bank statement or online banking, carried forward with the contributions, repayments, payouts and withdrawals recorded since. Record a new one at least monthly; the page warns after 35 days. Recorded balances can never be changed (database trigger); a newer one supersedes them. With maker/checker on, a Board member confirms each one.
+3. **Otherwise it is unknown, and no loan can be approved.** After deploying, the Treasurer records the current bank balance before the next loan.
+
+The policy values live in `src/modules/treasury/liquidity.ts`; changing them is a board decision.
+
 ## Architecture assessment
 
 The platform modernisation plan (financial ledger, security, MCTN / rewards research, UMI feasibility) lives in [docs/architecture/](docs/architecture/README.md). Start with the executive assessment and **Founder Decision Gate #1**. The numbers in it are reproducible with `node scripts/models/tokenomics.mjs` and `node scripts/models/umi.mjs`.

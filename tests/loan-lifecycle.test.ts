@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { signInAs, signInAsMember, staffId } from './helpers/actors'
 import { auditEntriesSince, auditMarker, prisma, resetDatabase } from './helpers/db'
-import { createBaseFixtures, createMember } from './helpers/factories'
+import { createBaseFixtures, createMember, recordBankBalance } from './helpers/factories'
 import { callRoute } from './helpers/routes'
 import { accountBalance, approveAccounts, checkInvariants } from '@/modules/accounting/ledger'
 import { agreementTermsHash } from '@/modules/loans/lifecycle'
@@ -81,6 +81,8 @@ beforeEach(async () => {
   await resetDatabase()
   await createBaseFixtures()
   await createMember(BORROWER, { monthsActive: 24, archiveLifetime: 2000, contributions2026: 180 })
+  // Plenty of room to lend (Gate #1 A10); tests/treasury.test.ts covers the limits.
+  await recordBankBalance(1_000_000_00)
 })
 afterEach(() => {
   vi.useRealTimers()

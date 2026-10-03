@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, Receipt, Landmark, CreditCard, History, ArrowDownLeft, Bell, FileText,
-  Shield, Wallet, ScrollText, KeyRound, BookOpen, CheckSquare, CalendarCheck, type LucideIcon,
+  Shield, Wallet, ScrollText, KeyRound, BookOpen, CheckSquare, CalendarCheck, PiggyBank, type LucideIcon,
 } from 'lucide-react'
 import type { Permission } from '@/modules/permissions'
 
@@ -24,6 +24,7 @@ export const STAFF_NAV: GroupedStaffNavItem[] = [
   { group: 'Money',          href: '/payments',       label: 'Online Payment Review', icon: Wallet,          permission: 'payments.read', badge: 'pendingPayments' },
   { group: 'Money',          href: '/withdrawals',    label: 'Withdrawals',           icon: ArrowDownLeft,   permission: 'withdrawals.read' },
   { group: 'Money',          href: '/ledger',         label: 'Ledger',                icon: BookOpen,        permission: 'ledger.read' },
+  { group: 'Money',          href: '/treasury',       label: 'Treasury',              icon: PiggyBank,       permission: 'treasury.read' },
   { group: 'Lending',        href: '/loans',          label: 'Loans',                 icon: Landmark,        permission: 'loans.read', badge: 'overdueLoans' },
   { group: 'Lending',        href: '/agreements',     label: 'Loan Agreements',       icon: FileText,        permission: 'agreements.read' },
   { group: 'Lending',        href: '/loan-payments',  label: 'Repayments',            icon: CreditCard,      permission: 'loan_payments.read' },

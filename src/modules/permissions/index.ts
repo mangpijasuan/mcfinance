@@ -38,6 +38,9 @@ export const PERMISSIONS = {
   'ledger.manage_accounts': 'Record the accountant’s approval of the chart of accounts',
   'ledger.propose': 'Propose manual journal entries (they need a checker)',
   'ledger.approve': 'Approve manual journal entries proposed by someone else',
+  'treasury.read': 'View the cash position, the cash reserve and the lending capacity',
+  'treasury.record_balance': 'Record the club’s bank balance from the bank statement',
+  'treasury.approve_balance': 'Approve a bank balance recorded by someone else (when maker/checker is on)',
   'loans.approve': 'Approve loans proposed by someone else (when maker/checker is on)',
   'withdrawals.approve': 'Approve withdrawals recorded by someone else (when maker/checker is on)',
   'loans.disburse': 'Record that a loan was paid out to the borrower',
@@ -59,7 +62,7 @@ export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[]
 const READ_EVERYTHING: Permission[] = [
   'dashboard.view', 'members.read', 'contributions.read', 'loans.read', 'loan_payments.read',
   'agreements.read', 'withdrawals.read', 'payments.read', 'notifications.read', 'ledger.read',
-  'approvals.view',
+  'approvals.view', 'treasury.read',
 ]
 
 type RoleDefinition = {
@@ -79,6 +82,7 @@ export const ROLES = {
     permissions: [
       'dashboard.view', 'members.read', 'contributions.read', 'loans.read', 'loans.create',
       'loan_payments.read', 'agreements.read', 'agreements.update', 'approvals.view', 'loan_fees.waive',
+      'treasury.read',
     ],
   },
   finance: {
@@ -97,7 +101,7 @@ export const ROLES = {
       'payments.review', 'agreements.sign_lender', 'loans.update', 'loans.cancel', 'audit.read',
       'ledger.manage_accounts', 'ledger.propose', 'ledger.approve', 'loans.approve', 'withdrawals.approve',
       'loans.disburse', 'loan_fees.waive', 'loan_fees.approve_waiver', 'loans.write_off',
-      'contributions.reverse', 'contributions.approve_reversal', 'dues.manage_plans',
+      'contributions.reverse', 'contributions.approve_reversal', 'dues.manage_plans', 'treasury.record_balance',
     ],
   },
   compliance: {
@@ -115,7 +119,7 @@ export const ROLES = {
     description: 'Oversight and approvals: confirms payments, signs agreements, reads the audit log.',
     permissions: [
       ...READ_EVERYTHING, 'payments.review', 'agreements.sign_lender', 'audit.read', 'staff.read', 'loans.approve', 'ledger.approve',
-      'loans.approve_disbursement', 'loans.approve_write_off',
+      'loans.approve_disbursement', 'loans.approve_write_off', 'treasury.approve_balance',
     ],
   },
   administrator: {
