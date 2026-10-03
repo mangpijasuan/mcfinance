@@ -621,3 +621,42 @@ model LedgerComparison {
 
   @@index([runDate])
 }
+
+// Money moved from a clearing account to the bank (F-11): a Stripe payout,
+// Zelle/transfer receipts swept to the bank, or cash a collector deposited.
+// Posts Dr 1000 Bank / Cr the clearing account. Never changed or deleted.
+model ClearingTransfer {
+  id           String   @id @default(cuid())
+  transferId   String   @unique // TR-…
+  fromAccount  String // 1010 | 1020 | 1030
+  amountCents  BigInt
+  bankDate     DateTime @db.Date // the day it reached the bank (as on the statement)
+  reference    String? // deposit slip, Stripe payout id, bank reference
+  collector    String? // for cash: who deposited it (as recorded in receivedBy)
+  note         String?
+  journalEntry String
+  recordedBy   String // staff id (maker)
+  approvedBy   String? // checker, when maker/checker applied (D-06)
+  createdAt    DateTime @default(now())
+
+  @@index([fromAccount, bankDate])
+}
+
+// A month's bank reconciliation (F-11): the bank statement balance at the
+// month end, adjusted for deposits in transit and outstanding payments,
+// against the ledger's bank account (1000). A month closes only when the
+// latest one shows no difference. Never changed; redo it to correct it.
+model BankReconciliation {
+  id                    String   @id @default(cuid())
+  period                String // YYYY-MM
+  statementDate         DateTime @db.Date // the month's last day
+  statementBalanceCents BigInt
+  ledgerBalanceCents    BigInt
+  items                 Json // [{ kind: deposit_in_transit | outstanding_payment, description, cents }]
+  differenceCents       BigInt // (statement + in transit − outstanding) − ledger
+  note                  String?
+  preparedBy            String // staff id
+  createdAt             DateTime @default(now())
+
+  @@index([period, createdAt])
+}

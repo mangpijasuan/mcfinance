@@ -284,6 +284,17 @@ Where the cash figure comes from:
 
 The policy values live in `src/modules/treasury/liquidity.ts`; changing them is a board decision.
 
+## Reconciliation and month-end close
+
+*Money → Reconciliation* (F-11) works on the ledger, so it starts once opening balances are posted.
+
+- **Money in transit.** Received money waits in a clearing account until it reaches the bank: `1010` Stripe, `1020` Zelle / bank transfer, `1030` cash held by collectors. When it arrives (a Stripe payout, transfers swept, a collector's deposit), record a **transfer to the bank** with the date and reference on the bank statement. It posts `Dr 1000 Bank / Cr` the clearing account, and can never move more than the account (or, for cash, the collector) holds. Finance or the Treasurer records it; with maker/checker on, the Treasurer approves it.
+- **Cash held by collectors.** Each collector's cash payments since the cutover (by `receivedBy`), less their deposits, oldest first. Cash held longer than 7 days is flagged.
+- **Bank reconciliation, monthly.** Enter the bank statement balance at the month end, plus any deposit the bank had not credited yet or payment it had not paid yet. The page compares it with the ledger's bank account; the difference must be zero. If it is not, find what is missing (an unrecorded payment, a transfer, a bank fee), post it, and reconcile again.
+- **Month-end close.** A month closes only when its latest reconciliation shows no difference, nothing dated in it is still waiting for the ledger, the ledger's own rules hold, and the month before is closed. Closed months never reopen; the database refuses anything dated in one. A payment dated in a closed month but recorded later posts on the first day of the next open month, with its own date in the description.
+
+Transfers and reconciliations are kept as evidence: they can never be changed or deleted.
+
 ## Architecture assessment
 
 The platform modernisation plan (financial ledger, security, MCTN / rewards research, UMI feasibility) lives in [docs/architecture/](docs/architecture/README.md). Start with the executive assessment and **Founder Decision Gate #1**. The numbers in it are reproducible with `node scripts/models/tokenomics.mjs` and `node scripts/models/umi.mjs`.

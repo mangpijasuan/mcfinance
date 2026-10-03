@@ -71,6 +71,8 @@ The current records show collectors (`receivedBy`) taking cash. Add:
 
 Anything unmatched stays in the clearing account and appears on the reconciliation screen. Nothing is written off without an approved adjusting entry.
 
+**Built (F-11, `src/modules/accounting/reconciliation.ts`, *Money → Reconciliation*):** transfers from each clearing account to the bank (with a checker when maker/checker is on), collector cash aged per collector from `receivedBy`, and a monthly statement-level bank reconciliation with deposits in transit and outstanding payments. Not yet: importing bank statement lines and Stripe balance transactions to match item by item; the collector sub-ledger is kept from the records rather than as a ledger dimension.
+
 ### Reporting
 
 Contribution totals, collection rate by period, members in arrears with aging, and trends. All are derived from obligations, allocations and ledger lines, and are reproducible for any past date.
@@ -308,5 +310,5 @@ A pure TypeScript module, `src/modules/loans/amortization` (later `packages/loan
 
 ### Periods and reporting
 
-- Monthly period close: after reconciliation, the Treasurer closes the period. Entries dated in a closed period are rejected, and corrections go into the current period.
+- Monthly period close: after reconciliation, the Treasurer closes the period. Entries dated in a closed period are rejected, and corrections go into the current period. *Built:* months close in order, only with a zero-difference bank reconciliation, nothing unposted and the invariants holding; money events dated in a closed month post on the first day of the next open month.
 - Reports: trial balance, member statement, loan portfolio, aging, cash flow and income statement. Each is a query over posted lines as of a date, so every report can be regenerated for any past date.

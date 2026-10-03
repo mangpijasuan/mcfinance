@@ -41,6 +41,10 @@ export const PERMISSIONS = {
   'treasury.read': 'View the cash position, the cash reserve and the lending capacity',
   'treasury.record_balance': 'Record the club’s bank balance from the bank statement',
   'treasury.approve_balance': 'Approve a bank balance recorded by someone else (when maker/checker is on)',
+  'treasury.record_transfer': 'Record money moved to the bank: a Stripe payout, transfers swept, a collector’s cash deposit',
+  'treasury.approve_transfer': 'Approve a transfer to the bank recorded by someone else (when maker/checker is on)',
+  'ledger.reconcile': 'Reconcile the bank statement against the ledger each month',
+  'ledger.close_period': 'Close a month once it is reconciled (nothing can post into it afterwards)',
   'loans.approve': 'Approve loans proposed by someone else (when maker/checker is on)',
   'withdrawals.approve': 'Approve withdrawals recorded by someone else (when maker/checker is on)',
   'loans.disburse': 'Record that a loan was paid out to the borrower',
@@ -90,7 +94,7 @@ export const ROLES = {
     description: 'Records contributions, repayments and withdrawals; edits member contact details.',
     permissions: [
       ...READ_EVERYTHING, 'members.update', 'contributions.record', 'loan_payments.record',
-      'withdrawals.record', 'notifications.send', 'ledger.propose', 'contributions.reverse',
+      'withdrawals.record', 'notifications.send', 'ledger.propose', 'contributions.reverse', 'treasury.record_transfer',
     ],
   },
   treasurer: {
@@ -102,6 +106,7 @@ export const ROLES = {
       'ledger.manage_accounts', 'ledger.propose', 'ledger.approve', 'loans.approve', 'withdrawals.approve',
       'loans.disburse', 'loan_fees.waive', 'loan_fees.approve_waiver', 'loans.write_off',
       'contributions.reverse', 'contributions.approve_reversal', 'dues.manage_plans', 'treasury.record_balance',
+      'treasury.record_transfer', 'treasury.approve_transfer', 'ledger.reconcile', 'ledger.close_period',
     ],
   },
   compliance: {

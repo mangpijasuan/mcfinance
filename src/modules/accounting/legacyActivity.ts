@@ -5,8 +5,8 @@
 import type { Prisma } from '@prisma/client'
 import { type Cents, ZERO, cents, fromBigInt, min, subtract } from '@/lib/money'
 import { type IsoDate, dateOnly, isoDateOf } from '@/lib/dates'
-import { type EntryInput, type LineInput, postEntry } from './ledger'
-import { CASH_ACCOUNTS, OPENING_KEYS, ledgerOpening, receiptAccount } from './autoPost'
+import type { EntryInput, LineInput } from './ledger'
+import { CASH_ACCOUNTS, OPENING_KEYS, ledgerOpening, postMoneyEvent, receiptAccount } from './autoPost'
 
 type Tx = Prisma.TransactionClient
 
@@ -47,9 +47,9 @@ type Poster = (input: EntryInput) => Promise<string>
 
 function poster(tx: Tx, posted: string[]): Poster {
   return async (input) => {
-    const { entry, replayed } = await postEntry(tx, input)
-    if (!replayed) posted.push(entry.entryNumber)
-    return entry.entryNumber
+    const { entryNumber, replayed } = await postMoneyEvent(tx, input)
+    if (!replayed) posted.push(entryNumber)
+    return entryNumber
   }
 }
 

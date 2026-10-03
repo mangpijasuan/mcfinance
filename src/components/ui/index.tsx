@@ -1,7 +1,7 @@
 'use client'
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 /* ── Badge ──────────────────────────────────────────────── */
 type BadgeVariant = 'green' | 'red' | 'amber' | 'blue' | 'gray' | 'purple' | 'teal'
@@ -80,11 +80,15 @@ export function Card({ children, className }: { children: React.ReactNode; class
 }
 
 /* ── Input ──────────────────────────────────────────────── */
-export function Input({ label, error, className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string; error?: string }) {
+export function Input({ label, error, className, id, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string; error?: string }) {
+  // Tie the label to its input, so screen readers announce it and a click on it focuses the field.
+  const generatedId = useId()
+  const inputId = id ?? generatedId
   return (
     <div className="flex flex-col gap-1">
-      {label && <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{label}</label>}
+      {label && <label htmlFor={inputId} className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{label}</label>}
       <input
+        id={inputId}
         className={cn('px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white', error && 'border-red-400', className)}
         {...props}
       />
