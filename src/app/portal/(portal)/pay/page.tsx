@@ -4,7 +4,7 @@ import { statusLabel } from '@/components/ui'
 import { useSearchParams } from 'next/navigation'
 import { cn, fmt$, fmtDate } from '@/lib/utils'
 import { Building2, Check, CreditCard, Copy, Download, ExternalLink, Landmark, ShieldCheck, Clock, CheckCircle, XCircle, Info, Receipt, Wallet } from 'lucide-react'
-import { Empty, PageHeader, PageSkeleton, Pill, Row, Rows, button, field, fieldBox, surface, type Tone } from '@/components/portal/kit'
+import { Empty, PageHeader, PageSkeleton, LoadError, Pill, Row, Rows, button, field, fieldBox, surface, type Tone } from '@/components/portal/kit'
 import { BANKS, BANK_STORAGE_KEY, findBank } from '@/components/portal/banks'
 
 async function readJsonSafe(res: Response) {
@@ -118,26 +118,29 @@ function PayForm({ type, loanId, defaultAmount, presets = [], maxAmount, zelle, 
     if (maxAmount && amt > maxAmount) { setError(`Amount cannot exceed ${fmt$(maxAmount)}.`); return }
 
     setSubmitting(true); setError('')
-    const res = await fetch('/api/portal/payments/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, loanId, amount: amt, method, zelleReference: zelleReference.trim() || undefined }),
-    })
-    const data = await readJsonSafe(res)
-    if (!res.ok || !data) {
-      setError(data?.error || 'Something went wrong. Please try again.')
+    try {
+      const res = await fetch('/api/portal/payments/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, loanId, amount: amt, method, zelleReference: zelleReference.trim() || undefined }),
+      })
+      const data = await readJsonSafe(res)
+      if (!res.ok || !data) {
+        setError(data?.error || 'Something went wrong. Please try again.')
+        return
+      }
+      if (method === 'stripe' || method === 'ach') {
+        if (data.url) { window.location.href = data.url; return }
+        setError(method === 'ach' ? 'Could not open the bank payment page.' : 'Could not start checkout.')
+        return
+      }
+      setZelleSubmitted(true)
+      onDone()
+    } catch {
+      setError('The connection was interrupted. Check your payment requests before submitting again.')
+    } finally {
       setSubmitting(false)
-      return
     }
-    if (method === 'stripe' || method === 'ach') {
-      if (data.url) { window.location.href = data.url; return }
-      setError(method === 'ach' ? 'Could not open the bank payment page.' : 'Could not start checkout.')
-      setSubmitting(false)
-      return
-    }
-    setZelleSubmitted(true)
-    setSubmitting(false)
-    onDone()
   }
 
   if (zelleSubmitted) {
@@ -316,34 +319,44 @@ export default function PortalPayPage() {
   const [stripe, setStripe] = useState(false)
   const [ach, setAch] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [what, setWhat] = useState<'dues' | 'loan'>(searchParams.get('for') === 'loan' ? 'loan' : 'dues')
 
   const status = searchParams.get('status')
   const askedAmount = amountParam(searchParams.get('amount'))
 
   async function load() {
-    const [meRes, paymentsRes, duesRes] = await Promise.all([
-      fetch('/api/portal/me'),
-      fetch('/api/portal/payments'),
-      fetch('/api/portal/dues').catch(() => null),
-    ])
-    const me = await readJsonSafe(meRes)
-    const paymentsData = await readJsonSafe(paymentsRes)
-    if (me) setMember(me)
-    if (duesRes?.ok) setDues(await readJsonSafe(duesRes))
-    if (paymentsData) {
-      setPayments(paymentsData.payments || [])
-      setZelle(paymentsData.zelle ?? null)
-      setZelleQr(paymentsData.zelleQr === true)
-      setStripe(paymentsData.stripe === true)
-      setAch(paymentsData.ach === true)
+    setLoadFailed(false)
+    setLoading(true)
+    try {
+      const [meRes, paymentsRes, duesRes] = await Promise.all([
+        fetch('/api/portal/me'),
+        fetch('/api/portal/payments'),
+        fetch('/api/portal/dues').catch(() => null),
+      ])
+      const me = await readJsonSafe(meRes)
+      const paymentsData = await readJsonSafe(paymentsRes)
+      if (!meRes.ok || !paymentsRes.ok || !me || !paymentsData) throw new Error('Payment details unavailable')
+      setMember(me)
+      if (duesRes?.ok) setDues(await readJsonSafe(duesRes))
+      if (paymentsData) {
+        setPayments(paymentsData.payments || [])
+        setZelle(paymentsData.zelle ?? null)
+        setZelleQr(paymentsData.zelleQr === true)
+        setStripe(paymentsData.stripe === true)
+        setAch(paymentsData.ach === true)
+      }
+    } catch {
+      setLoadFailed(true)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
   if (loading) return <PageSkeleton />
+  if (loadFailed) return <LoadError onRetry={load} />
 
   const activeLoan = member?.loansAsBorrower?.[0]
   const hasActiveLoan = activeLoan && activeLoan.status === 'Active' && activeLoan.balanceRemaining > 0
