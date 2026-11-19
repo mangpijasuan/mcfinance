@@ -119,3 +119,19 @@ h3 { font-size: 19px; margin: 0 0 6px; color: var(--navy); }
   .site-header, .site-footer, .hero .actions { display: none; }
   .hero, .page-head { background: none; color: var(--ink); }
 }
+
+/* Public membership overview and proposed rewards programme. */
+.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.16em; color: #785900; }
+.hero .eyebrow { color: #f5cf65; font-size: 13px; }
+.hero { background: radial-gradient(ellipse at 85% 10%, #254968, #0c263b 65%); }
+.site-header { background: #0c263b; border-bottom: 1px solid #b68b29; }
+.member-preview { padding: 30px; border: 1px solid #af9148; border-radius: 18px; background: #132f46; box-shadow: 0 20px 50px #06192955; }
+.member-preview h2 { margin-top: 18px; color: white; font-size: 25px; }
+.member-preview ul { padding-left: 20px; color: #e0e8f0; }
+.member-preview li { padding-block: 7px; }
+.member-preview a { color: #f5cf65; font-weight: 600; }
+.brand-values { background: #eef2f5; border-bottom: 1px solid #d7dfe6; color: #17374f; padding-block: 16px; font-weight: 600; }
+.brand-values .wrap { display: flex; justify-content: center; gap: 24px; }
+.roadmap-note { max-width: 55em; margin: 24px 0 0; color: #4b5563; font-size: 15px; }
+@media (max-width: 560px) { .member-preview { padding: 22px; } .brand-values .wrap { gap: 14px; } }
+@media print { .hero { background: white; color: #111827; } .member-preview, .brand-values { display: none; } }
