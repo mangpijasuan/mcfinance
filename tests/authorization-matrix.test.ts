@@ -97,6 +97,8 @@ const MATRIX: Record<string, Partial<Record<Method, Requirement>>> = {
   'portal/me': { GET: { member: true } },
   'portal/payments': { GET: { member: true } },
   'portal/wallet': { GET: { member: true } },
+  'portal/rewards': { GET: { member: true } },
+  'rewards': { GET: perm('staff.manage'), POST: perm('staff.manage') },
   'portal/zelle-qr': { GET: { member: true } },
   'quickbooks': { GET: perm('payments.manage_quickbooks'), PATCH: perm('payments.manage_quickbooks'), DELETE: perm('payments.manage_quickbooks') },
   'quickbooks/connect': { GET: perm('payments.manage_quickbooks') },

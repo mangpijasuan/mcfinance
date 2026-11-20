@@ -138,6 +138,21 @@ model Member {
   portalPayments            PortalPayment[]
   quickBooksCustomer        QuickBooksCustomer?
   users                     User[]
+  rewardEntries             RewardEntry[]
+}
+
+model RewardEntry {
+  id        String   @id @default(cuid())
+  memberId  String
+  points    Int
+  reference String
+  reason    String
+  actorId   String
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  @@unique([memberId, reference])
+  @@index([memberId, createdAt])
 }
 
 model YearlyTotal {
