@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { Button, Card, Input, PageHeader } from '@/components/ui'
 import RewardHistory, { type RewardSummary } from '@/components/portal/RewardHistory'
 import MembershipProgress, { type MembershipProgressData } from '@/components/portal/MembershipProgress'
+import EarnSimulator from '@/components/staff/EarnSimulator'
 
 type Account = RewardSummary & { member: { id: string; legalName: string; status: string }; membershipAccrual?: MembershipProgressData | null; maximumHistoricalDays?: number }
 
-export default function RewardsAdmin() {
+export default function RewardsAdmin({ earnSimulatorEnabled = false }: { earnSimulatorEnabled?: boolean }) {
   const [memberId, setMemberId] = useState('')
   const [account, setAccount] = useState<Account | null>(null)
   const [reference, setReference] = useState('')
@@ -116,6 +117,7 @@ export default function RewardsAdmin() {
           </div>
         </>
       )}
+      {earnSimulatorEnabled && <EarnSimulator />}
     </div>
   )
 }

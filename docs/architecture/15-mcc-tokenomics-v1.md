@@ -38,6 +38,12 @@ Only verified purchases through a supported DEX integration qualify. Ordinary me
 
 Reserve the full promised token reward before accepting a lock; reject if the remaining 2B MCC Earn reserve is insufficient. A 1M MCC three-year lock would reserve 450,000 MCC in the simulation. Rewards are denominated in MCC, not guaranteed dollars. Define custody, maturity, cancellation, transfer handling and reward treatment before any pilot involving real assets.
 
+### Implemented simulation lab
+
+The staff-only Rewards page exposes the lab when both `MC_REWARDS_ENABLED=true` and `MC_EARN_SIMULATOR_ENABLED=true`. It operates on two synthetic wallets and an adjustable scenario clock. Mock DEX receipts are explicitly selected by the operator; these are not verified blockchain purchases. A case-insensitive unique receipt ID prevents replay within the scenario. Membership and unverified deposits create balance but not eligibility. Outgoing transfers invalidate sender eligibility first and do not create recipient eligibility. Locks consume eligibility and available balance permanently; at maturity principal and rounded-down whole-MCC rewards return to the wallet without eligibility. No early exit or compounding is modeled.
+
+The reserve invariant is `available = 2B − reserved − paid`. Lock acceptance reserves the full reward; claim moves the amount from reserved to paid without replenishing the reserve. Synthetic deposits cannot exceed 98B MCC, leaving room for the 2B reward reserve. This aggregate ceiling does not model allocation-specific issuance or market prices. Calendar-month maturity clamps month ends; the scenario clock starts on a fixed synthetic date and advances only by operator action. All state is browser memory, resettable, and never persists to a database, real wallet, member record, or financial ledger. Testnet implementation requires a separate design for receipt finality, canonical chain/transaction identity, wallet authorization, custody, and legal review.
+
 ## Illustrative liquidity scenario
 
 A hypothetical pool of 10M MCC and $1,000 of quote assets begins at a ratio of $0.0001 per MCC before fees and price impact, implying a $10M fully diluted valuation at the 100B cap. This is arithmetic, not a price forecast, market capitalization, funding guarantee, or commitment to provide liquidity. Do not use member contributions, operating reserves or loan capital for the pool. The remaining liquidity allocation is not automatically deployed.
