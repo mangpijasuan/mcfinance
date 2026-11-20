@@ -138,6 +138,35 @@ model Member {
   portalPayments            PortalPayment[]
   quickBooksCustomer        QuickBooksCustomer?
   users                     User[]
+  rewardEntries             RewardEntry[]
+  membershipAccrual         MembershipAccrual?
+}
+
+model MembershipAccrual {
+  memberId       String   @id
+  joinDate       DateTime @db.Date
+  eligibleDays   Int
+  checkpoint     DateTime @db.Date
+  active         Boolean
+  timeZone       String
+  verifiedBy     String
+  verification   String
+  createdAt      DateTime @default(now())
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+}
+
+model RewardEntry {
+  id        String   @id @default(cuid())
+  memberId  String
+  points    Int
+  reference String
+  reason    String
+  actorId   String
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  @@unique([memberId, reference])
+  @@index([memberId, createdAt])
 }
 
 model YearlyTotal {

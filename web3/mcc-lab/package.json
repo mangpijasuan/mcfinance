@@ -1,0 +1,19 @@
+{
+  "name": "@mcfinancial/mcc-local-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/mcc.test.mjs"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "5.6.1",
+    "ethers": "6.17.0",
+    "hardhat": "3.22.0",
+    "solc": "0.8.39"
+  },
+  "overrides": {
+    "tmp": "0.2.7",
+    "zod": "4.6.6"
+  }
+}

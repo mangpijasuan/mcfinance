@@ -5,6 +5,8 @@ import AdminTopbar from '@/components/layout/AdminTopbar'
 import { StaffProvider } from '@/components/staff/StaffContext'
 import PageAccess from '@/components/staff/PageAccess'
 import { getPrincipal } from '@/modules/auth'
+import { rewardsEnabled } from '@/modules/rewards'
+import Link from 'next/link'
 import { roleLabel } from '@/modules/permissions'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +29,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="contents print:hidden"><Sidebar permissions={permissions} roleSummary={roleSummary} /></div>
         <main className="min-w-0 flex-1 overflow-auto pt-14 lg:pt-0 print:pt-0">
           <div className="contents print:hidden"><AdminTopbar roleSummary={roleSummary} canSearchMembers={permissions.includes('members.read')} /></div>
+          {rewardsEnabled() && permissions.includes('staff.manage') && (
+            <div className="border-b border-workspace-border bg-white px-4 py-2 print:hidden">
+              <Link href="/rewards" className="text-sm font-semibold text-navy underline">MC Rewards</Link>
+            </div>
+          )}
           <PageAccess>{children}</PageAccess>
         </main>
       </div>
