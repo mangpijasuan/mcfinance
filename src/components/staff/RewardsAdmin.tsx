@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { Button, Card, Input, PageHeader } from '@/components/ui'
 import RewardHistory, { type RewardSummary } from '@/components/portal/RewardHistory'
+import MembershipProgress, { type MembershipProgressData } from '@/components/portal/MembershipProgress'
 
-type Account = RewardSummary & { member: { id: string; legalName: string; status: string } }
+type Account = RewardSummary & { member: { id: string; legalName: string; status: string }; membershipAccrual?: MembershipProgressData | null; maximumHistoricalDays?: number }
 
 export default function RewardsAdmin() {
   const [memberId, setMemberId] = useState('')
@@ -15,6 +16,8 @@ export default function RewardsAdmin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [eligibleDays, setEligibleDays] = useState('')
+  const [verification, setVerification] = useState('')
 
   async function readAccount(id: string) {
     const res = await fetch('/api/rewards?memberId=' + encodeURIComponent(id))
@@ -25,7 +28,7 @@ export default function RewardsAdmin() {
 
   async function search(e: React.FormEvent) {
     e.preventDefault()
-    setBusy(true); setError(''); setNotice(''); setAccount(null)
+    setBusy(true); setError(''); setNotice(''); setAccount(null); setEligibleDays(''); setVerification('')
     try { await readAccount(memberId.trim()) }
     catch (err) { setError(err instanceof Error ? err.message : 'Unable to load rewards.') }
     finally { setBusy(false) }
@@ -50,6 +53,24 @@ export default function RewardsAdmin() {
     } finally { setBusy(false) }
   }
 
+  async function enroll(e: React.FormEvent) {
+    e.preventDefault()
+    if (!account) return
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const res = await fetch('/api/rewards', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'enroll-membership', memberId: account.member.id, eligibleDays: Number(eligibleDays), verification }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Unable to verify membership.')
+      await readAccount(account.member.id)
+      setNotice('Membership history verified.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to verify membership.')
+    } finally { setBusy(false) }
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
       <PageHeader title="MC Rewards" sub="Record approved participation rewards and corrections." />
@@ -64,6 +85,22 @@ export default function RewardsAdmin() {
       {account && (
         <>
           <h2 className="font-semibold">{account.member.legalName} · {account.member.id} · {account.member.status}</h2>
+          {account.membershipAccrual !== undefined && (
+            <div className="grid items-start gap-4 md:grid-cols-2">
+              <MembershipProgress progress={account.membershipAccrual} />
+              {!account.membershipAccrual && (
+                <Card className="p-4">
+                  <h2 className="mb-3 font-semibold">Verify historical membership</h2>
+                  <form onSubmit={enroll} className="space-y-3">
+                    <p className="text-sm text-gray-600">Enter confirmed active days only. Maximum elapsed days: {account.maximumHistoricalDays}.</p>
+                    <Input label="Verified active days" required type="number" min={0} max={account.maximumHistoricalDays} step={1} value={eligibleDays} onChange={e => setEligibleDays(e.target.value)} />
+                    <Input label="Verification note" required maxLength={300} value={verification} onChange={e => setVerification(e.target.value)} />
+                    <Button type="submit" disabled={busy}>Verify and enroll</Button>
+                  </form>
+                </Card>
+              )}
+            </div>
+          )}
           <div className="grid items-start gap-4 md:grid-cols-2">
             <RewardHistory account={account} />
             <Card className="p-4">

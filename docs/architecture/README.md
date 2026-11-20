@@ -40,6 +40,7 @@ Start with the [executive assessment](01-executive-assessment.md) (one page), th
 | 26 | Open questions | [12-open-questions.md](12-open-questions.md) |
 | — | Product map: surfaces (www / app / admin), pillars, navigation | [13-product-map.md](13-product-map.md) |
 | — | Founder Decision Gate #1 | [FOUNDER_DECISION_GATE_1.md](FOUNDER_DECISION_GATE_1.md) |
+| — | MCC tokenomics v1 and tenure pilot | [15-mcc-tokenomics-v1.md](15-mcc-tokenomics-v1.md) |
 
 ## Decision log
 

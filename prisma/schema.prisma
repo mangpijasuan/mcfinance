@@ -139,6 +139,20 @@ model Member {
   quickBooksCustomer        QuickBooksCustomer?
   users                     User[]
   rewardEntries             RewardEntry[]
+  membershipAccrual         MembershipAccrual?
+}
+
+model MembershipAccrual {
+  memberId       String   @id
+  joinDate       DateTime @db.Date
+  eligibleDays   Int
+  checkpoint     DateTime @db.Date
+  active         Boolean
+  timeZone       String
+  verifiedBy     String
+  verification   String
+  createdAt      DateTime @default(now())
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
 }
 
 model RewardEntry {
