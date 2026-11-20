@@ -325,9 +325,9 @@ export default function PortalPayPage() {
   const status = searchParams.get('status')
   const askedAmount = amountParam(searchParams.get('amount'))
 
-  async function load() {
+  async function load(showLoading = true) {
     setLoadFailed(false)
-    setLoading(true)
+    if (showLoading) setLoading(true)
     try {
       const [meRes, paymentsRes, duesRes] = await Promise.all([
         fetch('/api/portal/me'),
@@ -356,7 +356,7 @@ export default function PortalPayPage() {
   useEffect(() => { load() }, [])
 
   if (loading) return <PageSkeleton />
-  if (loadFailed) return <LoadError onRetry={load} />
+  if (loadFailed && !member) return <LoadError onRetry={load} />
 
   const activeLoan = member?.loansAsBorrower?.[0]
   const hasActiveLoan = activeLoan && activeLoan.status === 'Active' && activeLoan.balanceRemaining > 0
@@ -379,6 +379,13 @@ export default function PortalPayPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Make a Payment" sub="Pay your monthly dues or toward your loan, by bank, card or Zelle." />
+
+      {loadFailed && (
+        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          Could not refresh payment details. Check your connection before making another payment.
+          <button type="button" className="ml-2 underline" onClick={() => load(false)}>Refresh details</button>
+        </div>
+      )}
 
       {status === 'success' && (
         <div role="status" className="flex items-start gap-3 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900 ring-1 ring-inset ring-emerald-600/20">
@@ -417,14 +424,14 @@ export default function PortalPayPage() {
                 defaultAmount={askedAmount !== null && searchParams.get('for') === 'loan' ? Math.min(askedAmount, activeLoan.balanceRemaining) : loanMonthly}
                 presets={loanPresets}
                 maxAmount={activeLoan.balanceRemaining}
-                zelle={zelle} qr={zelleQr} stripe={stripe} ach={ach} onDone={load}
+                zelle={zelle} qr={zelleQr} stripe={stripe} ach={ach} onDone={() => load(false)}
               />
             ) : (
               <PayForm key="dues"
                 type="contribution"
                 defaultAmount={askedAmount !== null && searchParams.get('for') !== 'loan' ? askedAmount : monthly}
                 presets={duesPresets}
-                zelle={zelle} qr={zelleQr} stripe={stripe} ach={ach} onDone={load}
+                zelle={zelle} qr={zelleQr} stripe={stripe} ach={ach} onDone={() => load(false)}
               />
             )}
           </section>
