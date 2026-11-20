@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { prisma, resetDatabase } from './helpers/db'
+import { prisma, resetDatabase, auditMarker, auditEntriesSince } from './helpers/db'
 import { createBaseFixtures } from './helpers/factories'
 import { signInAs, signInAsMember, TEST_IDS } from './helpers/actors'
 import { callRoute } from './helpers/routes'
@@ -15,12 +15,14 @@ it('records idempotent awards and corrections and isolates member balances', asy
   vi.stubEnv('MC_REWARDS_ENABLED', 'false')
   expect((await record(body)).status).toBe(404)
   vi.stubEnv('MC_REWARDS_ENABLED', 'true')
+  const marker = await auditMarker()
   expect((await record(body)).status).toBe(200)
   expect((await record(body)).status).toBe(200)
   expect((await record({ ...body, points: 60 })).status).toBe(400)
   expect((await record({ ...body, reference: 'correction-1', points: -20 })).status).toBe(200)
   expect((await record({ ...body, reference: 'correction-2', points: -31 })).status).toBe(400)
   expect(await prisma.rewardEntry.count()).toBe(2)
+  expect((await auditEntriesSince(marker)).filter(entry => entry.action === 'rewards.record')).toHaveLength(2)
   signInAsMember(TEST_IDS.member)
   expect((await callRoute('portal/rewards', 'GET')).json).toMatchObject({ balance: 30 })
   signInAsMember(TEST_IDS.otherMember)
