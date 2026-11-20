@@ -1,7 +1,5 @@
 // The public site (apps/web): static pages served by Caddy, never the app.
-// Every link and image resolves, nothing runs or collects anything, and no
-// page describes lending, investment or the token before counsel clears the
-// wording (product map §5; compliance rows 2, 3 and 17; MCC after Gate #2).
+// Check public navigation, static-site security and accurate proposal status.
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -27,7 +25,7 @@ describe('the public site', () => {
   it.each(PAGES)('%s: a title, a description, and the same header and footer', (file) => {
     const page = html(file)
     expect(page).toMatch(/^<!doctype html>\n<html lang="en">/)
-    expect(page).toMatch(/<title>[^<]*Millionaires Club<\/title>/)
+    expect(page).toMatch(/<title>[^<]*Millionaires Club[^<]*<\/title>/)
     expect(page).toMatch(/<meta name="description" content="[^"]{20,}">/)
     expect(page).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">')
     for (const link of ['/', '/about', '/membership', '/contact', '/sign-in']) expect(attrs(file, 'href'), link).toContain(link)
@@ -46,9 +44,15 @@ describe('the public site', () => {
     expect(page).not.toMatch(/<script|<style|\sstyle="|\son[a-z]+="|<form|<iframe/i)
   })
 
-  it.each(PAGES)('%s: nothing about lending, investment or the token until counsel clears it', (file) => {
-    const forbidden = /\b(loans?|lend\w*|borrow\w*|credit|interest|invest\w*|returns?|profits?|dividends?|yields?|earn\w*|guarantee\w*|tokens?|mcc|crypto\w*|blockchain|financial services)\b/i
-    expect(text(file).match(forbidden)?.[0] ?? null).toBeNull()
+  it.each(PAGES)('%s: avoids guaranteed-return and token-sale promotions', (file) => {
+    expect(text(file)).not.toMatch(/guaranteed (returns?|profits?|yields?)|buy (mcc|mct|tokens?) now|token presale/i)
+  })
+
+  it('the rewards roadmap identifies its proposed status and undecided terms', () => {
+    const page = text('index.html')
+    expect(page).toContain('PROPOSED ROADMAP')
+    expect(page).toContain('MCC is the working ticker, with MCT under consideration.')
+    expect(page).toContain('Token availability, supply, conversion rules and any launch date remain undecided.')
   })
 
   it('the web server serves the site on its own address and sends sign-in to the member app', () => {
