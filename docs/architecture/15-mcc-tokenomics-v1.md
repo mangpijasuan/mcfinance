@@ -50,6 +50,8 @@ A hypothetical pool of 10M MCC and $1,000 of quote assets begins at a ratio of $
 
 ## Release gates
 
+An isolated local EVM prototype lives in [`web3/mcc-lab`](../../web3/mcc-lab/README.md). It uses fictional `tMCC`, zero initial supply, fixed allocation ceilings and synthetic receipt replay checks. It is **not** a public-testnet candidate; it rejects non-local chain IDs and has no deployment script. Gate #2 and the legal-review requirement remain unchanged.
+
 1. Internal tenure accrual pilot and historical verification.
 2. Separate MCC Earn simulation with reward reservation and purchase eligibility tests.
 3. Independent legal, tax, accounting and treasury review; testnet contracts and audit only after approval.
