@@ -1,5 +1,7 @@
 # Hetzner + PostgreSQL Deployment
 
+> **MC Finance now runs on Contabo** at mcfinance.us. This guide describes the stack (it is plain Docker Compose and works on any host; the Hetzner names are historical). For the Contabo server, the move from the earlier server and how to verify it, see [deploy-contabo.md](deploy-contabo.md).
+
 **Going live?** Start with the [go-live checklist](go-live-checklist.md), then the [pilot guide](pilot-guide.md).
 
 PostgreSQL is the database in every environment. Schema changes ship as Prisma migrations in `prisma/migrations/`. Keep Google Sheets only for import/export workflows.
