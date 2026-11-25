@@ -5,6 +5,6 @@ import RewardsAdmin from '@/components/staff/RewardsAdmin'
 
 export default async function RewardsPage() {
   const principal = await getPrincipal()
-  if (!rewardsEnabled() || principal?.kind !== 'staff' || !principal.mfaVerified || !principal.permissions.has('staff.manage')) notFound()
-  return <RewardsAdmin earnSimulatorEnabled={process.env.MC_EARN_SIMULATOR_ENABLED === 'true'} />
+  if (!rewardsEnabled() || principal?.kind !== 'staff' || !principal.mfaVerified || !principal.permissions.has('rewards.read')) notFound()
+  return <RewardsAdmin canRecord={principal.permissions.has('rewards.record')} earnSimulatorEnabled={process.env.MC_EARN_SIMULATOR_ENABLED === 'true'} />
 }

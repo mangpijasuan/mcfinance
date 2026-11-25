@@ -29,7 +29,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="contents print:hidden"><Sidebar permissions={permissions} roleSummary={roleSummary} /></div>
         <main className="min-w-0 flex-1 overflow-auto pt-14 lg:pt-0 print:pt-0">
           <div className="contents print:hidden"><AdminTopbar roleSummary={roleSummary} canSearchMembers={permissions.includes('members.read')} /></div>
-          {rewardsEnabled() && permissions.includes('staff.manage') && (
+          {rewardsEnabled() && permissions.includes('rewards.read') && (
             <div className="border-b border-workspace-border bg-white px-4 py-2 print:hidden">
               <Link href="/rewards" className="text-sm font-semibold text-navy underline">MC Rewards</Link>
             </div>

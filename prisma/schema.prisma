@@ -161,7 +161,10 @@ model RewardEntry {
   points    Int
   reference String
   reason    String
+  /// The staff member who proposed the entry (the maker).
   actorId   String
+  /// The second staff member who approved it (the checker); null only for entries made before approvals.
+  approvedBy String?
   createdAt DateTime @default(now())
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
 

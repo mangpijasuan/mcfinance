@@ -21,6 +21,7 @@ import {
 } from '@/modules/loans/lifecycle'
 import { type ReverseInput, reverseContribution } from '@/modules/contributions'
 import { type OpeningPayload, postOpeningBalances } from '@/modules/accounting/opening'
+import { type RewardInput, recordRewardEntry } from '@/modules/rewards'
 import { type BankBalanceInput, recordBankBalance } from '@/modules/treasury'
 import { type TransferInput, recordTransfer } from '@/modules/accounting/reconciliation'
 import { APPROVAL_POLICIES, type ApprovalAction, needsApproval } from './policy'
@@ -40,6 +41,7 @@ export type ApprovalPayload = {
   'ledger.opening_balances': OpeningPayload
   'treasury.bank_balance': BankBalanceInput
   'treasury.clearing_transfer': TransferInput
+  'rewards.record': RewardInput
 }
 
 /** Run an operation, now (no approval needed) or when its request is approved. */
@@ -83,6 +85,10 @@ export async function executeOperation<A extends ApprovalAction>(
     case 'treasury.bank_balance': {
       const result = await recordBankBalance(tx, payload as BankBalanceInput, actors, ctx)
       return { resultRef: result.balanceId, result }
+    }
+    case 'rewards.record': {
+      const entry = await recordRewardEntry(tx, payload as RewardInput, actors, ctx)
+      return { resultRef: entry.id, result: entry }
     }
     case 'contribution.reverse': {
       const result = await reverseContribution(tx, payload as ReverseInput, actors, ctx)
