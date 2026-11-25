@@ -8,4 +8,16 @@ To run an approved pilot, apply the database migration and set MC_REWARDS_ENABLE
 
 For the separate membership-tenure pilot, also set `MC_MEMBERSHIP_ACCRUAL_ENABLED=true` after reviewing the migration. In Admin → Rewards, find a member, verify historical active days from club records and enter a verification note. The member sees accrued internal tenure points in the portal. Status changes automatically pause or resume accrual. Do not enter sensitive details in the note. Disable the pilot flags to hide the features; accumulated history remains intact. Review the [MCC tokenomics specification](../architecture/15-mcc-tokenomics-v1.md) before enabling.
 
-Configurable participation reward rules, benefits, redemption and separate approval permissions remain future work. Any on-chain token, conversion and wallet linking are future work. See the [roadmap](../architecture/14-member-rewards-roadmap.md).
+Configurable participation reward rules, benefits and redemption remain future work. Any on-chain token, conversion and wallet linking are future work. See the [roadmap](../architecture/14-member-rewards-roadmap.md).
+
+
+## Who can do what (maker/checker)
+
+- **Finance** (`rewards.record`) proposes every award or correction. Nothing is recorded yet: it appears in *Approvals*.
+- **Treasurer or Board** (`rewards.approve`) approves it, and only then do the points appear. The person who proposed an entry can never approve it.
+- Everyone who can view finances (`rewards.read`) sees members' points. The Administrator role has no access.
+- An entry that would break a limit (inactive member, balance outside 0 to 1,000,000, a reused reference with different details) is refused when proposed.
+
+## What the database enforces
+
+Not only the application: the database refuses, whatever connects to it, to change or delete a points entry (the table is append-only, like the audit log), to record a balance outside 0 to 1,000,000, an entry outside ±1,000, a blank reference or reason, an unknown staff account, or the same person as proposer and approver. A wrong entry is corrected with a new, offsetting entry (also approved by a second person). Each entry records who proposed it and who approved it.

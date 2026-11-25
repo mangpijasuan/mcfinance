@@ -8,7 +8,7 @@ import EarnSimulator from '@/components/staff/EarnSimulator'
 
 type Account = RewardSummary & { member: { id: string; legalName: string; status: string }; membershipAccrual?: MembershipProgressData | null; maximumHistoricalDays?: number }
 
-export default function RewardsAdmin({ earnSimulatorEnabled = false }: { earnSimulatorEnabled?: boolean }) {
+export default function RewardsAdmin({ earnSimulatorEnabled = false, canRecord = false }: { earnSimulatorEnabled?: boolean; canRecord?: boolean }) {
   const [memberId, setMemberId] = useState('')
   const [account, setAccount] = useState<Account | null>(null)
   const [reference, setReference] = useState('')
@@ -46,7 +46,9 @@ export default function RewardsAdmin({ earnSimulatorEnabled = false }: { earnSim
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Unable to record points.')
-      setNotice('Points entry recorded.')
+      setNotice(data.approvalRequest
+        ? `Sent for approval (${data.approvalRequest.publicId}). The points are added when someone else approves it in Approvals.`
+        : 'Points entry already recorded.')
       await readAccount(account.member.id)
       setReference(''); setReason(''); setPoints('')
     } catch (err) {
@@ -74,7 +76,7 @@ export default function RewardsAdmin({ earnSimulatorEnabled = false }: { earnSim
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
-      <PageHeader title="MC Rewards" sub="Record approved participation rewards and corrections." />
+      <PageHeader title="MC Rewards" sub="Propose participation rewards and corrections; a second person approves each one." />
       <Card className="p-4">
         <form onSubmit={search} className="flex flex-wrap items-end gap-3">
           <Input label="Member ID" required value={memberId} onChange={e => setMemberId(e.target.value)} />
@@ -89,7 +91,7 @@ export default function RewardsAdmin({ earnSimulatorEnabled = false }: { earnSim
           {account.membershipAccrual !== undefined && (
             <div className="grid items-start gap-4 md:grid-cols-2">
               <MembershipProgress progress={account.membershipAccrual} />
-              {!account.membershipAccrual && (
+              {canRecord && !account.membershipAccrual && (
                 <Card className="p-4">
                   <h2 className="mb-3 font-semibold">Verify historical membership</h2>
                   <form onSubmit={enroll} className="space-y-3">
@@ -104,16 +106,16 @@ export default function RewardsAdmin({ earnSimulatorEnabled = false }: { earnSim
           )}
           <div className="grid items-start gap-4 md:grid-cols-2">
             <RewardHistory account={account} />
-            <Card className="p-4">
-              <h2 className="mb-3 font-semibold">Record points</h2>
+            {canRecord ? <Card className="p-4">
+              <h2 className="mb-3 font-semibold">Propose points</h2>
               <form onSubmit={record} className="space-y-3">
                 <Input label="Activity reference" required maxLength={100} value={reference} onChange={e => setReference(e.target.value)} />
                 <Input label="Reason" required maxLength={300} value={reason} onChange={e => setReason(e.target.value)} />
                 <Input label="Points (+ award, − correction)" required type="number" min={-1000} max={1000} step={1} value={points} onChange={e => setPoints(e.target.value)} />
                 <p className="text-xs text-gray-600">Use the same activity reference when retrying an entry.</p>
-                <Button type="submit" disabled={busy || account.member.status !== 'Active'}>{busy ? 'Working…' : 'Record points'}</Button>
+                <Button type="submit" disabled={busy || account.member.status !== 'Active'}>{busy ? 'Working…' : 'Send for approval'}</Button>
               </form>
-            </Card>
+            </Card> : <Card className="p-4"><p className="text-sm text-gray-600">You can view points. Proposing them needs the Finance role.</p></Card>}
           </div>
         </>
       )}

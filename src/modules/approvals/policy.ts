@@ -6,7 +6,7 @@ import type { Permission } from '@/modules/permissions'
 export type ApprovalAction =
   | 'payment.zelle.confirm' | 'withdrawal.record' | 'loan.create' | 'journal.manual'
   | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off' | 'contribution.reverse' | 'ledger.opening_balances'
-  | 'treasury.bank_balance' | 'treasury.clearing_transfer'
+  | 'treasury.bank_balance' | 'treasury.clearing_transfer' | 'rewards.record'
 
 type Policy = {
   label: string
@@ -104,6 +104,16 @@ export const APPROVAL_POLICIES: Record<ApprovalAction, Policy> = {
     label: 'Reverse a contribution',
     makerPermission: 'contributions.reverse',
     checkerPermission: 'contributions.approve_reversal',
+    thresholdCents: null,
+    approvalsRequired: 1,
+    alwaysEnforced: true,
+  },
+  // MC Points never worked any other way, so every entry is held for a
+  // second person: Finance proposes, the Treasurer or a Board member approves.
+  'rewards.record': {
+    label: 'Record MC Points',
+    makerPermission: 'rewards.record',
+    checkerPermission: 'rewards.approve',
     thresholdCents: null,
     approvalsRequired: 1,
     alwaysEnforced: true,
