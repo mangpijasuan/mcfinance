@@ -22,7 +22,7 @@ export async function GET() {
   }
   // A pass without a name would be useless: the club fixes the record first.
   if (!member.legalName.trim()) {
-    return new Response('Your membership record has no name yet. Please contact MC Financial.', { status: 409, headers })
+    return new Response('Your membership record has no name yet. Please contact MC Finance.', { status: 409, headers })
   }
 
   try {
@@ -38,6 +38,6 @@ export async function GET() {
   } catch (err) {
     // Logged for the officers (an expired certificate, an unreadable key…); the member sees a plain message.
     console.error('Apple Wallet pass could not be generated', { memberId: member.id, error: err instanceof Error ? err.message : String(err) })
-    return new Response('The Apple Wallet pass could not be generated. Please contact MC Financial.', { status: 503, headers })
+    return new Response('The Apple Wallet pass could not be generated. Please contact MC Finance.', { status: 503, headers })
   }
 }

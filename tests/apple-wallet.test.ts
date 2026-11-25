@@ -67,7 +67,7 @@ describe('the Wallet download', () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
     const failed = await get()
     expect(failed.status).toBe(503)
-    expect(failed.text).toBe('The Apple Wallet pass could not be generated. Please contact MC Financial.')
+    expect(failed.text).toBe('The Apple Wallet pass could not be generated. Please contact MC Finance.')
     expect(logged).toHaveBeenCalledWith('Apple Wallet pass could not be generated', expect.objectContaining({ memberId: ID, error: expect.any(String) }))
     logged.mockRestore()
 
@@ -97,7 +97,7 @@ describe('a membership pass', () => {
       const json = JSON.parse(readFileSync(join(out, 'pass.json'), 'utf8'))
       expect(json).toMatchObject({
         formatVersion: 1, passTypeIdentifier: 'pass.us.mcfinancial.test', teamIdentifier: 'ABCDE12345', serialNumber: 'MC-10001',
-        organizationName: 'MC Financial', description: 'Millionaires Club Membership',
+        organizationName: 'MC Finance', description: 'Millionaires Club Membership',
         generic: {
           primaryFields: [{ key: 'member-name', value: 'Ada Example' }],
           secondaryFields: [{ key: 'member-id', value: 'MC-10001' }],

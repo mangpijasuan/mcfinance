@@ -201,10 +201,10 @@ The founder's proposed layout, adopted as the destination with five adjustments:
 ```
 mcfinancial/
 ├── apps/
-│   ├── web/                    # mcfinancial.us — static public site (no member data)
-│   ├── member-portal/          # app.mcfinancial.us
-│   ├── admin/                  # admin.mcfinancial.us — access-gated, own session
-│   └── api/                    # api.mcfinancial.us — only when a second client exists (e.g. mobile)
+│   ├── web/                    # mcfinance.us — static public site (no member data)
+│   ├── member-portal/          # app.mcfinance.us
+│   ├── admin/                  # admin.mcfinance.us — access-gated, own session
+│   └── api/                    # api.mcfinance.us — only when a second client exists (e.g. mobile)
 ├── packages/
 │   ├── database/               # schema, migrations, seeds (synthetic only), repositories
 │   ├── accounting/             # ledger, accounts, journal-entries, reconciliation, reporting

@@ -4,7 +4,7 @@ import { cn, fmt$, fmtDate } from '@/lib/utils'
 import { FileSignature, CheckCircle, FileText } from 'lucide-react'
 import { Modal } from '@/components/ui'
 import { Empty, PageHeader, PageSkeleton, Pill, button, field, surface } from '@/components/portal/kit'
-import { APP_NAME } from '@/lib/brand'
+import { CLUB_NAME as APP_NAME } from '@/lib/brand'
 
 async function readJsonSafe(res: Response) {
   try {

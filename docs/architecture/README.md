@@ -1,4 +1,4 @@
-# MC Financial Platform - Architecture Assessment v1
+# MC Finance Platform - Architecture Assessment v1
 
 **Status:** First Assignment deliverable (Master Prompt v2.0, §48). [Founder Decision Gate #1](FOUNDER_DECISION_GATE_1.md) **Part A approved 2026-09-26**; Part B (MCC, rewards, UMI principles) not yet decided.
 **Progress:** Stage 2 (foundation) is built: PostgreSQL everywhere with migrations, test harness, append-only audit log, role-based access with database-backed sessions, staff MFA, encrypted off-site backups with a restore check, Content-Security-Policy, persistent rate limits, and real data out of the repository. What remains for Stage 2 is operational: switch the backups on in production and run the first restore check.
@@ -64,7 +64,7 @@ Each decision is written out in full, in the §49 format, in the linked document
 | D-14 | Treasury under Safe multisigs, 3-of-5 hardware-wallet signers, one Safe per purpose | moderate | yes | yes | [08](08-treasury.md#d-14) |
 | D-15 | UMI remains research only; any future UMI is funded solely by identified external revenue | easy | yes | yes | [07](07-umi.md#d-15) |
 | D-16 | Engage counsel for a legal scoping review before tokenomics or UMI work proceeds | easy | yes | yes | [09](09-compliance-matrix.md#d-16) |
-| D-17 | Three surfaces on separate hosts (`mcfinancial.us`, `app.`, `admin.`) with isolated sessions; member app grouped into Membership / financial / Web3 (gated) | easy | yes | yes | [13](13-product-map.md#d-17) |
+| D-17 | Three surfaces on separate hosts (`mcfinance.us`, `app.`, `admin.`) with isolated sessions; member app grouped into Membership / financial / Web3 (gated) | easy | yes | yes | [13](13-product-map.md#d-17) |
 
 ## Reproducing the numbers
 

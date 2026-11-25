@@ -1,6 +1,6 @@
 # Public site (`apps/web`)
 
-The club's public website at `mcfinancial.us` (product map §5, architecture doc 10, staged path step 2). Plain HTML and CSS in `public/`, served directly by Caddy: no scripts, no cookies, no forms, no build step, and no connection to the app or its database. Members reach the member app with **Member sign in**, which Caddy redirects to `https://APP_DOMAIN/portal/login`.
+The club's public website at `mcfinance.us` (product map §5, architecture doc 10, staged path step 2). Plain HTML and CSS in `public/`, served directly by Caddy: no scripts, no cookies, no forms, no build step, and no connection to the app or its database. Members reach the member app with **Member sign in**, which Caddy redirects to `https://APP_DOMAIN/portal/login`.
 
 | Page | File |
 |---|---|
@@ -25,7 +25,7 @@ and open the address it prints. *Member sign in* only works when Caddy serves th
 1. **Write the draft sections.** Each yellow *Draft* box (`class="draft"`) says what goes there: the club's story, how to join, members' rights, and the contact address. The site does not go live while any are left.
 2. **Counsel reviews the wording**, especially Membership (rights and leaving the club) and the name "mcfinancial" itself (product map, branding note; compliance row 17).
 3. **No financial services or MCC pages.** Describing lending publicly may count as advertising credit (compliance rows 2 and 3), and MCC is not published before Gate #2. `tests/public-site.test.ts` fails if a page mentions loans, lending, interest, investment, returns or the token; change that list only with counsel's approval.
-4. **Publish.** Point DNS for `mcfinancial.us` (and `www.`, if wanted) at the server, set `WWW_DOMAIN` in the server's `.env` (`WWW_DOMAIN="mcfinancial.us www.mcfinancial.us"`), and run `docker compose -f docker-compose.hetzner.yml up -d`. Caddy gets the certificate. `APP_DOMAIN` must be set too, for *Member sign in*.
+4. **Publish.** Point DNS for `mcfinance.us` (and `www.`, if wanted) at the server, set `WWW_DOMAIN` in the server's `.env` (`WWW_DOMAIN="mcfinance.us www.mcfinance.us"`), and run `docker compose -f docker-compose.hetzner.yml up -d`. Caddy gets the certificate. `APP_DOMAIN` must be set too, for *Member sign in*.
 
 ## Checks
 

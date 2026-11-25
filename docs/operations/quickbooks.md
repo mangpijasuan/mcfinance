@@ -39,7 +39,7 @@ In QuickBooks Online, make sure **QuickBooks Payments** is active and accepts **
 
 1. Sign in at **developer.intuit.com** with the club's Intuit account, and create an app for **QuickBooks Online and Payments**, with the **Accounting** scope.
 2. Under the app's settings, add the redirect URI. It must match exactly:
-   `https://admin.mcfinancial.us/api/quickbooks/callback`
+   `https://admin.mcfinance.us/api/quickbooks/callback`
 3. Copy the **Client ID** and **Client Secret**:
    - the **Development** keys work with a QuickBooks *sandbox* company, for trying it out;
    - the **Production** keys work with the club's real company. Intuit asks a short questionnaire about the app before issuing them.
@@ -51,7 +51,7 @@ Add these to `.env.production`, then restart with `docker compose -f docker-comp
 ```
 QBO_CLIENT_ID="..."
 QBO_CLIENT_SECRET="..."
-QBO_REDIRECT_URI="https://admin.mcfinancial.us/api/quickbooks/callback"
+QBO_REDIRECT_URI="https://admin.mcfinance.us/api/quickbooks/callback"
 QBO_ENVIRONMENT="production"     # or "sandbox" with the Development keys
 ```
 

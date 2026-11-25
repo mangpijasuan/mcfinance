@@ -26,6 +26,8 @@ describe('the public site', () => {
     const page = html(file)
     expect(page).toMatch(/^<!doctype html>\n<html lang="en">/)
     expect(page).toMatch(/<title>[^<]*Millionaires Club[^<]*<\/title>/)
+    expect(page).toMatch(/<title>[^<]*MC Finance[^<]*<\/title>/)
+    expect(page).toContain('>MC Finance</a>')
     expect(page).toMatch(/<meta name="description" content="[^"]{20,}">/)
     expect(page).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">')
     for (const link of ['/', '/about', '/membership', '/contact', '/sign-in']) expect(attrs(file, 'href'), link).toContain(link)

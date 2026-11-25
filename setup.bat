@@ -1,7 +1,7 @@
 @echo off
 echo.
 echo ================================================
-echo   MC Financial -- Setup
+echo   MC Finance -- Setup
 echo ================================================
 echo.
 echo Needs Node.js 22+ and Docker Desktop (for the local PostgreSQL database).

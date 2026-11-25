@@ -40,7 +40,7 @@ export async function createMembershipPass(
     ...config,
     formatVersion: 1,
     serialNumber: member.id,
-    organizationName: 'MC Financial',
+    organizationName: 'MC Finance',
     description: 'Millionaires Club Membership',
     logoText: 'Millionaires Club',
     foregroundColor: 'rgb(255, 255, 255)',

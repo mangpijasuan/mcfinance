@@ -343,7 +343,7 @@ function qboDate(date: string | undefined, fallback: Date): Date {
 async function alertTreasurer(subject: string, html: string) {
   const to = process.env.PAYMENT_ALERT_EMAIL || process.env.SECURITY_ALERT_EMAIL
   if (!to) return
-  const sent = await sendEmail(to, `MCFinancial: ${subject}`, html)
+  const sent = await sendEmail(to, `MC Finance: ${subject}`, html)
   if (!sent.ok) console.error('QuickBooks alert could not be delivered:', sent.error)
 }
 
