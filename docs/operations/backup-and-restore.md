@@ -1,5 +1,7 @@
 # Backups and Restore
 
+On the Contabo server and after a move between servers, also see [deploy-contabo.md](deploy-contabo.md) (re-creating the crontab, and `scripts/ops/verify-migration.sh`, which proves a restored or moved database matches the original).
+
 The club's records exist in one PostgreSQL database. This runbook keeps an encrypted copy of it off the server every night, and proves every week that the copy can actually be restored (S-6).
 
 **Targets:** lose at most one day of data (recovery point 24 h); be running again within 4 hours of deciding to restore (recovery time 4 h).
