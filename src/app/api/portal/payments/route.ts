@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireMember } from '@/modules/auth'
 import { readZelleQr, zelleRecipient } from '@/lib/zelle'
 import { stripePaymentsReady } from '@/lib/stripe'
+import { cardFeePercent } from '@/lib/cardFee'
 import { quickBooksStatus, syncAchPayments } from '@/modules/payments/quickbooks'
 
 export async function GET() {
@@ -25,6 +26,7 @@ export async function GET() {
     zelle: zelleRecipient(),
     zelleQr: readZelleQr() !== null,
     stripe: stripePaymentsReady(),
+    cardFeePercent: cardFeePercent(),
     ach: (await quickBooksStatus()).ready,
   })
 }

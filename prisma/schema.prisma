@@ -481,7 +481,9 @@ model PortalPayment {
   type                  String // "contribution" | "loan_payment"
   loanId                String?
   amount                Float
-  method                String // "stripe" | "zelle" | "ach" (a QuickBooks invoice paid by bank transfer)
+  /// The card fee collected on top of `amount`, in cents (0 for bank and Zelle). Never part of the contribution or repayment.
+  feeCents              Int       @default(0)
+  method                String // "stripe" (card, Apple Pay) | "stripe_bank" (Stripe bank debit) | "zelle" | "ach" (a QuickBooks invoice paid by bank transfer)
   status                String    @default("pending") // "pending" | "completed" | "rejected" | "failed"
   stripeSessionId       String?   @unique
   stripePaymentIntentId String?
