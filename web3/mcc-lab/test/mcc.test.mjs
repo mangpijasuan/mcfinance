@@ -113,3 +113,50 @@ test('deployment on a simulated non-local chain ID is rejected', async t => {
   assert.equal((await f.provider.getNetwork()).chainId, 84532n)
   await assert.rejects(f.deploy())
 })
+
+// ── Production-readiness review (docs/operations/production-readiness.md, C4) ──
+
+test('KNOWN LIMITATION: fixed windows allow two periods’ allowance within seconds across a boundary', async t => {
+  // A production design needs a rolling or smoothed limit (or a timelock); this documents today's behaviour.
+  const f = await fixture(t, caps.map(() => unit(1000)))
+  const { token, minter } = await f.deploy()
+  const issuer = minter.connect(f.signers[0])
+  const request = (method, params) => f.connection.provider.request({ method, params })
+  const period = await minter.currentPeriod()
+  const boundary = (period + 1n) * (await minter.PERIOD())
+  await request('evm_setNextBlockTimestamp', ['0x' + (boundary - 2n).toString(16)])
+  await (await issuer.issue(0, f.recipient, unit(1000), id('edge-1'))).wait()
+  await request('evm_setNextBlockTimestamp', ['0x' + boundary.toString(16)])
+  await (await issuer.issue(0, f.recipient, unit(1000), id('edge-2'))).wait()
+  assert.equal(await token.totalSupply(), unit(2000))
+})
+
+test('invariants hold over a long deterministic sequence of issues across all allocations', async t => {
+  const limits = caps.map(cap => cap / 1000n)
+  const f = await fixture(t, limits)
+  const { token, minter } = await f.deploy()
+  let seed = 12345n
+  const next = () => (seed = (seed * 6364136223846793005n + 1442695040888963407n) % (1n << 64n))
+  let accepted = 0
+  for (let n = 0; n < 60; n++) {
+    const i = Number(next() % 6n)
+    const amount = (limits[i] * (1n + (next() % 700n))) / 500n // sometimes above the window limit
+    try { await (await minter.connect(f.signers[i]).issue(i, f.recipient, amount, id(`seq-${n}`))).wait(); accepted++ } catch { /* refused: allowed */ }
+    let sum = 0n
+    for (let j = 0; j < 6; j++) {
+      const issued = await minter.issued(j)
+      assert.ok(issued <= caps[j], `allocation ${j} within its ceiling`)
+      sum += issued
+    }
+    assert.equal(await token.totalSupply(), sum)
+    assert.ok(sum <= TOTAL)
+    assert.ok(await minter.periodIssued(i, await minter.currentPeriod()) <= limits[i])
+  }
+  assert.ok(accepted > 5, 'the sequence exercised real issuance')
+})
+
+test('no administrator functions exist: the only state changes are issue, mintLab and the standard token calls', () => {
+  const writes = (abi) => abi.filter(e => e.type === 'function' && !['view', 'pure'].includes(e.stateMutability)).map(e => e.name).sort()
+  assert.deepEqual(writes(artifacts.MCCLabMinter.abi), ['issue'])
+  assert.deepEqual(writes(artifacts.MCCLabToken.abi), ['approve', 'mintLab', 'transfer', 'transferFrom'])
+})
