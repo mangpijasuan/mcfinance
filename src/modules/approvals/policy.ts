@@ -7,6 +7,7 @@ export type ApprovalAction =
   | 'payment.zelle.confirm' | 'withdrawal.record' | 'loan.create' | 'journal.manual'
   | 'loan.disburse' | 'loan.fee.waive' | 'loan.write_off' | 'contribution.reverse' | 'ledger.opening_balances'
   | 'treasury.bank_balance' | 'treasury.clearing_transfer' | 'rewards.record'
+  | 'rewards.membership.enroll' | 'rewards.membership.correct'
 
 type Policy = {
   label: string
@@ -112,6 +113,24 @@ export const APPROVAL_POLICIES: Record<ApprovalAction, Policy> = {
   // second person: Finance proposes, the Treasurer or a Board member approves.
   'rewards.record': {
     label: 'Record MC Points',
+    makerPermission: 'rewards.record',
+    checkerPermission: 'rewards.approve',
+    thresholdCents: null,
+    approvalsRequired: 1,
+    alwaysEnforced: true,
+  },
+  // Verifying a member's membership history, and correcting it later: the
+  // proposer states the days and the evidence, a second person checks and approves.
+  'rewards.membership.enroll': {
+    label: 'Verify membership history',
+    makerPermission: 'rewards.record',
+    checkerPermission: 'rewards.approve',
+    thresholdCents: null,
+    approvalsRequired: 1,
+    alwaysEnforced: true,
+  },
+  'rewards.membership.correct': {
+    label: 'Correct membership history',
     makerPermission: 'rewards.record',
     checkerPermission: 'rewards.approve',
     thresholdCents: null,

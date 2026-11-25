@@ -6,7 +6,7 @@ import { checkReward, REWARD_MAX_ENTRY, rewardAccount, rewardsEnabled } from '@/
 import { submitOrExecute } from '@/modules/approvals'
 import { operationErrorResponse } from '@/lib/operationError'
 import { prisma } from '@/lib/prisma'
-import { enrollMembershipAccrual, membershipAccrualEnabled, readMembershipProgress } from '@/modules/rewards/membership'
+import { checkCorrection, checkEnrollment, membershipAccrualEnabled, readMembershipAudit, readMembershipProgress } from '@/modules/rewards/membership'
 import { elapsedDays } from '@/modules/rewards/tenure'
 import { dateOnly, isoDateOf, todayIso } from '@/lib/dates'
 
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   if (!member) return Response.json({ error: 'Member not found.' }, { status: 404 })
   const membership = membershipAccrualEnabled() ? {
     membershipAccrual: await readMembershipProgress(memberId),
+    membershipAudit: await readMembershipAudit(memberId),
     maximumHistoricalDays: elapsedDays(dateOnly(isoDateOf(member.joinDate)), dateOnly(todayIso())),
   } : {}
   return Response.json({ member, ...await rewardAccount(memberId), ...membership }, { headers: { 'Cache-Control': 'private, no-store' } })
@@ -31,16 +32,45 @@ export async function POST(req: NextRequest) {
   if (!rewardsEnabled()) return Response.json({ error: 'Rewards are unavailable.' }, { status: 404 })
   const body = await readJsonObject(req)
   const memberId = requiredString(body?.memberId)
-  if (body?.action === 'enroll-membership') {
+  if (body?.action === 'enroll-membership' || body?.action === 'correct-membership') {
     if (!membershipAccrualEnabled()) return Response.json({ error: 'Membership accrual is unavailable.' }, { status: 404 })
-    const verification = requiredString(body.verification)
-    const eligibleDays = body.eligibleDays
-    if (!memberId || !verification || verification.length > 300 || !Number.isSafeInteger(eligibleDays) || eligibleDays < 0) {
-      return badRequest('Provide a member ID, verified eligible days and a verification note.')
+    if (!memberId) return badRequest('Provide a member ID.')
+    try {
+      if (body.action === 'enroll-membership') {
+        const verification = requiredString(body.verification)
+        const eligibleDays = body.eligibleDays
+        if (!verification || verification.length > 300 || !Number.isSafeInteger(eligibleDays) || eligibleDays < 0) {
+          return badRequest('Provide a member ID, verified eligible days and a verification note.')
+        }
+        const input = { memberId, eligibleDays, verification }
+        if ((await prisma.$transaction((tx) => checkEnrollment(tx, input))).existing) return NextResponse.json({ enrolled: true })
+        const out = await submitOrExecute({
+          action: 'rewards.membership.enroll', principal: auth.principal, req, amountCents: null,
+          entityType: 'membership_accrual', entityId: memberId,
+          summary: `Verify ${eligibleDays} active membership days for ${memberId}. Evidence: ${verification}`,
+          payload: input,
+        })
+        return NextResponse.json({ approvalRequest: 'queued' in out ? out.queued : undefined }, { status: 202 })
+      }
+      const reason = requiredString(body.reason)
+      const { adjustmentDays, expectedEligibleDays } = body
+      if (!reason || reason.length > 300 || !Number.isSafeInteger(adjustmentDays) || !Number.isSafeInteger(expectedEligibleDays) || typeof body.syncJoinDate !== 'boolean') {
+        return badRequest('Provide the member, the days to add or take away, the days now stored, whether to adopt the member record’s join date, and the reason with its evidence.')
+      }
+      const input = { memberId, adjustmentDays, expectedEligibleDays, syncJoinDate: body.syncJoinDate, reason }
+      await prisma.$transaction((tx) => checkCorrection(tx, input))
+      const out = await submitOrExecute({
+        action: 'rewards.membership.correct', principal: auth.principal, req, amountCents: null,
+        entityType: 'membership_accrual', entityId: memberId,
+        summary: `Correct membership history of ${memberId}: ${adjustmentDays >= 0 ? '+' : ''}${adjustmentDays} days${input.syncJoinDate ? ', adopt the member record’s join date' : ''}. Reason: ${reason}`,
+        payload: input,
+      })
+      return NextResponse.json({ approvalRequest: 'queued' in out ? out.queued : undefined }, { status: 202 })
+    } catch (err) {
+      const res = operationErrorResponse(err)
+      if (res) return res
+      throw err
     }
-    const enrollment = await enrollMembershipAccrual(auth.principal, req, memberId, eligibleDays, verification)
-    if (enrollment.error) return badRequest(enrollment.error)
-    return Response.json({ enrolled: true })
   }
   const reference = requiredString(body?.reference)
   const reason = requiredString(body?.reason)
