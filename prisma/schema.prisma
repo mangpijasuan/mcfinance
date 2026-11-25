@@ -39,10 +39,12 @@ model User {
   mfaEnabledAt     DateTime?
   mfaLastUsedStep  Int?
 
-  roles         StaffRoleAssignment[]
-  sessions      StaffSession[]
-  recoveryCodes MfaRecoveryCode[]
-  member        Member?               @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  roles           StaffRoleAssignment[]
+  sessions        StaffSession[]
+  recoveryCodes   MfaRecoveryCode[]
+  member          Member?               @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  rewardsProposed RewardEntry[]         @relation("RewardActor")
+  rewardsApproved RewardEntry[]         @relation("RewardApprover")
 
   @@unique([kind, memberId])
 }
@@ -143,30 +145,32 @@ model Member {
 }
 
 model MembershipAccrual {
-  memberId       String   @id
-  joinDate       DateTime @db.Date
-  eligibleDays   Int
-  checkpoint     DateTime @db.Date
-  active         Boolean
-  timeZone       String
-  verifiedBy     String
-  verification   String
-  createdAt      DateTime @default(now())
-  member         Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  memberId     String   @id
+  joinDate     DateTime @db.Date
+  eligibleDays Int
+  checkpoint   DateTime @db.Date
+  active       Boolean
+  timeZone     String
+  verifiedBy   String
+  verification String
+  createdAt    DateTime @default(now())
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
 }
 
 model RewardEntry {
-  id        String   @id @default(cuid())
-  memberId  String
-  points    Int
-  reference String
-  reason    String
+  id         String   @id @default(cuid())
+  memberId   String
+  points     Int
+  reference  String
+  reason     String
   /// The staff member who proposed the entry (the maker).
-  actorId   String
+  actorId    String
   /// The second staff member who approved it (the checker); null only for entries made before approvals.
   approvedBy String?
-  createdAt DateTime @default(now())
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  createdAt  DateTime @default(now())
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  actor      User     @relation("RewardActor", fields: [actorId], references: [id], onDelete: Restrict)
+  approver   User?    @relation("RewardApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
 
   @@unique([memberId, reference])
   @@index([memberId, createdAt])
