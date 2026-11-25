@@ -22,6 +22,7 @@ import {
 import { type ReverseInput, reverseContribution } from '@/modules/contributions'
 import { type OpeningPayload, postOpeningBalances } from '@/modules/accounting/opening'
 import { type RewardInput, recordRewardEntry } from '@/modules/rewards'
+import { type CorrectInput, type EnrollInput, correctMembership, enrollMembership } from '@/modules/rewards/membership'
 import { type BankBalanceInput, recordBankBalance } from '@/modules/treasury'
 import { type TransferInput, recordTransfer } from '@/modules/accounting/reconciliation'
 import { APPROVAL_POLICIES, type ApprovalAction, needsApproval } from './policy'
@@ -42,6 +43,8 @@ export type ApprovalPayload = {
   'treasury.bank_balance': BankBalanceInput
   'treasury.clearing_transfer': TransferInput
   'rewards.record': RewardInput
+  'rewards.membership.enroll': EnrollInput
+  'rewards.membership.correct': CorrectInput
 }
 
 /** Run an operation, now (no approval needed) or when its request is approved. */
@@ -89,6 +92,14 @@ export async function executeOperation<A extends ApprovalAction>(
     case 'rewards.record': {
       const entry = await recordRewardEntry(tx, payload as RewardInput, actors, ctx)
       return { resultRef: entry.id, result: entry }
+    }
+    case 'rewards.membership.enroll': {
+      const account = await enrollMembership(tx, payload as EnrollInput, actors, ctx)
+      return { resultRef: account.memberId, result: account }
+    }
+    case 'rewards.membership.correct': {
+      const correction = await correctMembership(tx, payload as CorrectInput, actors, ctx)
+      return { resultRef: correction.id, result: correction }
     }
     case 'contribution.reverse': {
       const result = await reverseContribution(tx, payload as ReverseInput, actors, ctx)

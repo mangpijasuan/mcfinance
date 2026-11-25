@@ -6,7 +6,12 @@ import RewardHistory, { type RewardSummary } from '@/components/portal/RewardHis
 import MembershipProgress, { type MembershipProgressData } from '@/components/portal/MembershipProgress'
 import EarnSimulator from '@/components/staff/EarnSimulator'
 
-type Account = RewardSummary & { member: { id: string; legalName: string; status: string }; membershipAccrual?: MembershipProgressData | null; maximumHistoricalDays?: number }
+type Account = RewardSummary & { member: { id: string; legalName: string; status: string }; membershipAccrual?: MembershipProgressData | null; maximumHistoricalDays?: number; membershipAudit?: MembershipAudit }
+type MembershipAudit = {
+  stored: { eligibleDays: number; checkpoint: string; joinDate: string; active: boolean } | null
+  joinDateDrift: false | { memberRecord: string }
+  history: { id: string; kind: string; previousEligibleDays: number | null; newEligibleDays: number; reason: string; createdAt: string }[]
+}
 
 export default function RewardsAdmin({ earnSimulatorEnabled = false, canRecord = false }: { earnSimulatorEnabled?: boolean; canRecord?: boolean }) {
   const [memberId, setMemberId] = useState('')
@@ -19,6 +24,9 @@ export default function RewardsAdmin({ earnSimulatorEnabled = false, canRecord =
   const [notice, setNotice] = useState('')
   const [eligibleDays, setEligibleDays] = useState('')
   const [verification, setVerification] = useState('')
+  const [adjustment, setAdjustment] = useState('')
+  const [syncJoin, setSyncJoin] = useState(false)
+  const [correctionReason, setCorrectionReason] = useState('')
 
   async function readAccount(id: string) {
     const res = await fetch('/api/rewards?memberId=' + encodeURIComponent(id))
@@ -68,12 +76,35 @@ export default function RewardsAdmin({ earnSimulatorEnabled = false, canRecord =
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Unable to verify membership.')
       await readAccount(account.member.id)
-      setNotice('Membership history verified.')
+      setNotice(`Sent for approval (${data.approvalRequest?.publicId ?? 'already recorded'}). The history is verified when someone else approves it in Approvals.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to verify membership.')
     } finally { setBusy(false) }
   }
 
+  async function correct(e: React.FormEvent) {
+    e.preventDefault()
+    const stored = account?.membershipAudit?.stored
+    if (!account || !stored) return
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const res = await fetch('/api/rewards', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'correct-membership', memberId: account.member.id, adjustmentDays: Number(adjustment || 0),
+          expectedEligibleDays: stored.eligibleDays, syncJoinDate: syncJoin, reason: correctionReason,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Unable to propose the correction.')
+      setNotice(`Correction sent for approval (${data.approvalRequest?.publicId}). Nothing changes until someone else approves it in Approvals.`)
+      setAdjustment(''); setSyncJoin(false); setCorrectionReason('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to propose the correction.')
+    } finally { setBusy(false) }
+  }
+
+  const audit = account?.membershipAudit
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
       <PageHeader title="MC Rewards" sub="Propose participation rewards and corrections; a second person approves each one." />
@@ -98,11 +129,37 @@ export default function RewardsAdmin({ earnSimulatorEnabled = false, canRecord =
                     <p className="text-sm text-gray-600">Enter confirmed active days only. Maximum elapsed days: {account.maximumHistoricalDays}.</p>
                     <Input label="Verified active days" required type="number" min={0} max={account.maximumHistoricalDays} step={1} value={eligibleDays} onChange={e => setEligibleDays(e.target.value)} />
                     <Input label="Verification note" required maxLength={300} value={verification} onChange={e => setVerification(e.target.value)} />
-                    <Button type="submit" disabled={busy}>Verify and enroll</Button>
+                    <Button type="submit" disabled={busy}>Send for approval</Button>
                   </form>
                 </Card>
               )}
             </div>
+          )}
+          {canRecord && audit?.stored && (
+            <Card className="p-4">
+              <h2 className="mb-3 font-semibold">Correct membership history</h2>
+              <p className="mb-3 text-sm text-gray-600">Verified days stored: <strong>{audit.stored.eligibleDays}</strong> (as of {audit.stored.checkpoint}); join date used: {audit.stored.joinDate}. A correction needs a reason with its evidence, and a second person approves it.</p>
+              {audit.joinDateDrift && <p role="status" className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900">The member record now says they joined on {audit.joinDateDrift.memberRecord}, which differs from the verified join date. Tick the box to adopt it.</p>}
+              <form onSubmit={correct} className="space-y-3">
+                <Input label="Days to add (+) or take away (−)" type="number" step={1} value={adjustment} onChange={e => setAdjustment(e.target.value)} />
+                {audit.joinDateDrift && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={syncJoin} onChange={e => setSyncJoin(e.target.checked)} /> Adopt the member record’s join date</label>}
+                <Input label="Reason and evidence" required maxLength={300} value={correctionReason} onChange={e => setCorrectionReason(e.target.value)} />
+                <Button type="submit" disabled={busy}>Send correction for approval</Button>
+              </form>
+            </Card>
+          )}
+          {audit && audit.history.length > 0 && (
+            <Card className="p-4">
+              <h2 className="mb-3 font-semibold">History of verification and corrections</h2>
+              <ul className="space-y-2 text-sm">
+                {audit.history.map(h => (
+                  <li key={h.id} className="border-b border-gray-100 pb-2">
+                    <span className="font-medium">{h.kind === 'enroll' ? 'Verified' : 'Corrected'}</span>: {h.previousEligibleDays === null ? '' : `${h.previousEligibleDays} → `}{h.newEligibleDays} days · {new Date(h.createdAt).toLocaleDateString('en-US')}
+                    <span className="block text-gray-600">{h.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           )}
           <div className="grid items-start gap-4 md:grid-cols-2">
             <RewardHistory account={account} />

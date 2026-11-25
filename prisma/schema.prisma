@@ -140,6 +140,7 @@ model Member {
   users                     User[]
   rewardEntries             RewardEntry[]
   membershipAccrual         MembershipAccrual?
+  membershipCorrections     MembershipAccrualCorrection[]
 }
 
 model MembershipAccrual {
@@ -149,10 +150,32 @@ model MembershipAccrual {
   checkpoint     DateTime @db.Date
   active         Boolean
   timeZone       String
+  /// The staff member who proposed the verification (the maker).
   verifiedBy     String
   verification   String
+  /// The second staff member who approved it; null only for enrolments made before approvals.
+  approvedBy     String?
   createdAt      DateTime @default(now())
   member         Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+}
+
+/// Append-only history of every verification and correction of a member's
+/// membership days or join date, each proposed and approved by two people.
+model MembershipAccrualCorrection {
+  id                   String   @id @default(cuid())
+  memberId             String
+  kind                 String // "enroll" | "adjust" | "sync_join_date" | "adjust_and_sync"
+  previousEligibleDays Int?
+  newEligibleDays      Int
+  previousJoinDate     DateTime? @db.Date
+  newJoinDate          DateTime @db.Date
+  reason               String
+  proposedBy           String
+  approvedBy           String
+  createdAt            DateTime @default(now())
+  member               Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  @@index([memberId, createdAt])
 }
 
 model RewardEntry {
