@@ -124,7 +124,7 @@ export async function processStripeEvent(event: Stripe.Event) {
 async function alertStripeIssue(eventId: string, reason: string) {
   const to = process.env.PAYMENT_ALERT_EMAIL || process.env.SECURITY_ALERT_EMAIL
   if (!to) return
-  const sent = await sendEmail(to, 'MCFinancial: Stripe payment needs attention', `<p>Event ${escapeHtml(eventId)}: ${escapeHtml(reason)}</p><p>Review Payments and reconcile against Stripe before adjusting the books.</p>`)
+  const sent = await sendEmail(to, 'MC Finance: Stripe payment needs attention', `<p>Event ${escapeHtml(eventId)}: ${escapeHtml(reason)}</p><p>Review Payments and reconcile against Stripe before adjusting the books.</p>`)
   if (!sent.ok) console.error('Stripe alert could not be delivered:', sent.error)
 }
 

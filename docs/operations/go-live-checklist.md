@@ -22,9 +22,9 @@ As of 2026-11-08 the server was found in Hetzner's **Rescue System** (since 2026
 
 ## 3. Address and HTTPS
 
-- [ ] Register **`mcfinancial.us`** (Gate #1 A16).
-- [ ] DNS `A` records: `admin.mcfinancial.us` and `app.mcfinancial.us` → `46.225.99.160` (and `AAAA` → `2a01:4f8:1c1b:a9c4::2` if wanted). [Deploy guide §2](deploy-hetzner-postgres.md#2-point-your-domain).
-- [ ] In `.env`: `DOMAIN=admin.mcfinancial.us`, `APP_DOMAIN=app.mcfinancial.us`. In `.env.production`: `NEXTAUTH_URL="https://admin.mcfinancial.us"`. Restart the stack; Caddy obtains the certificates.
+- [ ] Register **`mcfinance.us`** (Gate #1 A16).
+- [ ] DNS `A` records: `mcfinance.us`, `www.mcfinance.us`, `admin.mcfinance.us` and `app.mcfinance.us` → the verified current Hetzner server IP. [Domain migration guide](mcfinance-domain.md).
+- [ ] In `.env`: `DOMAIN=admin.mcfinance.us`, `APP_DOMAIN=app.mcfinance.us`. In `.env.production`: `NEXTAUTH_URL="https://admin.mcfinance.us"`. Restart the stack; Caddy obtains the certificates.
 - [ ] Both addresses open with a padlock. Until the domain exists, the trial `admin.` / `app.46-225-99-160.sslip.io` addresses work for a closed pilot.
 
 ## 4. Backups, and one restore

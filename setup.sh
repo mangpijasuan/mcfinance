@@ -3,7 +3,7 @@ set -e
 
 echo ""
 echo "================================================"
-echo "  MC Financial - Setup"
+echo "  MC Finance - Setup"
 echo "================================================"
 echo ""
 

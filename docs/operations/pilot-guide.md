@@ -86,7 +86,7 @@ If one does not hold, fix it and run one more month with the same group.
 Thank you for trying the club's new member app. For this month it runs alongside the usual process; your payments are still recorded the usual way too.
 
 **Sign in**
-- On your phone, open: **app.mcfinancial.us** *(or the address your officer gives you)*
+- On your phone, open: **app.mcfinance.us** *(or the address your officer gives you)*
 - Member ID: **MC-_____** · Password: the one your officer gave you
 - Tip: add it to your home screen (iPhone: Share → *Add to Home Screen*; Android: menu → *Add to Home screen*).
 
