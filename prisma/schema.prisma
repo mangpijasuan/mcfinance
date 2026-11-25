@@ -39,10 +39,16 @@ model User {
   mfaEnabledAt     DateTime?
   mfaLastUsedStep  Int?
 
-  roles         StaffRoleAssignment[]
-  sessions      StaffSession[]
-  recoveryCodes MfaRecoveryCode[]
-  member        Member?               @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  roles               StaffRoleAssignment[]
+  sessions            StaffSession[]
+  recoveryCodes       MfaRecoveryCode[]
+  member              Member?                       @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  rewardsProposed     RewardEntry[]                 @relation("RewardActor")
+  rewardsApproved     RewardEntry[]                 @relation("RewardApprover")
+  accrualsVerified    MembershipAccrual[]           @relation("AccrualVerifier")
+  accrualsApproved    MembershipAccrual[]           @relation("AccrualApprover")
+  correctionsProposed MembershipAccrualCorrection[] @relation("CorrectionProposer")
+  correctionsApproved MembershipAccrualCorrection[] @relation("CorrectionApprover")
 
   @@unique([kind, memberId])
 }
@@ -128,10 +134,10 @@ model Member {
   contributions             Contribution[]
   duesPlans                 DuesPlan[]
   duesObligations           DuesObligation[]
-  loansAsBorrower           Loan[]              @relation("Borrower")
-  loansAsCosigner           Loan[]              @relation("Cosigner")
-  historicalLoansAsBorrower HistoricalLoan[]    @relation("HistoricalBorrower")
-  historicalLoansAsCosigner HistoricalLoan[]    @relation("HistoricalCosigner")
+  loansAsBorrower           Loan[]                        @relation("Borrower")
+  loansAsCosigner           Loan[]                        @relation("Cosigner")
+  historicalLoansAsBorrower HistoricalLoan[]              @relation("HistoricalBorrower")
+  historicalLoansAsCosigner HistoricalLoan[]              @relation("HistoricalCosigner")
   loanPayments              LoanPayment[]
   yearlyTotals              YearlyTotal[]
   withdrawals               Withdrawal[]
@@ -144,52 +150,58 @@ model Member {
 }
 
 model MembershipAccrual {
-  memberId       String   @id
-  joinDate       DateTime @db.Date
-  eligibleDays   Int
-  checkpoint     DateTime @db.Date
-  active         Boolean
-  timeZone       String
+  memberId     String   @id
+  joinDate     DateTime @db.Date
+  eligibleDays Int
+  checkpoint   DateTime @db.Date
+  active       Boolean
+  timeZone     String
   /// The staff member who proposed the verification (the maker).
-  verifiedBy     String
-  verification   String
+  verifiedBy   String
+  verification String
   /// The second staff member who approved it; null only for enrolments made before approvals.
-  approvedBy     String?
-  createdAt      DateTime @default(now())
-  member         Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  approvedBy   String?
+  createdAt    DateTime @default(now())
+  verifier     User     @relation("AccrualVerifier", fields: [verifiedBy], references: [id], onDelete: Restrict)
+  approver     User?    @relation("AccrualApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
 }
 
 /// Append-only history of every verification and correction of a member's
 /// membership days or join date, each proposed and approved by two people.
 model MembershipAccrualCorrection {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   memberId             String
   kind                 String // "enroll" | "adjust" | "sync_join_date" | "adjust_and_sync"
   previousEligibleDays Int?
   newEligibleDays      Int
   previousJoinDate     DateTime? @db.Date
-  newJoinDate          DateTime @db.Date
+  newJoinDate          DateTime  @db.Date
   reason               String
   proposedBy           String
   approvedBy           String
-  createdAt            DateTime @default(now())
-  member               Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  createdAt            DateTime  @default(now())
+  member               Member    @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  proposer             User      @relation("CorrectionProposer", fields: [proposedBy], references: [id], onDelete: Restrict)
+  approver             User      @relation("CorrectionApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
 
   @@index([memberId, createdAt])
 }
 
 model RewardEntry {
-  id        String   @id @default(cuid())
-  memberId  String
-  points    Int
-  reference String
-  reason    String
+  id         String   @id @default(cuid())
+  memberId   String
+  points     Int
+  reference  String
+  reason     String
   /// The staff member who proposed the entry (the maker).
-  actorId   String
+  actorId    String
   /// The second staff member who approved it (the checker); null only for entries made before approvals.
   approvedBy String?
-  createdAt DateTime @default(now())
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  createdAt  DateTime @default(now())
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  actor      User     @relation("RewardActor", fields: [actorId], references: [id], onDelete: Restrict)
+  approver   User?    @relation("RewardApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
 
   @@unique([memberId, reference])
   @@index([memberId, createdAt])
