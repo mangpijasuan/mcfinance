@@ -69,7 +69,7 @@ These stay off for the pilot. Each has its own decision or guide.
 
 | What | Stays | Until |
 |---|---|---|
-| Card payments (Stripe) | Keys empty | The club opens a Stripe account and decides who pays the fees (Q-11) |
+| Card and bank payments (Stripe) | Keys empty | The club opens a Stripe account and decides who pays the fees (Q-11); `CARD_FEE_PERCENT` stays unset until then ([card-fee.md](card-fee.md)) |
 | Bank payments (QuickBooks ACH) | Not connected | The Treasurer connects QuickBooks ([quickbooks.md](quickbooks.md)) |
 | Email (Resend) | Key empty | A sending domain exists; password resets are done by an officer meanwhile |
 | Late fees | `LATE_FEES_ENABLED="false"` | Counsel confirms the state's limits (Gate #1 A7) |

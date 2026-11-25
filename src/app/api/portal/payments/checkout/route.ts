@@ -5,6 +5,7 @@ import { requireMember } from '@/modules/auth'
 import { parseDollars, toLegacyDollars, cents } from '@/lib/money'
 import { nextPublicId } from '@/lib/publicIds'
 import { getStripe, stripePaymentsReady } from '@/lib/stripe'
+import { cardFeeCents, cardFeePercent } from '@/lib/cardFee'
 import { memberAppOrigin } from '@/lib/hosts'
 import { badRequest, readJsonObject } from '@/lib/http'
 import { auditContext, recordAudit } from '@/modules/audit'
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   const body = await readJsonObject(req)
   if (!body) return badRequest('Invalid request body.')
   const type = body.type === 'loan_payment' ? 'loan_payment' : body.type === 'contribution' ? 'contribution' : null
-  const method = body.method === 'zelle' ? 'zelle' : body.method === 'stripe' ? 'stripe' : body.method === 'ach' ? 'ach' : null
+  const method = body.method === 'zelle' ? 'zelle' : body.method === 'stripe' ? 'stripe' : body.method === 'stripe_bank' ? 'stripe_bank' : body.method === 'ach' ? 'ach' : null
   let amountCents: number
   try { amountCents = parseDollars(typeof body.amount === 'number' ? body.amount : String(body.amount ?? '')) }
   catch { return badRequest('Amount must be a dollar amount with at most two decimals.') }
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest) {
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: 'Amount must be greater than 0.' }, { status: 400 })
   }
-  if (method === 'stripe' && !stripePaymentsReady()) {
-    return NextResponse.json({ error: 'Card payments are not available yet. Please use Zelle.' }, { status: 409 })
+  if ((method === 'stripe' || method === 'stripe_bank') && !stripePaymentsReady()) {
+    return NextResponse.json({ error: 'Online payments are not available yet. Please use Zelle.' }, { status: 409 })
   }
 
   let loanId: string | null = null
@@ -56,6 +57,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Paying by bank is not available yet. Please use card or Zelle.' }, { status: 409 })
   }
 
+  // Only card and Apple Pay carry the fee; the member's balance is credited the amount they chose.
+  const feePercent = method === 'stripe' ? cardFeePercent() : 0
+  const feeCents = cardFeeCents(amountCents, feePercent)
+
   const ctx = auditContext(req, auth.principal)
   const portalPayment = await prisma.$transaction(async (tx) => {
     const created = await tx.portalPayment.create({
@@ -65,6 +70,7 @@ export async function POST(req: NextRequest) {
       type,
       loanId,
       amount,
+      feeCents,
       method,
       status: 'pending',
       zelleReference: method === 'zelle' ? (body.zelleReference ? String(body.zelleReference).slice(0, 500) : null) : null,
@@ -106,15 +112,14 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { name: `Millionaires Club - ${description}` },
-          unit_amount: amountCents,
-        },
-        quantity: 1,
-      }],
+      // Card includes Apple Pay and Google Pay. Bank debit settles days later: the webhook waits for it.
+      payment_method_types: method === 'stripe_bank' ? ['us_bank_account'] : ['card'],
+      line_items: [
+        { price_data: { currency: 'usd', product_data: { name: `Millionaires Club - ${description}` }, unit_amount: amountCents }, quantity: 1 },
+        ...(feeCents > 0
+          ? [{ price_data: { currency: 'usd', product_data: { name: `Card fee (${feePercent}%)` }, unit_amount: feeCents }, quantity: 1 }]
+          : []),
+      ],
       success_url: `${baseUrl}/portal/pay?status=success`,
       cancel_url: `${baseUrl}/portal/pay?status=cancelled`,
       client_reference_id: portalPayment.id,

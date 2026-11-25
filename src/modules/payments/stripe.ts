@@ -21,8 +21,8 @@ async function completeCheckout(session: Stripe.Checkout.Session, eventId: strin
   if (!portalPaymentId) throw new StripeReviewError('Paid checkout has no club payment reference.')
 
   const payment = await prisma.portalPayment.findUnique({ where: { id: portalPaymentId } })
-  if (!payment || payment.method !== 'stripe') throw new StripeReviewError('Checkout has no matching club payment.')
-  if (session.id !== payment.stripeSessionId || session.currency !== 'usd' || session.amount_total !== fromLegacyDollars(payment.amount)) {
+  if (!payment || (payment.method !== 'stripe' && payment.method !== 'stripe_bank')) throw new StripeReviewError('Checkout has no matching club payment.')
+  if (session.id !== payment.stripeSessionId || session.currency !== 'usd' || session.amount_total !== fromLegacyDollars(payment.amount) + payment.feeCents) {
     throw new StripeReviewError('Checkout session, currency, or amount does not match the club payment.')
   }
 
@@ -35,8 +35,8 @@ async function completeCheckout(session: Stripe.Checkout.Session, eventId: strin
     failedAction: 'payment.stripe.record_failed',
     details: {
       paymentDate: new Date(settledAt * 1000),
-      paymentMethod: 'Card (Stripe)',
-      comments: `Stripe checkout ${session.id}`,
+      paymentMethod: payment.method === 'stripe_bank' ? 'Bank (Stripe)' : 'Card (Stripe)',
+      comments: `Stripe checkout ${session.id}${payment.feeCents > 0 ? `; card fee ${(payment.feeCents / 100).toFixed(2)} collected separately` : ''}`,
       source: 'Stripe',
     },
     references: { stripePaymentIntentId: paymentIntentId },
@@ -49,7 +49,7 @@ async function expireCheckout(session: Stripe.Checkout.Session, eventId: string)
   if (!portalPaymentId) return
   await prisma.$transaction(async (tx) => {
     const expired = await tx.portalPayment.updateMany({
-      where: { id: portalPaymentId, stripeSessionId: session.id, method: 'stripe', status: 'pending' },
+      where: { id: portalPaymentId, stripeSessionId: session.id, method: { in: ['stripe', 'stripe_bank'] }, status: 'pending' },
       data: { status: 'failed' },
     })
     if (expired.count === 0) return

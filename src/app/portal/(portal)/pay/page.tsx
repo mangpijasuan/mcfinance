@@ -3,6 +3,7 @@ import { useEffect, useId, useState } from 'react'
 import { statusLabel } from '@/components/ui'
 import { useSearchParams } from 'next/navigation'
 import { cn, fmt$, fmtDate } from '@/lib/utils'
+import { cardFeeCents } from '@/lib/cardFee'
 import { Building2, Check, CreditCard, Copy, Download, ExternalLink, Landmark, ShieldCheck, Clock, CheckCircle, XCircle, Info, Receipt, Wallet } from 'lucide-react'
 import { Empty, PageHeader, PageSkeleton, Pill, Row, Rows, button, field, fieldBox, surface, type Tone } from '@/components/portal/kit'
 import { BANKS, BANK_STORAGE_KEY, findBank } from '@/components/portal/banks'
@@ -86,7 +87,7 @@ function CopyLine({ label, value, display, copyLabel }: { label: string; value: 
 
 type Preset = { label: string; amount: number }
 
-function PayForm({ type, loanId, defaultAmount, presets = [], maxAmount, zelle, qr, stripe, ach, onDone }: {
+function PayForm({ type, loanId, defaultAmount, presets = [], maxAmount, zelle, qr, stripe, ach, cardFeePct, onDone }: {
   type: 'contribution' | 'loan_payment'
   loanId?: string
   defaultAmount: number
@@ -97,10 +98,12 @@ function PayForm({ type, loanId, defaultAmount, presets = [], maxAmount, zelle, 
   qr: boolean
   stripe: boolean
   ach: boolean
+  /** The fee added to card and Apple Pay payments, in percent (0 = none). */
+  cardFeePct: number
   onDone: () => void
 }) {
   const [amount, setAmount] = useState(defaultAmount.toFixed(2))
-  const [method, setMethod] = useState<'stripe' | 'ach' | 'zelle'>(() => stripe ? 'stripe' : ach ? 'ach' : 'zelle')
+  const [method, setMethod] = useState<'stripe' | 'stripe_bank' | 'ach' | 'zelle'>(() => stripe ? 'stripe_bank' : ach ? 'ach' : 'zelle')
   const [zelleReference, setZelleReference] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -129,9 +132,9 @@ function PayForm({ type, loanId, defaultAmount, presets = [], maxAmount, zelle, 
       setSubmitting(false)
       return
     }
-    if (method === 'stripe' || method === 'ach') {
+    if (method === 'stripe' || method === 'stripe_bank' || method === 'ach') {
       if (data.url) { window.location.href = data.url; return }
-      setError(method === 'ach' ? 'Could not open the bank payment page.' : 'Could not start checkout.')
+      setError(method === 'ach' || method === 'stripe_bank' ? 'Could not open the bank payment page.' : 'Could not start checkout.')
       setSubmitting(false)
       return
     }
@@ -153,10 +156,13 @@ function PayForm({ type, loanId, defaultAmount, presets = [], maxAmount, zelle, 
   }
 
   const methods = [
-    ...(stripe ? [{ id: 'stripe' as const, label: 'Card', icon: CreditCard, hint: 'Debit or credit card' }] : []),
-    ...(ach ? [{ id: 'ach' as const, label: 'Bank (ACH)', icon: Building2, hint: 'From your bank account' }] : []),
-    { id: 'zelle' as const, label: 'Zelle', icon: Landmark, hint: 'From your bank’s app' },
+    // The lowest-cost ways first. The QuickBooks bank route is only offered when Stripe is not set up.
+    ...(stripe ? [{ id: 'stripe_bank' as const, label: 'Bank (ACH)', icon: Building2, hint: 'No fee' }] : ach ? [{ id: 'ach' as const, label: 'Bank (ACH)', icon: Building2, hint: 'From your bank account' }] : []),
+    { id: 'zelle' as const, label: 'Zelle', icon: Landmark, hint: 'No fee' },
+    ...(stripe ? [{ id: 'stripe' as const, label: 'Card or Apple Pay', icon: CreditCard, hint: cardFeePct > 0 ? `+${cardFeePct}% card fee` : 'Debit or credit card' }] : []),
   ]
+  const enteredCents = Math.round((parseFloat(amount) || 0) * 100)
+  const feeCents = method === 'stripe' ? cardFeeCents(enteredCents, cardFeePct) : 0
 
   return (
     <div className="space-y-4">
@@ -206,6 +212,24 @@ function PayForm({ type, loanId, defaultAmount, presets = [], maxAmount, zelle, 
           ))}
         </div>
       </div>
+
+      {method === 'stripe_bank' && (
+        <p className="flex gap-2 rounded-xl bg-gray-50 p-4 text-sm text-gray-700 ring-1 ring-inset ring-gray-900/5">
+          <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden />
+          <span>Choose your bank on the next page and sign in there. Your bank details never reach this app. Bank payments take a few days; it shows as pending until then. No fee.</span>
+        </p>
+      )}
+
+      {method === 'stripe' && feeCents > 0 && (
+        <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-950 ring-1 ring-inset ring-amber-600/20" role="note">
+          <dl className="space-y-1 tabular-nums">
+            <div className="flex justify-between gap-4"><dt>Your payment</dt><dd>{fmt$(enteredCents / 100)}</dd></div>
+            <div className="flex justify-between gap-4"><dt>Card fee ({cardFeePct}%)</dt><dd>{fmt$(feeCents / 100)}</dd></div>
+            <div className="flex justify-between gap-4 border-t border-amber-600/20 pt-1 font-semibold"><dt>Total charged to your card</dt><dd>{fmt$((enteredCents + feeCents) / 100)}</dd></div>
+          </dl>
+          <p className="mt-2 text-xs">The full {fmt$(enteredCents / 100)} is credited to you; the fee is not part of it. Pay by bank or Zelle to avoid the fee.</p>
+        </div>
+      )}
 
       {method === 'ach' && (
         <p className="flex gap-2 rounded-xl bg-gray-50 p-4 text-sm text-gray-700 ring-1 ring-inset ring-gray-900/5">
@@ -277,7 +301,7 @@ function PayForm({ type, loanId, defaultAmount, presets = [], maxAmount, zelle, 
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
 
       <button onClick={submit} disabled={submitting} className={cn(button.primary, 'w-full min-h-11')}>
-        {submitting ? 'Please wait…' : method === 'stripe' ? 'Continue to card payment' : method === 'ach' ? 'Continue to bank payment' : 'Submit Zelle claim'}
+        {submitting ? 'Please wait…' : method === 'stripe' ? (feeCents > 0 ? `Continue to card payment · ${fmt$((enteredCents + feeCents) / 100)}` : 'Continue to card payment') : method === 'stripe_bank' || method === 'ach' ? 'Continue to bank payment' : 'Submit Zelle claim'}
       </button>
     </div>
   )
@@ -315,6 +339,7 @@ export default function PortalPayPage() {
   const [zelleQr, setZelleQr] = useState(false)
   const [stripe, setStripe] = useState(false)
   const [ach, setAch] = useState(false)
+  const [cardFeePct, setCardFeePct] = useState(0)
   const [loading, setLoading] = useState(true)
   const [what, setWhat] = useState<'dues' | 'loan'>(searchParams.get('for') === 'loan' ? 'loan' : 'dues')
 
@@ -337,6 +362,7 @@ export default function PortalPayPage() {
       setZelleQr(paymentsData.zelleQr === true)
       setStripe(paymentsData.stripe === true)
       setAch(paymentsData.ach === true)
+      setCardFeePct(Number(paymentsData.cardFeePercent) > 0 ? Number(paymentsData.cardFeePercent) : 0)
     }
     setLoading(false)
   }
@@ -404,14 +430,14 @@ export default function PortalPayPage() {
                 defaultAmount={askedAmount !== null && searchParams.get('for') === 'loan' ? Math.min(askedAmount, activeLoan.balanceRemaining) : loanMonthly}
                 presets={loanPresets}
                 maxAmount={activeLoan.balanceRemaining}
-                zelle={zelle} qr={zelleQr} stripe={stripe} ach={ach} onDone={load}
+                zelle={zelle} qr={zelleQr} stripe={stripe} ach={ach} cardFeePct={cardFeePct} onDone={load}
               />
             ) : (
               <PayForm key="dues"
                 type="contribution"
                 defaultAmount={askedAmount !== null && searchParams.get('for') !== 'loan' ? askedAmount : monthly}
                 presets={duesPresets}
-                zelle={zelle} qr={zelleQr} stripe={stripe} ach={ach} onDone={load}
+                zelle={zelle} qr={zelleQr} stripe={stripe} ach={ach} cardFeePct={cardFeePct} onDone={load}
               />
             )}
           </section>
@@ -430,7 +456,7 @@ export default function PortalPayPage() {
                 <Row key={p.id}
                   icon={p.status === 'completed' ? CheckCircle : p.status === 'rejected' || p.status === 'failed' ? XCircle : Clock}
                   tone={STATUS_TONE[p.status] ?? 'gray'}
-                  title={<>{p.type === 'contribution' ? 'Contribution' : `Loan payment${p.loanId ? ` · ${p.loanId}` : ''}`}<span className="font-normal text-gray-500"> · {p.method === 'stripe' ? 'Card' : p.method === 'ach' ? 'Bank (ACH)' : 'Zelle'}</span></>}
+                  title={<>{p.type === 'contribution' ? 'Contribution' : `Loan payment${p.loanId ? ` · ${p.loanId}` : ''}`}<span className="font-normal text-gray-500"> · {p.method === 'stripe' ? 'Card' : p.method === 'stripe_bank' || p.method === 'ach' ? 'Bank (ACH)' : 'Zelle'}</span></>}
                   meta={<>
                     {fmtDate(p.createdAt)}
                     {p.status === 'rejected' && p.rejectionReason && <span className="block text-red-700">Reason: {p.rejectionReason}</span>}
@@ -439,7 +465,7 @@ export default function PortalPayPage() {
                     )}
                   </>}
                   end={<>
-                    <span className="text-sm font-semibold text-gray-900 tabular-nums">{fmt$(p.amount)}</span>
+                    <span className="text-sm font-semibold text-gray-900 tabular-nums">{fmt$(p.amount)}{p.feeCents > 0 && <span className="block text-right text-[11px] font-normal text-gray-500">+ {fmt$(p.feeCents / 100)} card fee</span>}</span>
                     <Pill tone={STATUS_TONE[p.status] ?? 'gray'}>{statusLabel(p.status)}</Pill>
                   </>}
                 />
